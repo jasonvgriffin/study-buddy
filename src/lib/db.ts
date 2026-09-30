@@ -160,6 +160,7 @@ export async function figuresForCard(cardId: string): Promise<StoredFigure[]> {
   const figures = (await db.getAll('figures')).filter((figure) => figure.cardId === cardId);
   return figures.sort((a, b) => {
     if (a.role !== b.role) return a.role === 'question' ? -1 : 1;
+    if (!!a.itemId !== !!b.itemId) return a.itemId ? 1 : -1;
     return a.id.localeCompare(b.id);
   });
 }
@@ -172,6 +173,7 @@ export async function figuresForDraftCapture(draftId: string, captureId: string)
   );
   return figures.sort((a, b) => {
     if (a.role !== b.role) return a.role === 'question' ? -1 : 1;
+    if (!!a.itemId !== !!b.itemId) return a.itemId ? 1 : -1;
     return a.id.localeCompare(b.id);
   });
 }
@@ -346,6 +348,7 @@ export async function exportBackup(): Promise<BackupFile> {
       cardId: figure.cardId,
       captureId: figure.captureId,
       role: figure.role,
+      ...(figure.itemId ? { itemId: figure.itemId } : {}),
       pngBase64: bytesToBase64(bytes),
     });
   }
@@ -385,6 +388,7 @@ export async function importBackup(backup: BackupFile): Promise<void> {
       cardId: figure.cardId,
       captureId: figure.captureId,
       role: figure.role,
+      itemId: figure.itemId ?? null,
       png: base64ToBlob(figure.pngBase64),
     });
   }

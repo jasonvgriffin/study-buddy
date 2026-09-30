@@ -200,6 +200,8 @@ export type StoredFigure = {
   cardId: string | null;
   captureId: string;
   role: 'question' | 'explanation';
+  /** Set when the figure belongs to one sub-item of a performance-based question. */
+  itemId?: string | null;
   png: Blob;
 };
 
@@ -212,5 +214,5 @@ export type BackupFile = {
   reviews: Review[];
   sessions: LiveSession[];
   memories: CardMemory[];
-  figures?: { id: string; cardId: string; captureId: string; role: 'question' | 'explanation'; pngBase64: string }[];
+  figures?: { id: string; cardId: string; captureId: string; role: 'question' | 'explanation'; itemId?: string | null; pngBase64: string }[];
 };

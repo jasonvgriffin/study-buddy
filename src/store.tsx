@@ -32,7 +32,7 @@ import { newId } from './lib/format';
 import { lessonTitle, watchUrl } from './lib/lessons';
 import { assignFigures, bindFiguresToCards } from './lib/figures';
 import { extractPdfStudy } from './lib/pdfExtract';
-import { questionRegions } from './lib/regions';
+import { pbqFigureJobs } from './lib/regions';
 import { choiceGraded, gradeLabels, parseDocument } from './lib/parser';
 import { dueCardIds } from './lib/queue';
 import {
@@ -61,6 +61,7 @@ import type {
   ImportDraft,
   LiveSession,
   Review,
+  StoredFigure,
   Subject,
 } from './lib/types';
 import { navigate, parseRoute, type Route } from './nav';
@@ -323,26 +324,37 @@ export function StudyProvider({ children }: { children: ReactNode }) {
         chrome: extracted.chrome,
         images: extracted.images,
       });
-      const regionJobs = questionRegions({
-        labels: tests.flatMap((test) => test.cards.filter((card) => card.pbq).map((card) => card.sourceLabel)),
+      const pbqCards = tests.flatMap((test) =>
+        test.cards.filter((card) => card.pbq).map((card) => ({ label: card.sourceLabel, task: card.pbq! })),
+      );
+      const regionJobs = pbqFigureJobs({
+        cards: pbqCards,
         lines: extracted.lines,
         chrome: extracted.chrome,
         pages: extracted.pageSizes,
+        images: extracted.images,
       });
+      if (regionJobs.length) setBusy('Cropping figures for performance-based questions');
       const regionPngs = regionJobs.length ? await extracted.renderRegions(regionJobs) : new Map<string, Blob>();
-      const figures = [];
+      const figures: StoredFigure[] = [];
       for (const test of tests) {
         for (const card of test.cards) {
-          const png = card.captureId ? regionPngs.get(card.sourceLabel) : undefined;
-          if (!png || !card.captureId) continue;
-          figures.push({
-            id: newId(),
-            draftId: draft.id,
-            cardId: null,
-            captureId: card.captureId,
-            role: 'question' as const,
-            png,
-          });
+          if (!card.pbq || !card.captureId) continue;
+          for (const job of regionJobs) {
+            const [label, itemId] = job.id.split('#');
+            if (label !== card.sourceLabel) continue;
+            const png = regionPngs.get(job.id);
+            if (!png) continue;
+            figures.push({
+              id: `${newId()}`,
+              draftId: draft.id,
+              cardId: null,
+              captureId: card.captureId,
+              role: 'question',
+              itemId: itemId ?? null,
+              png,
+            });
+          }
         }
       }
       if (mapped.assignments.length) {
@@ -358,6 +370,9 @@ export function StudyProvider({ children }: { children: ReactNode }) {
             ['explanation', slot.explanationImageIndexes],
           ];
           for (const [role, indexes] of pairs) {
+            // Performance-based questions get cleaned crops above; the raw page images there
+            // include printed answer blanks and lists, so only explanation images are kept.
+            if (card.pbq && role === 'question') continue;
             for (const imageIndex of indexes) {
               const png = pngs.get(imageIndex);
               if (!png) continue;

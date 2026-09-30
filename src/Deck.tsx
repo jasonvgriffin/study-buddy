@@ -1,3 +1,4 @@
+import { PbqAnswerList } from './PbqAnswers';
 import { useEffect, useState } from 'react';
 import { figureCountForCards } from './lib/db';
 import { dueCardIds } from './lib/queue';
@@ -183,6 +184,7 @@ function CardFields({ card }: { card: Card }) {
         });
       }}
     >
+      {card.pbq ? <PbqAnswerList task={card.pbq} explanation={card.explanation} /> : null}
       <label className="stack" style={{ gap: '0.35rem' }}>
         <span>Explanation</span>
         <textarea className="field" rows={4} value={explanation} onChange={(event) => setExplanation(event.target.value)} />

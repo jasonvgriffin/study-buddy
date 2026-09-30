@@ -2,8 +2,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { extractPdfStudy } from '../src/lib/pdfExtract';
 import { parseDocument } from '../src/lib/parser';
-import { gradePbq, previewLeaks } from '../src/lib/pbq';
-import { questionRegions } from '../src/lib/regions';
+import { gradePbq, itemExplanations, previewLeaks } from '../src/lib/pbq';
+import { pbqFigureJobs } from '../src/lib/regions';
 import type { ParsedCard, PbqGrade } from '../src/lib/types';
 
 const pdfPath = 'uploads/messer-aplus-core1-practice-exams_5c83.pdf';
@@ -57,7 +57,7 @@ function shape(card: ParsedCard | undefined): string {
 }
 
 describe('real pdf performance questions', () => {
-  it.skipIf(!existsSync(pdfPath))('parses all 15 PBQs with figures and no answer text before submit', async () => {
+  it.skipIf(!existsSync(pdfPath))('parses all 15 PBQs with clean per-item figures and no answer text before submit', async () => {
     const data = new Uint8Array(readFileSync(pdfPath));
     const extracted = await extractPdfStudy(data);
     const doc = parseDocument(extracted.textPages);
@@ -118,38 +118,58 @@ describe('real pdf performance questions', () => {
       }
     }
 
-    const jobs = questionRegions({
-      labels: Object.keys(expected),
+    // A1 picture 5 sits across a page break in the answer key; it must keep its own group.
+    const a1 = cards.get('A1')?.pbq;
+    for (const column of [0, 1]) {
+      const values = (a1?.items ?? []).map((item) => item.accept[column]?.[0] ?? '');
+      expect(new Set(values).size, `A1 column ${column}`).toBe(6);
+      for (const value of values) expect(value.split(/\s+/).length).toBeLessThan(8);
+    }
+
+    // Per-item explanations split out of the answer text for most PBQs.
+    const split = Object.keys(expected).filter((label) => {
+      const card = cards.get(label);
+      if (!card?.pbq) return false;
+      return itemExplanations(card.pbq, card.explanation).perItem.size === card.pbq.items.length;
+    });
+    expect(split.length).toBeGreaterThanOrEqual(11);
+
+    const jobs = pbqFigureJobs({
+      cards: Object.keys(expected).map((label) => ({ label, task: cards.get(label)!.pbq! })),
       lines: extracted.lines,
       chrome: extracted.chrome,
       pages: extracted.pageSizes,
+      images: extracted.images,
     });
-    const gotJobs = jobs.map((job) => job.id).sort();
-    const wantJobs = Object.keys(expected).sort();
-    expect(gotJobs.join(','), wantJobs.filter((id) => !gotJobs.includes(id)).join(',') || 'none missing').toEqual(
-      wantJobs.join(','),
+    const byCard = new Map<string, string[]>();
+    for (const job of jobs) {
+      const label = job.id.split('#')[0] ?? '';
+      byCard.set(label, [...(byCard.get(label) ?? []), job.id]);
+    }
+    const plan = Object.keys(expected).map((label) => `${label}:${byCard.get(label)?.length ?? 0}`);
+    expect(plan.join(' ')).toBe(
+      'A1:6 A2:1 A3:0 A4:1 A5:0 B1:0 B2:6 B3:0 B4:1 B5:0 C1:0 C2:0 C3:6 C4:0 C5:0',
     );
+    for (const label of ['A1', 'B2', 'C3']) {
+      const ids = cards.get(label)!.pbq!.items.map((item) => `${label}#${item.id}`);
+      expect(byCard.get(label)).toEqual(ids);
+    }
     const section = questionSectionPages(extracted);
     for (const job of jobs) {
       expect(job.boxes.length).toBeGreaterThan(0);
       for (const box of job.boxes) {
-        const chrome = extracted.chrome
-          .filter((item) => item.page === box.page)
-          .map((item) => item.text)
-          .join('\n');
         expect(section.get(box.page), job.id).toBe('question');
-        expect(chrome, job.id).not.toMatch(/practice\s+exam\b.*-\s*answers/i);
         expect(box.top).toBeGreaterThan(box.bottom);
       }
     }
     const rendered = await extracted.renderRegions(jobs);
-    for (const label of Object.keys(expected)) {
-      const blob = rendered.get(label);
-      expect(blob, label).toBeTruthy();
+    for (const job of jobs) {
+      const blob = rendered.get(job.id);
+      expect(blob, job.id).toBeTruthy();
       const bytes = new Uint8Array(await blob!.arrayBuffer());
-      expect(bytes[0], label).toBe(0x89);
-      expect(bytes[1], label).toBe(0x50);
-      expect(bytes.byteLength, label).toBeGreaterThan(2000);
+      expect(bytes[0], job.id).toBe(0x89);
+      expect(bytes[1], job.id).toBe(0x50);
+      expect(bytes.byteLength, job.id).toBeGreaterThan(2000);
     }
   }, 180_000);
 });

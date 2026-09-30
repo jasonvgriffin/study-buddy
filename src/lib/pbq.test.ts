@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { answerMatches, buildPbq, gradePbq, previewLeaks, type Piece } from './pbq';
+import {
+  answerMatches,
+  buildPbq,
+  explanationFrom,
+  gradePbq,
+  itemExplanations,
+  pbqAnswerLines,
+  pbqNeedsFigure,
+  pbqPicturePerItem,
+  previewLeaks,
+  type Piece,
+} from './pbq';
 import type { ParsedCard } from './types';
 
 function rows(lines: string[], page = 1): Piece[] {
@@ -98,4 +109,54 @@ describe('pbq grading', () => {
     expect(previewLeaks(card)).toEqual([]);
     expect(card.question.toLowerCase()).not.toContain('west door');
   });
+
+  it('grades every control, lists every answer, and splits explanations per item', () => {
+    const question = rows([
+      'Match the tool name and most common use to the picture:',
+      'Pick an interface:',
+      'Hammer',
+      'Saw',
+      'Pick a common use:',
+      'Drive a nail',
+      'Cut a board',
+    ]);
+    const answer = rows([
+      'Match the tool name and most common use to the picture:',
+      'Saw',
+      'Cut a board',
+      'A saw cuts lumber in the shop and leaves a straight edge on the board.',
+      'Hammer',
+      'Drive a nail',
+      'A hammer drives fasteners into wood until the head sits flush.',
+    ]);
+    const task = buildPbq(question, answer);
+    const graded = gradePbq(task, [['Saw', 'Drive a nail'], ['', '']]);
+    expect(graded.items).toHaveLength(2);
+    expect(graded.items[0]?.controls.map((part) => part.correct)).toEqual([true, false]);
+    expect(graded.items[0]?.controls[1]).toMatchObject({ given: 'Drive a nail', expected: 'Cut a board' });
+    expect(graded.items[1]?.controls.map((part) => part.given)).toEqual(['', '']);
+    const lines = pbqAnswerLines(task);
+    expect(lines).toHaveLength(2);
+    expect(lines[0]?.answer).toContain('Saw');
+    expect(lines[0]?.answer).toContain('Cut a board');
+    const notes = itemExplanations(task, explanationFrom(answer, task.instruction));
+    expect(notes.perItem.size).toBe(2);
+    expect(notes.perItem.get(task.items[0]!.id)).toMatch(/saw cuts lumber/);
+    expect(notes.perItem.get(task.items[1]!.id)).toMatch(/hammer drives/);
+    expect(pbqNeedsFigure(task)).toBe(pbqPicturePerItem(task));
+  });
+
+  it('marks each step of an ordering task', () => {
+    const order = buildPbq(
+      rows(['Place these steps in the correct order.', 'Frost the cake', 'Heat the oven', 'Mix the batter']),
+      rows(['Place these steps in the correct order.', 'Heat the oven', 'Mix the batter', 'Frost the cake']),
+    );
+    const byPlace = [...order.items].sort((a, b) => a.place - b.place).map((item) => item.id);
+    const swapped = [byPlace[1]!, byPlace[0]!, byPlace[2]!];
+    const graded = gradePbq(order, [], swapped);
+    expect(graded.correct).toBe(false);
+    expect(graded.items.filter((item) => item.correct)).toHaveLength(1);
+    expect(pbqAnswerLines(order).map((line) => line.answer)).toEqual(['Heat the oven', 'Mix the batter', 'Frost the cake']);
+  });
 });
+

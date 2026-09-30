@@ -57,20 +57,25 @@ function controlMatches(guess: string, accept: string[], grade: PbqGrade): boole
   return accept.some((expected) => answerMatches(guess, expected, grade));
 }
 
+export type PbqControlResult = { correct: boolean; expected: string; given: string };
+export type PbqItemResult = { id: string; correct: boolean; expected: string; controls: PbqControlResult[] };
+
 export function gradePbq(
   task: PbqTask,
   values: string[][],
   orderIds?: string[],
-): { correct: boolean; items: { id: string; correct: boolean; expected: string }[] } {
+): { correct: boolean; items: PbqItemResult[] } {
   if (task.grade === 'order') {
     const correctIds = [...task.items].sort((a, b) => a.place - b.place).map((item) => item.id);
     const given = orderIds ?? task.items.map((item) => item.id);
     const items = task.items.map((item) => {
       const at = given.indexOf(item.id);
+      const correct = at === item.place;
       return {
         id: item.id,
-        correct: at === item.place,
+        correct,
         expected: item.prompt,
+        controls: [{ correct, expected: `Step ${item.place + 1}`, given: at >= 0 ? `Step ${at + 1}` : '' }],
       };
     });
     const correct = correctIds.length > 0 && correctIds.every((id, index) => given[index] === id);
@@ -78,17 +83,149 @@ export function gradePbq(
   }
   const items = task.items.map((item, index) => {
     const row = values[index] ?? [];
+    const controls = item.controls.map((_, controlIndex) => {
+      const accepted = item.accept[controlIndex] ?? [];
+      const given = row[controlIndex] ?? '';
+      return { correct: controlMatches(given, accepted, task.grade), expected: accepted[0] ?? '', given };
+    });
     const correct =
-      item.controls.length > 0 &&
-      item.accept.length === item.controls.length &&
-      item.accept.every((accepted, controlIndex) => controlMatches(row[controlIndex] ?? '', accepted, task.grade));
+      item.controls.length > 0 && item.accept.length === item.controls.length && controls.every((entry) => entry.correct);
     return {
       id: item.id,
       correct,
       expected: item.accept.map((list) => list[0] ?? '').filter(Boolean).join(' — '),
+      controls,
     };
   });
   return { correct: items.length > 0 && items.every((item) => item.correct), items };
+}
+
+/** One line per sub-item with its correct answer, for review screens. */
+export function pbqAnswerLines(task: PbqTask): { id: string; prompt: string; answer: string }[] {
+  if (task.grade === 'order') {
+    return correctOrder(task).map((item, index) => ({ id: item.id, prompt: `Step ${index + 1}`, answer: item.prompt }));
+  }
+  return task.items.map((item) => ({
+    id: item.id,
+    prompt: item.prompt,
+    answer: item.controls
+      .map((control, index) => {
+        const value = item.accept[index]?.[0] ?? '';
+        return item.controls.length > 1 && control.title ? `${control.title}: ${value}` : value;
+      })
+      .join(' · '),
+  }));
+}
+
+const GENERIC_PROMPT = /^(?:(?:picture|diagram|pin|image|figure|interface|item)\s*\d{1,2}|[A-Z])$/i;
+
+/** True when the items only make sense next to a picture (Picture 1, Pin 3, A–F). */
+export function pbqNeedsFigure(task: PbqTask): boolean {
+  return task.items.length > 0 && task.items.every((item) => GENERIC_PROMPT.test(item.prompt.trim()));
+}
+
+/** True when each item is one separate picture on the page (Picture N, or a lettered photo). */
+export function pbqPicturePerItem(task: PbqTask): boolean {
+  return (
+    pbqNeedsFigure(task) &&
+    task.items.every((item) => /^(?:picture\s*\d{1,2}|[A-Z])$/i.test(item.prompt.trim()))
+  );
+}
+
+function hasSentence(text: string): boolean {
+  return /[A-Za-z]{3,}[^.!?]*\b[a-z]{2,}\b[^.!?]*[.!?]/.test(text) && text.split(/\s+/).length >= 6;
+}
+
+function findWord(haystack: string, needle: string, from = 0): number {
+  if (!needle) return -1;
+  const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+  const pattern = new RegExp(`(^|[^a-z0-9])${escaped}(?=[^a-z0-9]|$)`, 'g');
+  pattern.lastIndex = from;
+  const hit = pattern.exec(haystack);
+  return hit ? hit.index + hit[1].length : -1;
+}
+
+export function itemExplanations(task: PbqTask, explanation: string | null): {
+  perItem: Map<string, string>;
+  shared: string | null;
+} {
+  const text = (explanation ?? '').replace(/\s+/g, ' ').trim();
+  const shared = text && hasSentence(text) ? text : null;
+  const empty = { perItem: new Map<string, string>(), shared };
+  if (!text) return empty;
+  const lower = text.toLowerCase();
+  const ordered = task.grade === 'order' ? correctOrder(task) : task.items;
+  type Anchor = { id: string; start: number; end: number };
+  const anchors: Anchor[] = [];
+  for (const item of ordered) {
+    const prompt = item.prompt.trim();
+    const words = prompt.split(/\s+/);
+    const values = item.accept.map((list) => list[0] ?? '').filter(Boolean);
+    const literalPrompt = !GENERIC_PROMPT.test(prompt);
+    const promptNeedles = /^[A-Z]$/.test(prompt)
+      ? [prompt]
+      : literalPrompt && words.length > 3
+        ? [words.slice(-3).join(' ')]
+        : [];
+    const heads = task.grade === 'order' || literalPrompt
+      ? [prompt, words.slice(0, 5).join(' '), words.slice(0, 3).join(' ')]
+      : [values[0] ?? (/^[A-Z]$/.test(prompt) ? prompt : '')];
+    let anchorNeedle = '';
+    let at = -1;
+    for (const head of heads) {
+      const low = head.toLowerCase();
+      const hit = findWord(lower, low);
+      if (hit >= 0) {
+        anchorNeedle = low;
+        at = hit;
+        break;
+      }
+    }
+    if (at < 0) return empty;
+    let start = at;
+    let end = at + anchorNeedle.length;
+    for (const needle of [...values, ...promptNeedles]) {
+      const low = needle.toLowerCase();
+      if (!low || low === anchorNeedle) continue;
+      let best = -1;
+      for (let hit = findWord(lower, low); hit >= 0; hit = findWord(lower, low, hit + 1)) {
+        if (Math.abs(hit - at) <= 240 && (best < 0 || Math.abs(hit - at) < Math.abs(best - at))) best = hit;
+      }
+      if (best < 0) continue;
+      start = Math.min(start, best);
+      end = Math.max(end, best + low.length);
+    }
+    anchors.push({ id: item.id, start, end });
+  }
+  anchors.sort((left, right) => left.start - right.start);
+  for (let index = 1; index < anchors.length; index += 1) {
+    if (anchors[index].start < anchors[index - 1].end) return empty;
+  }
+  const perItem = new Map<string, string>();
+  anchors.forEach((anchor, index) => {
+    const next = anchors[index + 1];
+    let passage = text.slice(anchor.end, next ? next.start : text.length).replace(/^[\s:–—-]+/, '').trim();
+    const item = ordered.find((entry) => entry.id === anchor.id);
+    const values = (item?.accept ?? []).map((list) => list[0] ?? '').filter(Boolean);
+    for (let guard = 0; guard < 6; guard += 1) {
+      const before = passage;
+      passage = passage.replace(/^[A-Z][a-z]+:\s*/, '');
+      for (const value of values) {
+        const rest = passage.slice(value.length);
+        // Drop a repeated answer label, but keep it when it is the subject of the next sentence.
+        if (!passage.toLowerCase().startsWith(value.toLowerCase())) continue;
+        const doubled = rest.toLowerCase().startsWith(value.toLowerCase());
+        if (doubled || (!/^[A-Za-z0-9]/.test(rest) && !/^\s*[a-z(]/.test(rest))) passage = rest.trim();
+      }
+      if (passage === before) break;
+    }
+    passage = passage.replace(/\s+[A-Z][a-z]+:$/, '').trim();
+    // A leftover lowercase tail of the prompt ("for visitors An access point ...").
+    passage = passage.replace(/^(?:[a-z][\w'-]*\s){1,3}(?=[A-Z][a-z]*\s+[a-z])/, '');
+    if (hasSentence(passage)) perItem.set(anchor.id, passage);
+  });
+  if (perItem.size * 2 < anchors.length) return empty;
+  return { perItem, shared };
 }
 
 export function preSubmitText(card: Pick<ParsedCard, 'question' | 'choices' | 'pbq'>): string {
@@ -172,6 +309,8 @@ function isProse(text: string): boolean {
   const words = t.split(/\s+/).length;
   if (words >= 8 && t.length >= 55) return true;
   if (t.length > 42 && /[.!?]/.test(t)) return true;
+  // The tail of a wrapped sentence, such as a line carried onto the next page.
+  if (/^[a-z]/.test(t) && /[.!?]$/.test(t) && t.split(/\s+/).length >= 3) return true;
   return false;
 }
 

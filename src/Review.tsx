@@ -1,3 +1,4 @@
+import { PbqAnswerList } from './PbqAnswers';
 import { useEffect, useState } from 'react';
 import { figuresForDraftCapture } from './lib/db';
 import { mergeWithPrevious, renameSection, renameTest, splitAt, updateParsedCard } from './lib/draft';
@@ -169,6 +170,7 @@ function CardEditor({
   const startKey = `${testIndex}:${cardIndex}`;
   const [showAnswer, setShowAnswer] = useState(false);
   const [figureUrls, setFigureUrls] = useState<string[]>([]);
+  const [itemUrls, setItemUrls] = useState<Map<string, string>>(() => new Map());
   const captureId = card.captureId ?? null;
   useEffect(() => {
     if (!captureId) return;
@@ -176,8 +178,17 @@ function CardEditor({
     const urls: string[] = [];
     void figuresForDraftCapture(draft.id, captureId).then((rows) => {
       if (!live) return;
-      for (const row of rows) if (row.role === 'question') urls.push(URL.createObjectURL(row.png));
-      setFigureUrls(urls);
+      const main: string[] = [];
+      const items = new Map<string, string>();
+      for (const row of rows) {
+        if (row.role !== 'question') continue;
+        const url = URL.createObjectURL(row.png);
+        urls.push(url);
+        if (row.itemId) items.set(row.itemId, url);
+        else main.push(url);
+      }
+      setFigureUrls(main);
+      setItemUrls(items);
     });
     return () => {
       live = false;
@@ -210,6 +221,18 @@ function CardEditor({
       {figureUrls.map((src) => (
         <img key={src} className="figure-img" data-testid="review-figure" src={src} alt="Figure from your PDF" />
       ))}
+      {card.pbq && itemUrls.size ? (
+        <div className="pbq-thumbs" data-testid="review-item-figures">
+          {card.pbq.items.map((item) =>
+            itemUrls.get(item.id) ? (
+              <figure key={item.id} className="pbq-thumb-cell">
+                <img className="figure-img" data-testid="review-figure" src={itemUrls.get(item.id)} alt={`${item.prompt} from your PDF`} />
+                <figcaption>{item.prompt}</figcaption>
+              </figure>
+            ) : null,
+          )}
+        </div>
+      ) : null}
       <button
         className="btn btn-ghost btn-block"
         data-testid="review-show-answer"
@@ -221,10 +244,14 @@ function CardEditor({
       </button>
       {showAnswer ? (
         <>
-          <p style={{ margin: 0 }} data-testid="review-answer">
-            <strong>Answer from the PDF: </strong>
-            {card.answer || card.correctLabels.join(', ') || 'None found'}
-          </p>
+          {card.pbq ? (
+            <PbqAnswerList task={card.pbq} explanation={card.explanation} itemFigures={itemUrls} />
+          ) : (
+            <p style={{ margin: 0 }} data-testid="review-answer">
+              <strong>Answer from the PDF: </strong>
+              {card.answer || card.correctLabels.join(', ') || 'None found'}
+            </p>
+          )}
           <label className="stack" style={{ gap: '0.35rem' }}>
             <span>Explanation</span>
             <textarea

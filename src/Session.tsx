@@ -3,6 +3,7 @@ import { figuresForCard } from './lib/db';
 import { formatDuration, formatPercent } from './lib/format';
 import { choiceGraded, gradeLabels } from './lib/parser';
 import { PbqForm } from './PbqForm';
+import { itemExplanations } from './lib/pbq';
 import { elapsedMs, liveScore } from './lib/session';
 import { navigate } from './nav';
 import { WatchLesson } from './bits';
@@ -23,10 +24,9 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
   const [pending, setPending] = useState(false);
   const pendingRef = useRef(false);
   const [touchX, setTouchX] = useState<number | null>(null);
-  const [figures, setFigures] = useState<{ question: string[]; explanation: string[] }>({
-    question: [],
-    explanation: [],
-  });
+  const [figures, setFigures] = useState<{ question: string[]; explanation: string[]; items: Map<string, string> }>(
+    () => ({ question: [], explanation: [], items: new Map() }),
+  );
   const [zoom, setZoom] = useState<string | null>(null);
 
   useEffect(() => {
@@ -53,22 +53,24 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
     void figuresForCard(card.id).then((rows) => {
       const question: string[] = [];
       const explanation: string[] = [];
+      const items = new Map<string, string>();
       for (const row of rows) {
         const url = URL.createObjectURL(row.png);
         urls.push(url);
         if (row.role === 'explanation') explanation.push(url);
+        else if (row.itemId) items.set(row.itemId, url);
         else question.push(url);
       }
       if (!alive) {
         for (const url of urls) URL.revokeObjectURL(url);
         return;
       }
-      setFigures({ question, explanation });
+      setFigures({ question, explanation, items });
     });
     return () => {
       alive = false;
       for (const url of urls) URL.revokeObjectURL(url);
-      setFigures({ question: [], explanation: [] });
+      setFigures({ question: [], explanation: [], items: new Map() });
     };
   }, [card?.id]);
 
@@ -92,7 +94,8 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
   const graded = card ? choiceGraded(card) : false;
   const multi = graded && !!card && card.correctLabels.length > 1;
   const pbq = card?.pbq ?? null;
-  const showExplanation = !!reveal && !!card?.explanation && (!!pbq || !reveal.correct || why);
+  const pbqNotes = pbq && card ? itemExplanations(pbq, card.explanation) : null;
+  const showExplanation = !!reveal && !pbq && !!card?.explanation && (!reveal.correct || why);
   const href = card ? lessonHref(card) : null;
 
   const submit = (chosen: string[], correct: boolean) => {
@@ -234,6 +237,9 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
               pending={pending}
               revealed={!!reveal && reveal.cardId === card.id}
               onSubmit={(correct, chosen) => submit(chosen, correct)}
+              itemFigures={figures.items}
+              explanations={pbqNotes ?? undefined}
+              onZoom={setZoom}
             />
           ) : null}
           {!reveal && multi ? (
@@ -270,10 +276,17 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
                   {card.answer}
                 </p>
               ) : null}
-              {reveal.correct && card.explanation ? (
+              {reveal.correct && card.explanation && !pbq ? (
                 <button className="btn btn-ghost btn-block" data-testid="why" type="button" onClick={() => setWhy((open) => !open)}>
                   {why ? 'Hide explanation' : 'Why?'}
                 </button>
+              ) : null}
+              {pbq && figures.explanation.length ? (
+                <div className="stack">
+                  {figures.explanation.map((src) => (
+                    <img key={src} className="figure-img" data-testid="explanation-figure" src={src} alt="Figure from your PDF" />
+                  ))}
+                </div>
               ) : null}
               {showExplanation ? (
                 <div className="stack">

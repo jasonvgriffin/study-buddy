@@ -57,6 +57,9 @@ type PdfModule = {
     paintFormXObjectEnd: number;
     paintImageXObject: number;
     paintInlineImageXObject: number;
+    clip?: number;
+    eoClip?: number;
+    constructPath?: number;
   };
 };
 
@@ -223,20 +226,42 @@ function imagePlacements(
   ops: PdfModule['OPS'],
   page: number,
 ): { placed: StoredImage[] } {
+  type Clip = [number, number, number, number] | null;
   let ctm: Matrix = IDENTITY;
-  const stack: Matrix[] = [];
+  let clip: Clip = null;
+  let pendingClip = false;
+  const stack: { ctm: Matrix; clip: Clip }[] = [];
   const placed: StoredImage[] = [];
   const fns = Array.from(opList.fnArray);
   const argsList = Array.from(opList.argsArray);
+  const narrow = (box: [number, number, number, number]) => {
+    const next: [number, number, number, number] = clip
+      ? [Math.max(clip[0], box[0]), Math.max(clip[1], box[1]), Math.min(clip[2], box[2]), Math.min(clip[3], box[3])]
+      : box;
+    clip = next;
+  };
+  const transformBox = (x0: number, y0: number, x1: number, y1: number): [number, number, number, number] => {
+    const pts = [
+      [x0, y0],
+      [x1, y0],
+      [x0, y1],
+      [x1, y1],
+    ].map(([x, y]) => [ctm[0] * x + ctm[2] * y + ctm[4], ctm[1] * x + ctm[3] * y + ctm[5]]);
+    const xs = pts.map((pt) => pt[0]);
+    const ys = pts.map((pt) => pt[1]);
+    return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+  };
   for (let i = 0; i < fns.length; i += 1) {
     const fn = fns[i];
     const args = argsList[i];
     if (fn === ops.save) {
-      stack.push(ctm);
+      stack.push({ ctm, clip });
       continue;
     }
     if (fn === ops.restore) {
-      ctm = stack.pop() ?? IDENTITY;
+      const top = stack.pop();
+      ctm = top?.ctm ?? IDENTITY;
+      clip = top?.clip ?? null;
       continue;
     }
     if (fn === ops.transform) {
@@ -244,18 +269,48 @@ function imagePlacements(
       if (matrix) ctm = multiply(ctm, matrix);
       continue;
     }
+    if (ops.clip != null && (fn === ops.clip || fn === ops.eoClip)) {
+      pendingClip = true;
+      continue;
+    }
+    if (ops.constructPath != null && fn === ops.constructPath) {
+      if (pendingClip && Array.isArray(args)) {
+        const minMax = args[2] as ArrayLike<number> | null | undefined;
+        if (minMax && minMax.length >= 4 && Number.isFinite(minMax[0]) && Number.isFinite(minMax[3])) {
+          narrow(transformBox(minMax[0], minMax[1], minMax[2], minMax[3]));
+        }
+      }
+      pendingClip = false;
+      continue;
+    }
     if (fn === ops.paintFormXObjectBegin) {
-      stack.push(ctm);
+      stack.push({ ctm, clip });
       const matrix = Array.isArray(args) ? asMatrix(args[0]) : null;
       if (matrix) ctm = multiply(ctm, matrix);
+      const bbox = Array.isArray(args) ? (args[1] as ArrayLike<number> | null) : null;
+      if (bbox && bbox.length >= 4) narrow(transformBox(bbox[0], bbox[1], bbox[2], bbox[3]));
       continue;
     }
     if (fn === ops.paintFormXObjectEnd) {
-      ctm = stack.pop() ?? IDENTITY;
+      const top = stack.pop();
+      ctm = top?.ctm ?? IDENTITY;
+      clip = top?.clip ?? null;
       continue;
     }
     if (fn !== ops.paintImageXObject && fn !== ops.paintInlineImageXObject) continue;
-    const box = unitBox(ctm);
+    const raw = unitBox(ctm);
+    const box = { ...raw };
+    if (clip) {
+      const [cx0, cy0, cx1, cy1] = clip;
+      const x0 = Math.max(raw.x, cx0);
+      const y0 = Math.max(raw.y, cy0);
+      const x1 = Math.min(raw.x + raw.w, cx1);
+      const y1 = Math.min(raw.y + raw.h, cy1);
+      box.x = x0;
+      box.y = y0;
+      box.w = x1 - x0;
+      box.h = y1 - y0;
+    }
     if (box.w < 1 || box.h < 1) continue;
     const arg0 = Array.isArray(args) ? args[0] : args;
     const name = typeof arg0 === 'string' ? arg0 : null;
@@ -443,17 +498,87 @@ async function canvasToBlob(canvas: PaintCanvas): Promise<Blob | null> {
   return new Blob([copy]);
 }
 
+type Rect = { x0: number; y0: number; x1: number; y1: number };
+
+/**
+ * Find printed answer blanks: outlined boxes (long straight top and bottom edges) whose inside
+ * is empty. Coordinates are canvas pixels. `unit` is pixels per PDF point.
+ */
+export function findBlankBoxes(pixels: Uint8ClampedArray, width: number, height: number, unit: number): Rect[] {
+  const dark = (x: number, y: number, limit: number) => {
+    const at = (y * width + x) * 4;
+    const alpha = pixels[at + 3] / 255;
+    const lum = (0.299 * pixels[at] + 0.587 * pixels[at + 1] + 0.114 * pixels[at + 2]) * alpha + 255 * (1 - alpha);
+    return lum < limit;
+  };
+  const minRun = Math.round(28 * unit);
+  type Edge = { y0: number; y1: number; x0: number; x1: number };
+  const edges: Edge[] = [];
+  for (let y = 0; y < height; y += 1) {
+    let start = -1;
+    for (let x = 0; x <= width; x += 1) {
+      const on = x < width && dark(x, y, 190);
+      if (on && start < 0) start = x;
+      if (!on && start >= 0) {
+        if (x - start >= minRun) {
+          const prev = edges.find(
+            (edge) => edge.y1 >= y - 2 && Math.abs(edge.x0 - start) <= 3 * unit && Math.abs(edge.x1 - x) <= 3 * unit,
+          );
+          if (prev) prev.y1 = y;
+          else edges.push({ y0: y, y1: y, x0: start, x1: x });
+        }
+        start = -1;
+      }
+    }
+  }
+  const thin = edges.filter((edge) => edge.y1 - edge.y0 <= 3 * unit);
+  const found: Rect[] = [];
+  for (const top of thin) {
+    for (const bottom of thin) {
+      const gap = bottom.y0 - top.y1;
+      if (gap < 8 * unit || gap > 45 * unit) continue;
+      if (Math.abs(top.x0 - bottom.x0) > 8 * unit || Math.abs(top.x1 - bottom.x1) > 8 * unit) continue;
+      const ix0 = Math.max(top.x0, bottom.x0) + Math.round(3 * unit);
+      const ix1 = Math.min(top.x1, bottom.x1) - Math.round(3 * unit);
+      const iy0 = top.y1 + Math.round(2 * unit);
+      const iy1 = bottom.y0 - Math.round(2 * unit);
+      if (ix1 - ix0 < 10 * unit || iy1 - iy0 < 4 * unit) continue;
+      let inked = 0;
+      let total = 0;
+      for (let y = iy0; y < iy1; y += 1) {
+        for (let x = ix0; x < ix1; x += 2) {
+          total += 1;
+          if (dark(x, y, 215)) inked += 1;
+        }
+      }
+      if (total && inked / total < 0.004) {
+        const rect = {
+          x0: Math.min(top.x0, bottom.x0) - Math.round(8 * unit),
+          y0: top.y0 - Math.round(2 * unit),
+          x1: Math.max(top.x1, bottom.x1) + Math.round(8 * unit),
+          y1: bottom.y1 + Math.round(2 * unit),
+        };
+        if (!found.some((other) => other.x0 < rect.x1 && rect.x0 < other.x1 && other.y0 < rect.y1 && rect.y0 < other.y1)) {
+          found.push(rect);
+        }
+      }
+    }
+  }
+  return found.sort((a, b) => (Math.abs(a.y0 - b.y0) > 6 * unit ? a.y0 - b.y0 : a.x0 - b.x0));
+}
+
 async function renderJob(doc: PdfDoc, job: RegionJob): Promise<Blob | null> {
   const scale = 2;
   const slices: PaintCanvas[] = [];
   for (const box of job.boxes) {
     const page = await doc.getPage(box.page);
     const viewport = page.getViewport({ scale });
-    const [, yTop] = viewport.convertToViewportPoint(0, box.top);
-    const [, yBottom] = viewport.convertToViewportPoint(0, box.bottom);
+    const [xLeft, yTop] = viewport.convertToViewportPoint(box.left ?? 0, box.top);
+    const [xRight, yBottom] = viewport.convertToViewportPoint(box.right ?? viewport.width / scale, box.bottom);
     const top = Math.max(0, Math.min(yTop, yBottom));
+    const left = Math.max(0, Math.min(xLeft, xRight));
     const cropHeight = Math.min(viewport.height - top, Math.abs(yBottom - yTop));
-    const cropWidth = viewport.width;
+    const cropWidth = Math.min(viewport.width - left, Math.abs(xRight - xLeft));
     if (cropWidth < 8 || cropHeight < 8) continue;
     const longest = Math.max(cropWidth, cropHeight);
     const fit = longest > 1800 ? 1800 / longest : 1;
@@ -472,7 +597,23 @@ async function renderJob(doc: PdfDoc, job: RegionJob): Promise<Blob | null> {
     }).promise;
     targetContext.fillStyle = '#ffffff';
     targetContext.fillRect(0, 0, target.width, target.height);
-    targetContext.drawImage(full as unknown as CanvasImageSource, 0, top, cropWidth, cropHeight, 0, 0, target.width, target.height);
+    targetContext.drawImage(full as unknown as CanvasImageSource, left, top, cropWidth, cropHeight, 0, 0, target.width, target.height);
+    if (job.mask) {
+      const unit = scale * fit;
+      const image = targetContext.getImageData(0, 0, target.width, target.height);
+      const blanks = findBlankBoxes(image.data, target.width, target.height, unit);
+      targetContext.fillStyle = '#ffffff';
+      for (const blank of blanks) targetContext.fillRect(blank.x0, blank.y0, blank.x1 - blank.x0, blank.y1 - blank.y0);
+      if (job.labels && job.labels.length === blanks.length) {
+        targetContext.fillStyle = '#1c1916';
+        targetContext.textAlign = 'center';
+        targetContext.textBaseline = 'middle';
+        targetContext.font = `bold ${Math.round(12 * unit)}px sans-serif`;
+        blanks.forEach((blank, index) => {
+          targetContext.fillText(job.labels?.[index] ?? '', (blank.x0 + blank.x1) / 2, (blank.y0 + blank.y1) / 2);
+        });
+      }
+    }
     slices.push(target);
   }
   if (!slices.length) return null;
