@@ -20,6 +20,8 @@ export type RegionJob = {
   mask?: boolean;
   /** Written into the whited-out blanks in reading order when the counts match. */
   labels?: string[];
+  /** Page areas (PDF user space) painted white after rendering, such as a page footer. */
+  erase?: RegionBox[];
 };
 
 function explicitZone(texts: string[]): 'question' | 'answer' | null {
@@ -199,14 +201,29 @@ export function pbqFigureJobs(input: {
         union.y1 = Math.max(union.y1, line.y + 20);
       }
       const pageWidth = width.get(region.page) ?? 432;
+      const cropBottom = Math.max(40, Math.min(bottom, union.y0 - 4));
+      // Footer text ("Answer Page: N") can sit beside the lowest labels; paint it out.
+      const footerLines = input.chrome.filter(
+        (entry) => entry.page === region.page && entry.y != null && entry.y >= cropBottom - 10 && entry.y < bottom,
+      );
+      const lowLabels = pageLines.filter((line) => line.text.trim().length <= 2 && line.y < bottom && line.y >= cropBottom - 4);
+      const eraseLeft = lowLabels.length ? Math.max(...lowLabels.map((line) => line.x)) + 24 : union.x0;
+      const erase = footerLines.map((entry) => ({
+        page: region.page,
+        top: (entry.y ?? 0) + 10,
+        bottom: (entry.y ?? 0) - 4,
+        left: eraseLeft,
+        right: pageWidth,
+      }));
       jobs.push({
         id: card.label,
         mask: true,
+        ...(erase.length ? { erase } : {}),
         boxes: [
           {
             page: region.page,
             top: Math.min(top, union.y1 + 4),
-            bottom: Math.max(40, Math.min(bottom, union.y0 - 4)),
+            bottom: cropBottom,
             left: Math.max(0, union.x0 - 4),
             right: Math.min(pageWidth, union.x1 + 4),
           },

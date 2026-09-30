@@ -598,6 +598,18 @@ async function renderJob(doc: PdfDoc, job: RegionJob): Promise<Blob | null> {
     targetContext.fillStyle = '#ffffff';
     targetContext.fillRect(0, 0, target.width, target.height);
     targetContext.drawImage(full as unknown as CanvasImageSource, left, top, cropWidth, cropHeight, 0, 0, target.width, target.height);
+    for (const area of job.erase ?? []) {
+      if (area.page !== box.page) continue;
+      const [ex0, ey0] = viewport.convertToViewportPoint(area.left ?? 0, area.top);
+      const [ex1, ey1] = viewport.convertToViewportPoint(area.right ?? viewport.width / scale, area.bottom);
+      targetContext.fillStyle = '#ffffff';
+      targetContext.fillRect(
+        (Math.min(ex0, ex1) - left) * fit,
+        (Math.min(ey0, ey1) - top) * fit,
+        Math.abs(ex1 - ex0) * fit,
+        Math.abs(ey1 - ey0) * fit,
+      );
+    }
     if (job.mask) {
       const unit = scale * fit;
       const image = targetContext.getImageData(0, 0, target.width, target.height);
