@@ -1,0 +1,165 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f4efe6;
+  --ink: #1c1916;
+  --muted: #5e584e;
+  --card: #fffdf8;
+  --line: #e4dccb;
+  --moss: #1f6b4a;
+  --moss-ink: #f3faf6;
+  --clay: #b8432f;
+  --clay-ink: #fff7f5;
+  --good: #1f6b4a;
+  --bad: #b8432f;
+  --warn: #8a5a12;
+  --shadow: 0 10px 30px rgba(40, 30, 15, 0.08);
+  color-scheme: light;
+  font-family: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141311;
+    --ink: #f6f1e7;
+    --muted: #b7ad9f;
+    --card: #221f1b;
+    --line: #3a342c;
+    --moss: #3d9a72;
+    --moss-ink: #06281c;
+    --clay: #e07a68;
+    --clay-ink: #2a1210;
+    --good: #8fd4b4;
+    --bad: #ffb4a8;
+    --warn: #e6c27a;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+html, body, #root { min-height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1.45;
+}
+button, a, input, textarea, select { touch-action: manipulation; }
+button, input, textarea, select { font: inherit; color: inherit; }
+input, textarea, select { font-size: 16px; }
+button { cursor: pointer; }
+a { color: inherit; }
+
+.app-shell {
+  min-height: 100dvh;
+  padding-bottom: calc(5.2rem + env(safe-area-inset-bottom));
+}
+.frame {
+  width: min(40rem, 100%);
+  margin: 0 auto;
+  padding: 1rem 1rem 1.5rem;
+}
+.question {
+  font-family: "Iowan Old Style", Palatino, Georgia, serif;
+  font-size: 1.45rem;
+  line-height: 1.3;
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 1.25rem;
+  box-shadow: var(--shadow);
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 48px;
+  padding: 0.7rem 1rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-weight: 650;
+  text-decoration: none;
+  text-align: center;
+}
+.btn-primary { background: var(--moss); color: var(--moss-ink); }
+.btn-clay { background: var(--clay); color: var(--clay-ink); }
+.btn-ghost { background: transparent; border-color: var(--line); }
+.btn-block { width: 100%; }
+.field {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 0.9rem;
+  padding: 0.7rem 0.85rem;
+}
+.nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.25rem;
+  padding: 0.4rem 0.6rem calc(0.45rem + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  border-top: 1px solid var(--line);
+  backdrop-filter: blur(10px);
+  z-index: 20;
+}
+.nav a, .nav button {
+  min-height: 48px;
+  border: 0;
+  background: transparent;
+  border-radius: 0.8rem;
+  text-decoration: none;
+  font-weight: 650;
+  color: var(--muted);
+}
+.nav .on { background: var(--card); color: var(--ink); }
+.choice {
+  width: 100%;
+  min-height: 48px;
+  text-align: left;
+  border-radius: 1rem;
+  border: 2px solid var(--line);
+  background: var(--card);
+  padding: 0.75rem 0.9rem;
+}
+.choice.picked { border-color: var(--ink); }
+.choice.correct { border-color: var(--good); background: color-mix(in srgb, var(--good) 16%, var(--card)); }
+.choice.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, var(--card)); }
+.bar {
+  height: 0.55rem;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+.bar > span { display: block; height: 100%; background: var(--moss); }
+.chip {
+  min-height: 44px;
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  white-space: nowrap;
+}
+.chip.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.row-scroll { display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.2rem; }
+.stack { display: flex; flex-direction: column; gap: 0.75rem; }
+.muted { color: var(--muted); }
+.banner {
+  border-radius: 1rem;
+  padding: 0.75rem 0.9rem;
+  background: color-mix(in srgb, var(--warn) 18%, var(--card));
+  border: 1px solid var(--line);
+}
+h1, h2, h3 { font-weight: 650; letter-spacing: -0.02em; margin: 0; }
+h1 { font-size: 1.8rem; }
+h2 { font-size: 1.25rem; }

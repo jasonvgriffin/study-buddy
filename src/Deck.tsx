@@ -1,0 +1,186 @@
+import { useEffect, useState } from 'react';
+import { dueCardIds } from './lib/queue';
+import { isUnclearedMiss, rollup } from './lib/scoring';
+import { activeSessionForDeck, resumeLabel } from './lib/session';
+import { navigate } from './nav';
+import { Screen } from './bits';
+import { useStudy } from './store';
+import type { Card } from './lib/types';
+
+export function DeckScreen({ deckId }: { deckId: string }) {
+  const study = useStudy();
+  const snap = study.snap;
+  const deck = snap?.decks.find((item) => item.id === deckId) ?? null;
+  const [editing, setEditing] = useState<string | null>(null);
+  const [name, setName] = useState(deck?.name ?? '');
+  useEffect(() => {
+    if (deck) setName(deck.name);
+  }, [deck]);
+  if (!snap || !deck) {
+    return (
+      <Screen title="Test" onBack={() => navigate('/')}>
+        <p>That test is not on this device.</p>
+      </Screen>
+    );
+  }
+  const cards = snap.cards.filter((card) => card.deckId === deck.id).sort((a, b) => a.order - b.order);
+  const memories = snap.memories.filter((memory) => memory.deckId === deck.id);
+  const stats = rollup(memories);
+  const missed = cards.filter((card) => {
+    const memory = snap.memories.find((item) => item.cardId === card.id);
+    return memory ? isUnclearedMiss(memory) : false;
+  }).length;
+  const due = dueCardIds(cards, snap.memories, Date.now(), { deckId: deck.id }).length;
+  const active = activeSessionForDeck(snap.sessions, deck.id);
+  const domains = [...new Set(cards.map((card) => card.domainNumber).filter((n): n is number => n != null))];
+
+  return (
+    <Screen title={deck.name} lede={deck.sourceFileName} onBack={() => navigate('/')}>
+      <p className="muted" style={{ margin: 0 }}>
+        {cards.length} cards
+        {stats.attempts ? ` · ${stats.correct} right, ${stats.incorrect} wrong` : ' · no answers yet'}
+      </p>
+      {active ? (
+        <article className="card stack" style={{ padding: '0.9rem' }} data-testid="deck-resume">
+          <p style={{ margin: 0 }}>{resumeLabel(active, Date.now())}</p>
+          <button className="btn btn-primary" type="button" onClick={() => void study.resume(active.id)}>
+            Resume
+          </button>
+          <button className="btn btn-ghost" type="button" onClick={() => void study.discard(active.id)}>
+            Discard and start over
+          </button>
+        </article>
+      ) : (
+        <div className="stack">
+          <button className="btn btn-primary btn-block" data-testid="start-untimed" type="button" onClick={() => void study.startExam(deck, false)}>
+            Start untimed
+          </button>
+          <button className="btn btn-ghost btn-block" data-testid="start-timed" type="button" onClick={() => void study.startExam(deck, true)}>
+            Start 90-minute exam
+          </button>
+        </div>
+      )}
+      <button className="btn btn-ghost btn-block" data-testid="drill-missed" type="button" onClick={() => void study.startMissedDrill(deck, null)}>
+        Drill missed cards{missed ? ` (${missed})` : ''}
+      </button>
+      <button
+        className="btn btn-ghost btn-block"
+        data-testid="review-due"
+        type="button"
+        onClick={() =>
+          void study.startDueReview(deck.name, {
+            subjectId: deck.subjectId,
+            deckId: deck.id,
+            scopeKey: `review:deck:${deck.id}`,
+          })
+        }
+      >
+        Review due cards{due ? ` (${due})` : ''}
+      </button>
+      {domains.length ? (
+        <div className="row-scroll">
+          {domains.map((number) => {
+            const label = cards.find((card) => card.domainNumber === number)?.domainName ?? `Domain ${number}`;
+            return (
+              <button
+                key={number}
+                className="chip"
+                type="button"
+                onClick={() =>
+                  void study.startDueReview(label, {
+                    subjectId: deck.subjectId,
+                    deckId: deck.id,
+                    domainNumber: number,
+                    scopeKey: `review:deck:${deck.id}:domain:${number}`,
+                  })
+                }
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+      <form
+        className="stack"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void study.renameDeck(deck, name);
+        }}
+      >
+        <label className="stack" style={{ gap: '0.35rem' }}>
+          <span>Test name</span>
+          <input className="field" value={name} onChange={(event) => setName(event.target.value)} />
+        </label>
+        <button className="btn btn-ghost" type="submit">
+          Rename test
+        </button>
+      </form>
+      <div className="stack">
+        {cards.map((card) => (
+          <div key={card.id} className="card stack" style={{ padding: '0.85rem' }}>
+            <button className="btn btn-ghost btn-block" type="button" onClick={() => setEditing(editing === card.id ? null : card.id)}>
+              {card.sourceLabel}. {card.question.slice(0, 90)}
+            </button>
+            {editing === card.id ? <CardFields card={card} /> : null}
+          </div>
+        ))}
+      </div>
+      <button
+        className="btn btn-clay btn-block"
+        type="button"
+        onClick={() => {
+          if (window.confirm(`Delete ${deck.name}? Answers for this test are removed too.`)) {
+            void study.removeDeck(deck.id);
+          }
+        }}
+      >
+        Delete test
+      </button>
+    </Screen>
+  );
+}
+
+function CardFields({ card }: { card: Card }) {
+  const study = useStudy();
+  const [explanation, setExplanation] = useState(card.explanation ?? '');
+  const [lessonUrl, setLessonUrl] = useState(card.lessonUrl ?? '');
+  const [start, setStart] = useState(card.videoStartSec?.toString() ?? '');
+  const [section, setSection] = useState(card.section ?? '');
+  return (
+    <form
+      className="stack"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const parsed = start.trim() ? Number(start) : null;
+        void study.writeCard({
+          ...card,
+          explanation: explanation.trim() ? explanation : null,
+          lessonUrl: lessonUrl.trim() || null,
+          section: section.trim() || null,
+          videoStartSec: parsed != null && parsed > 0 ? Math.floor(parsed) : null,
+        });
+      }}
+    >
+      <label className="stack" style={{ gap: '0.35rem' }}>
+        <span>Explanation</span>
+        <textarea className="field" rows={4} value={explanation} onChange={(event) => setExplanation(event.target.value)} />
+      </label>
+      <label className="stack" style={{ gap: '0.35rem' }}>
+        <span>Section</span>
+        <input className="field" value={section} onChange={(event) => setSection(event.target.value)} />
+      </label>
+      <label className="stack" style={{ gap: '0.35rem' }}>
+        <span>Lesson link</span>
+        <input className="field" value={lessonUrl} onChange={(event) => setLessonUrl(event.target.value)} />
+      </label>
+      <label className="stack" style={{ gap: '0.35rem' }}>
+        <span>Video start (seconds)</span>
+        <input className="field" inputMode="numeric" value={start} onChange={(event) => setStart(event.target.value)} />
+      </label>
+      <button className="btn btn-primary" type="submit">
+        Save card
+      </button>
+    </form>
+  );
+}
