@@ -1,42 +1,23 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #f4efe6;
-  --ink: #1c1916;
-  --muted: #5e584e;
-  --card: #fffdf8;
-  --line: #e4dccb;
-  --moss: #1f6b4a;
-  --moss-ink: #f3faf6;
-  --clay: #b8432f;
-  --clay-ink: #fff7f5;
-  --good: #1f6b4a;
-  --bad: #b8432f;
-  --warn: #8a5a12;
-  --shadow: 0 10px 30px rgba(40, 30, 15, 0.08);
+  --bg: #f4f1ea;
+  --ink: #1f2933;
+  --muted: #3d4a57;
+  --card: #fbf9f4;
+  --line: #ddd6c8;
+  --moss: #146c43;
+  --moss-ink: #f4fbf7;
+  --clay: #9f1d1d;
+  --clay-ink: #fff7f7;
+  --good: #146c43;
+  --bad: #9f1d1d;
+  --warn: #7a4e0d;
+  --shadow: 0 10px 30px rgba(40, 32, 20, 0.08);
   color-scheme: light;
   font-family: "Avenir Next", "Segoe UI", system-ui, sans-serif;
   background: var(--bg);
   color: var(--ink);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #141311;
-    --ink: #f6f1e7;
-    --muted: #b7ad9f;
-    --card: #221f1b;
-    --line: #3a342c;
-    --moss: #3d9a72;
-    --moss-ink: #06281c;
-    --clay: #e07a68;
-    --clay-ink: #2a1210;
-    --good: #8fd4b4;
-    --bad: #ffb4a8;
-    --warn: #e6c27a;
-    --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-    color-scheme: dark;
-  }
 }
 
 * { box-sizing: border-box; }
@@ -133,8 +114,18 @@ a { color: inherit; }
   padding: 0.75rem 0.9rem;
 }
 .choice.picked { border-color: var(--ink); }
-.choice.correct { border-color: var(--good); background: color-mix(in srgb, var(--good) 16%, var(--card)); }
-.choice.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, var(--card)); }
+.choice.correct { border-color: var(--good); background: color-mix(in srgb, var(--good) 14%, var(--card)); }
+.choice.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, var(--card)); }
+.result-correct { color: var(--good); font-weight: 750; font-size: 1.2rem; }
+.result-wrong { color: var(--bad); font-weight: 750; font-size: 1.2rem; }
+.figure-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
+  background: #fff;
+  border: 1px solid var(--line);
+}
 .bar {
   height: 0.55rem;
   border-radius: 999px;

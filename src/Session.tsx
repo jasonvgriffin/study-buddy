@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { figuresForCard } from './lib/db';
 import { formatDuration, formatPercent } from './lib/format';
-import { choiceGraded } from './lib/parser';
+import { choiceGraded, gradeLabels } from './lib/parser';
 import { elapsedMs, liveScore } from './lib/session';
 import { navigate } from './nav';
 import { WatchLesson } from './bits';
@@ -11,13 +12,20 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
   const session = study.snap?.sessions.find((item) => item.id === sessionId) ?? null;
   const [now, setNow] = useState(() => Date.now());
   const [picked, setPicked] = useState<string[]>([]);
+  const [why, setWhy] = useState(false);
   const [reveal, setReveal] = useState<{
     cardId: string;
     correct: boolean;
     chosen: string[];
     finished: boolean;
   } | null>(null);
+  const [pending, setPending] = useState(false);
+  const pendingRef = useRef(false);
   const [touchX, setTouchX] = useState<number | null>(null);
+  const [figures, setFigures] = useState<{ question: string[]; explanation: string[] }>({
+    question: [],
+    explanation: [],
+  });
 
   useEffect(() => {
     if (!session || session.status !== 'active') return;
@@ -27,6 +35,40 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
     }, 500);
     return () => window.clearInterval(timer);
   }, [session?.status, sessionId, study]);
+
+  const revealedCard = reveal
+    ? study.snap?.cards.find((card) => card.id === reveal.cardId) ?? null
+    : null;
+  const currentId = session
+    ? session.cardIds[Math.min(session.index, Math.max(session.cardIds.length - 1, 0))]
+    : null;
+  const card = revealedCard ?? study.snap?.cards.find((item) => item.id === currentId) ?? null;
+
+  useEffect(() => {
+    if (!card) return;
+    let alive = true;
+    const urls: string[] = [];
+    void figuresForCard(card.id).then((rows) => {
+      const question: string[] = [];
+      const explanation: string[] = [];
+      for (const row of rows) {
+        const url = URL.createObjectURL(row.png);
+        urls.push(url);
+        if (row.role === 'explanation') explanation.push(url);
+        else question.push(url);
+      }
+      if (!alive) {
+        for (const url of urls) URL.revokeObjectURL(url);
+        return;
+      }
+      setFigures({ question, explanation });
+    });
+    return () => {
+      alive = false;
+      for (const url of urls) URL.revokeObjectURL(url);
+      setFigures({ question: [], explanation: [] });
+    };
+  }, [card?.id]);
 
   if (!session) {
     return (
@@ -39,27 +81,32 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
     );
   }
 
-  const revealedCard = reveal
-    ? study.snap?.cards.find((card) => card.id === reveal.cardId) ?? null
-    : null;
-  const currentId = session.cardIds[Math.min(session.index, Math.max(session.cardIds.length - 1, 0))];
-  const card = revealedCard ?? study.snap?.cards.find((item) => item.id === currentId) ?? null;
   const total = session.kind === 'exam' ? session.originalCount : session.cardIds.length;
   const positionIndex = card ? session.cardIds.indexOf(card.id) : session.index;
   const score = liveScore(session);
   const elapsed = elapsedMs(session, session.status === 'active' ? now : session.updatedAt);
   const remaining = session.timeLimitMs != null ? Math.max(0, session.timeLimitMs - elapsed) : null;
   const paused = session.status !== 'active';
+  const graded = card ? choiceGraded(card) : false;
+  const multi = graded && !!card && card.correctLabels.length > 1;
+  const showExplanation = !!reveal && !!card?.explanation && (!reveal.correct || why);
+  const href = card ? lessonHref(card) : null;
 
   const submit = (chosen: string[], correct: boolean) => {
-    if (!card || reveal || paused) return;
-    void study.answer(session.id, card, chosen, correct).then((result) => {
-      setReveal({ cardId: card.id, correct, chosen, finished: result.finished });
-      setPicked([]);
-    });
+    if (!card || reveal || paused || pendingRef.current) return;
+    pendingRef.current = true;
+    setPending(true);
+    void study.answer(session.id, card, chosen, correct)
+      .then((result) => {
+        setWhy(false);
+        setReveal({ cardId: card.id, correct, chosen, finished: result.finished });
+        setPicked([]);
+      })
+      .finally(() => {
+        pendingRef.current = false;
+        setPending(false);
+      });
   };
-
-  const href = card ? lessonHref(card) : null;
 
   return (
     <div className="stack">
@@ -105,7 +152,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
           style={{ padding: '1rem' }}
           onTouchStart={(event) => setTouchX(event.changedTouches[0]?.clientX ?? null)}
           onTouchEnd={(event) => {
-            if (touchX == null || choiceGraded(card) || reveal || paused) return;
+            if (touchX == null || graded || reveal || paused || pending) return;
             const dx = (event.changedTouches[0]?.clientX ?? touchX) - touchX;
             if (dx > 70) submit([], true);
             if (dx < -70) submit([], false);
@@ -118,17 +165,23 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
             {card.objective ? ` · ${card.objective}` : ''}
           </p>
           <h2 className="question">{card.question}</h2>
+          {figures.question.length ? (
+            <div className="stack">
+              {figures.question.map((src) => (
+                <img key={src} className="figure-img" data-testid="question-figure" src={src} alt="Figure from your PDF" />
+              ))}
+            </div>
+          ) : null}
           {card.choices.length ? (
             <div className="stack">
               {card.choices.map((choice) => {
                 const on = (reveal ? reveal.chosen : picked).includes(choice.label);
-                const show = !!reveal;
                 const isCorrect = card.correctLabels.includes(choice.label);
                 const className = [
                   'choice',
-                  on ? 'picked' : '',
-                  show && isCorrect ? 'correct' : '',
-                  show && on && !isCorrect ? 'wrong' : '',
+                  !reveal && on ? 'picked' : '',
+                  reveal && isCorrect ? 'correct' : '',
+                  reveal && on && !isCorrect ? 'wrong' : '',
                 ]
                   .filter(Boolean)
                   .join(' ');
@@ -138,17 +191,22 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
                     className={className}
                     data-testid="choice"
                     type="button"
-                    disabled={!!reveal || paused}
-                    onClick={() =>
+                    disabled={!!reveal || paused || pending}
+                    onClick={() => {
+                      if (reveal || paused) return;
+                      if (!multi && graded) {
+                        submit([choice.label], gradeLabels(card.correctLabels, [choice.label]));
+                        return;
+                      }
                       setPicked((current) =>
                         current.includes(choice.label)
                           ? current.filter((label) => label !== choice.label)
                           : [...current, choice.label],
-                      )
-                    }
+                      );
+                    }}
                   >
                     <strong>{choice.label}.</strong> {choice.text}
-                    {show && choice.explanation ? (
+                    {showExplanation && choice.explanation ? (
                       <span className="muted" style={{ display: 'block', marginTop: '0.35rem' }}>
                         {choice.explanation}
                       </span>
@@ -158,42 +216,55 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
               })}
             </div>
           ) : null}
-          {!reveal && choiceGraded(card) ? (
+          {!reveal && multi ? (
             <button
               className="btn btn-primary btn-block"
-              data-testid="check"
+              data-testid="submit"
               type="button"
-              disabled={paused || picked.length === 0}
-              onClick={() => {
-                const correct =
-                  [...picked].map((label) => label.toUpperCase()).sort().join(',') ===
-                  [...card.correctLabels].map((label) => label.toUpperCase()).sort().join(',');
-                submit(picked, correct);
-              }}
+              disabled={paused || pending || picked.length === 0}
+              onClick={() => submit(picked, gradeLabels(card.correctLabels, picked))}
             >
-              Check answer
+              Submit
             </button>
           ) : null}
-          {!reveal && !choiceGraded(card) ? (
+          {!reveal && !graded ? (
             <div className="stack">
               <p className="muted" style={{ margin: 0 }}>
                 This item has no lettered key. Grade it yourself, or swipe right for correct and left for missed.
               </p>
-              <button className="btn btn-primary btn-block" data-testid="got-it" type="button" disabled={paused} onClick={() => submit([], true)}>
+              <button className="btn btn-primary btn-block" data-testid="got-it" type="button" disabled={paused || pending} onClick={() => submit([], true)}>
                 I got it
               </button>
-              <button className="btn btn-clay btn-block" data-testid="missed" type="button" disabled={paused} onClick={() => submit([], false)}>
+              <button className="btn btn-clay btn-block" data-testid="missed" type="button" disabled={paused || pending} onClick={() => submit([], false)}>
                 I missed it
               </button>
             </div>
           ) : null}
           {reveal ? (
             <div className="stack">
-              <p style={{ margin: 0 }}>
-                <strong>{reveal.correct ? 'Correct' : 'Not quite'}.</strong>{' '}
-                {card.answer || (card.correctLabels.length ? `Answer: ${card.correctLabels.join(', ')}` : '')}
+              <p data-testid="result" className={reveal.correct ? 'result-correct' : 'result-wrong'} style={{ margin: 0 }}>
+                {reveal.correct ? 'Correct' : 'Incorrect'}
               </p>
-              <p style={{ margin: 0 }}>{card.explanation ?? 'No explanation provided in your PDF.'}</p>
+              {!reveal.correct && !graded && card.answer ? (
+                <p data-testid="correct-answer" style={{ margin: 0 }}>
+                  {card.answer}
+                </p>
+              ) : null}
+              {reveal.correct && card.explanation ? (
+                <button className="btn btn-ghost btn-block" data-testid="why" type="button" onClick={() => setWhy((open) => !open)}>
+                  {why ? 'Hide explanation' : 'Why?'}
+                </button>
+              ) : null}
+              {showExplanation ? (
+                <div className="stack">
+                  <p data-testid="explanation" style={{ margin: 0 }}>
+                    {card.explanation}
+                  </p>
+                  {figures.explanation.map((src) => (
+                    <img key={src} className="figure-img" data-testid="explanation-figure" src={src} alt="Figure from your PDF" />
+                  ))}
+                </div>
+              ) : null}
               {href ? (
                 <WatchLesson
                   href={href}
@@ -207,6 +278,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
                 type="button"
                 onClick={() => {
                   const finished = reveal.finished || session.status === 'finished';
+                  setWhy(false);
                   setReveal(null);
                   if (finished) navigate(`/results/${session.id}`);
                 }}

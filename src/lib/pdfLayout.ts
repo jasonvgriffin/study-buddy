@@ -40,12 +40,18 @@ function joinGlyphs(glyphs: Glyph[]): string {
   return text.replace(/\s+/g, ' ').trim();
 }
 
+export type PositionedLine = {
+  text: string;
+  x: number;
+  y: number;
+};
+
 /**
  * Rebuild reading order from PDF text glyphs.
  * A wide horizontal gap starts a new column so margin links are not glued
  * onto answer choices. Large vertical gaps become blank lines (paragraphs).
  */
-export function linesFromGlyphs(glyphs: Glyph[]): string[] {
+export function layoutLinesFromGlyphs(glyphs: Glyph[]): { lines: PositionedLine[]; chrome: string[] } {
   const rows: { y: number; glyphs: Glyph[] }[] = [];
   for (const g of glyphs) {
     if (!g.str) continue;
@@ -58,11 +64,9 @@ export function linesFromGlyphs(glyphs: Glyph[]): string[] {
   }
   rows.sort((a, b) => b.y - a.y);
 
-  const lines: string[] = [];
-  let prevY: number | null = null;
+  const lines: PositionedLine[] = [];
+  const chrome: string[] = [];
   for (const row of rows) {
-    if (prevY != null && prevY - row.y > 16) lines.push('');
-    prevY = row.y;
     const sorted = [...row.glyphs].sort((a, b) => a.x - b.x);
     const clusters: Glyph[][] = [];
     let current: Glyph[] = [];
@@ -80,9 +84,28 @@ export function linesFromGlyphs(glyphs: Glyph[]): string[] {
     for (const cluster of clusters) {
       const text = joinGlyphs(cluster);
       if (!text) continue;
-      if (isMarginChrome(text) || isFooterChrome(text)) continue;
-      lines.push(text);
+      if (isMarginChrome(text) || isFooterChrome(text)) {
+        chrome.push(text);
+        continue;
+      }
+      lines.push({ text, x: cluster[0]?.x ?? 0, y: row.y });
     }
+  }
+  return { lines, chrome };
+}
+
+export function positionedLinesFromGlyphs(glyphs: Glyph[]): PositionedLine[] {
+  return layoutLinesFromGlyphs(glyphs).lines;
+}
+
+export function linesFromGlyphs(glyphs: Glyph[]): string[] {
+  const positioned = positionedLinesFromGlyphs(glyphs);
+  const lines: string[] = [];
+  let prevY: number | null = null;
+  for (const line of positioned) {
+    if (prevY != null && prevY - line.y > 16) lines.push('');
+    prevY = line.y;
+    lines.push(line.text);
   }
   return lines;
 }

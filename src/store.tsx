@@ -15,6 +15,8 @@ import {
   exportBackup,
   importBackup,
   loadSnapshot,
+  putFigures,
+  relinkDraftFigures,
   putCard,
   putDeck,
   putDeckBundle,
@@ -28,7 +30,8 @@ import {
 } from './lib/db';
 import { newId } from './lib/format';
 import { lessonTitle, watchUrl } from './lib/lessons';
-import { extractPdfPages } from './lib/pdfExtract';
+import { assignFigures, bindFiguresToCards } from './lib/figures';
+import { extractPdfStudy } from './lib/pdfExtract';
 import { choiceGraded, gradeLabels, parseDocument } from './lib/parser';
 import { dueCardIds } from './lib/queue';
 import {
@@ -288,12 +291,17 @@ export function StudyProvider({ children }: { children: ReactNode }) {
     setBusy(`Reading ${file.name}`);
     try {
       const data = new Uint8Array(await file.arrayBuffer());
-      const pages = await extractPdfPages(data, (page, total) => {
+      const extracted = await extractPdfStudy(data, (page, total) => {
         setBusy(`Reading page ${page} of ${total}`);
       });
       setBusy('Finding questions');
-      const doc = parseDocument(pages);
-      const tests = doc.tests.filter((test) => test.cards.length > 0);
+      const doc = parseDocument(extracted.textPages);
+      const tests = doc.tests
+        .filter((test) => test.cards.length > 0)
+        .map((test) => ({
+          ...test,
+          cards: test.cards.map((card) => ({ ...card, captureId: card.captureId ?? newId() })),
+        }));
       if (!tests.length) {
         setMessage('No questions found in that PDF. Study Buddy reads text in the file. Scanned pages need OCR first.');
         return;
@@ -307,6 +315,43 @@ export function StudyProvider({ children }: { children: ReactNode }) {
         videoStarts: {},
         updatedAt: Date.now(),
       };
+      const mapped = assignFigures({
+        pageCount: extracted.pageCount,
+        pages: extracted.pageSizes,
+        lines: extracted.lines,
+        chrome: extracted.chrome,
+        images: extracted.images,
+      });
+      if (mapped.assignments.length) {
+        setBusy('Saving figures from the PDF');
+        const pngs = await extracted.rasterize(mapped.assignments.map((item) => item.imageIndex));
+        const links = bindFiguresToCards(tests, mapped.slots);
+        const figures = [];
+        for (const link of links) {
+          const card = tests[link.testIndex]?.cards[link.cardIndex];
+          const slot = mapped.slots[link.slotIndex];
+          if (!card?.captureId || !slot) continue;
+          const pairs: ['question' | 'explanation', number[]][] = [
+            ['question', slot.questionImageIndexes],
+            ['explanation', slot.explanationImageIndexes],
+          ];
+          for (const [role, indexes] of pairs) {
+            for (const imageIndex of indexes) {
+              const png = pngs.get(imageIndex);
+              if (!png) continue;
+              figures.push({
+                id: newId(),
+                draftId: draft.id,
+                cardId: null,
+                captureId: card.captureId,
+                role,
+                png,
+              });
+            }
+          }
+        }
+        await putFigures(figures);
+      }
       await putDraft(draft);
       patch((state) => ({ ...state, drafts: [...state.drafts.filter((item) => item.id !== draft.id), draft] }));
       navigate(`/review/${draft.id}`);
@@ -365,6 +410,7 @@ export function StudyProvider({ children }: { children: ReactNode }) {
     const subjectId = draft.subjectId;
     const now = Date.now();
     const stem = draft.fileName.replace(/\.pdf$/i, '');
+    const captureToCard = new Map<string, string>();
     for (let testIndex = 0; testIndex < draft.tests.length; testIndex += 1) {
       const test = draft.tests[testIndex];
       const deckId = newId();
@@ -391,8 +437,12 @@ export function StudyProvider({ children }: { children: ReactNode }) {
           videoStartSec,
         };
       });
+      for (const card of cards) {
+        if (card.captureId) captureToCard.set(card.captureId, card.id);
+      }
       await putDeckBundle(deck, cards);
     }
+    await relinkDraftFigures(draft.id, captureToCard);
     await deleteDraft(draft.id);
     const loaded = await loadSnapshot();
     replaceSnap(loaded);

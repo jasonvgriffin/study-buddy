@@ -27,6 +27,8 @@ export type ParsedCard = {
   examCode: string | null;
   /** Verbatim URL from the PDF. Null when the PDF has no link. */
   lessonUrl: string | null;
+  /** Stable id assigned at import so figures survive a rename or split. */
+  captureId?: string;
 };
 
 export type ParsedTest = {
@@ -151,6 +153,15 @@ export type PersistMeta = {
   at: number;
 };
 
+export type StoredFigure = {
+  id: string;
+  draftId: string | null;
+  cardId: string | null;
+  captureId: string;
+  role: 'question' | 'explanation';
+  png: Blob;
+};
+
 export type BackupFile = {
   version: 1;
   exportedAt: string;
@@ -160,4 +171,5 @@ export type BackupFile = {
   reviews: Review[];
   sessions: LiveSession[];
   memories: CardMemory[];
+  figures?: { id: string; cardId: string; captureId: string; role: 'question' | 'explanation'; pngBase64: string }[];
 };

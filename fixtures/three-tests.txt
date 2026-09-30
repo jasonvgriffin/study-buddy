@@ -38,6 +38,9 @@ The Danube is in Europe but does not run through Cairo.
 d) Rhine
 The Rhine does not run through Cairo.
 
+More information:
+https://example.com/lessons/nile
+
 2. a) Danube and c) Rhine
 The Answer: a and c
 The Danube and the Rhine both flow through Europe.

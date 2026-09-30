@@ -24,6 +24,7 @@ describe('parsePlainText', () => {
     expect(first.cards[0].correctLabels).toEqual(['A']);
     expect(first.cards[0].section).toBe('Section: Rivers');
     expect(first.cards[0].explanation).toContain('Cairo sits on the Nile');
+    expect(first.cards[0].lessonUrl).toBe('https://example.com/lessons/nile');
     expect(first.cards[0].choices.find((choice) => choice.label === 'B')?.explanation).toContain(
       'South America',
     );
