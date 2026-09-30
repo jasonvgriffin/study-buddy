@@ -10,6 +10,9 @@ const base = process.env.VITE_BASE || '/study-buddy/'
 export default defineConfig({
   base,
   plugins: [react(), tailwindcss()],
+  optimizeDeps: {
+    exclude: ['@napi-rs/canvas'],
+  },
   server: {
     host: '0.0.0.0',
     port: 43123,
