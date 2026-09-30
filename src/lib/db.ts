@@ -164,6 +164,18 @@ export async function figuresForCard(cardId: string): Promise<StoredFigure[]> {
   });
 }
 
+/** Figures captured for one card of an import draft that has not been saved yet. */
+export async function figuresForDraftCapture(draftId: string, captureId: string): Promise<StoredFigure[]> {
+  const db = await openStudyDb();
+  const figures = (await db.getAll('figures')).filter(
+    (figure) => figure.draftId === draftId && figure.captureId === captureId,
+  );
+  return figures.sort((a, b) => {
+    if (a.role !== b.role) return a.role === 'question' ? -1 : 1;
+    return a.id.localeCompare(b.id);
+  });
+}
+
 export async function relinkDraftFigures(draftId: string, captureToCard: Map<string, string>): Promise<void> {
   const db = await openStudyDb();
   const figures = (await db.getAll('figures')).filter((figure) => figure.draftId === draftId);

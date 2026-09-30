@@ -80,7 +80,7 @@ type StudyApi = {
   removeSubject: (id: string) => Promise<void>;
   importPdf: (file: File) => Promise<void>;
   loadSample: (which: 'three' | 'notes') => Promise<void>;
-  saveDraftTests: (draft: ImportDraft) => Promise<void>;
+  saveDraftTests: (draft: ImportDraft, options?: { replaceDeckIds?: string[] }) => Promise<void>;
   writeDraft: (draft: ImportDraft) => Promise<void>;
   dropDraft: (id: string) => Promise<void>;
   renameDeck: (deck: Deck, name: string) => Promise<void>;
@@ -427,10 +427,15 @@ export function StudyProvider({ children }: { children: ReactNode }) {
     navigate('/');
   }
 
-  async function saveDraftTests(draft: ImportDraft) {
+  async function saveDraftTests(draft: ImportDraft, options?: { replaceDeckIds?: string[] }) {
     if (!draft.subjectId) {
       setMessage('Choose a subject before saving.');
       return;
+    }
+    // Re-importing the same PDF replaces the earlier decks (cards, figures, answers,
+    // and paused sessions) so an old parse without figures cannot linger beside the new one.
+    for (const deckId of options?.replaceDeckIds ?? []) {
+      await deleteDeck(deckId);
     }
     const subjectId = draft.subjectId;
     const now = Date.now();

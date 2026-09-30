@@ -43,6 +43,9 @@ function Shell() {
         {study.ready && route.name === 'deck' ? <DeckScreen deckId={route.deckId} /> : null}
         {study.ready && route.name === 'session' ? <SessionScreen sessionId={route.sessionId} /> : null}
         {study.ready && route.name === 'results' ? <ResultsScreen sessionId={route.sessionId} /> : null}
+        <p className="muted" data-testid="build-version" style={{ fontSize: '0.75rem', textAlign: 'center', margin: '1.5rem 0 0' }}>
+          Study Buddy build {__APP_VERSION__} · {__BUILD_TIME__.slice(0, 16).replace('T', ' ')} UTC
+        </p>
       </main>
       {showNav ? (
         <nav className="nav">

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { figuresForDraftCapture } from './lib/db';
 import { mergeWithPrevious, renameSection, renameTest, splitAt, updateParsedCard } from './lib/draft';
 import type { ImportDraft } from './lib/types';
 import { navigate } from './nav';
@@ -10,6 +11,7 @@ export function ReviewScreen({ draftId }: { draftId: string }) {
   const draft = study.snap?.drafts.find((item) => item.id === draftId) ?? null;
   const [testIndex, setTestIndex] = useState(0);
   const [cardIndex, setCardIndex] = useState(0);
+  const [replaceOld, setReplaceOld] = useState(true);
   if (!draft) {
     return (
       <Screen title="Review" onBack={() => navigate('/')}>
@@ -23,6 +25,11 @@ export function ReviewScreen({ draftId }: { draftId: string }) {
   const commit = (next: ImportDraft) => {
     void study.writeDraft(next);
   };
+  const earlierDecks = (study.snap?.decks ?? []).filter(
+    (deck) => deck.subjectId === draft.subjectId && deck.sourceFileName === draft.fileName,
+  );
+  const save = () =>
+    void study.saveDraftTests(draft, { replaceDeckIds: replaceOld ? earlierDecks.map((deck) => deck.id) : [] });
 
   return (
     <Screen
@@ -30,6 +37,27 @@ export function ReviewScreen({ draftId }: { draftId: string }) {
       lede={`${draft.fileName}. Each test becomes its own deck. A later quiz uses one test at a time.`}
       onBack={() => navigate('/')}
     >
+      <p className="banner" data-testid="review-notice" style={{ margin: 0 }}>
+        This is the import check, not the quiz. Answers stay hidden here unless you tap Show answer. Save the tests,
+        then open one and tap Start to study.
+      </p>
+      {earlierDecks.length ? (
+        <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <input
+            type="checkbox"
+            data-testid="replace-old"
+            checked={replaceOld}
+            onChange={(event) => setReplaceOld(event.target.checked)}
+          />
+          <span>
+            Replace the {earlierDecks.length} earlier test{earlierDecks.length === 1 ? '' : 's'} from {draft.fileName} (their
+            answers and paused sessions are removed)
+          </span>
+        </label>
+      ) : null}
+      <button className="btn btn-primary btn-block" data-testid="save-tests-top" type="button" onClick={save}>
+        Save {draft.tests.length} test{draft.tests.length === 1 ? '' : 's'}
+      </button>
       {draft.domains.length ? (
         <p className="muted" style={{ margin: 0 }}>
           Domains in this PDF:{' '}
@@ -108,13 +136,14 @@ export function ReviewScreen({ draftId }: { draftId: string }) {
       ) : null}
       {test && card ? (
         <CardEditor
+          key={`${testIndex}:${cardIndex}`}
           draft={draft}
           testIndex={testIndex}
           cardIndex={cardIndex}
           onChange={commit}
         />
       ) : null}
-      <button className="btn btn-primary btn-block" data-testid="save-tests" type="button" onClick={() => void study.saveDraftTests(draft)}>
+      <button className="btn btn-primary btn-block" data-testid="save-tests" type="button" onClick={save}>
         Save {draft.tests.length} test{draft.tests.length === 1 ? '' : 's'}
       </button>
       <button className="btn btn-ghost btn-block" type="button" onClick={() => void study.dropDraft(draft.id)}>
@@ -138,6 +167,23 @@ function CardEditor({
   const test = draft.tests[testIndex];
   const card = test.cards[cardIndex];
   const startKey = `${testIndex}:${cardIndex}`;
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [figureUrls, setFigureUrls] = useState<string[]>([]);
+  const captureId = card.captureId ?? null;
+  useEffect(() => {
+    if (!captureId) return;
+    let live = true;
+    const urls: string[] = [];
+    void figuresForDraftCapture(draft.id, captureId).then((rows) => {
+      if (!live) return;
+      for (const row of rows) if (row.role === 'question') urls.push(URL.createObjectURL(row.png));
+      setFigureUrls(urls);
+    });
+    return () => {
+      live = false;
+      for (const url of urls) URL.revokeObjectURL(url);
+    };
+  }, [draft.id, captureId]);
   const start = draft.videoStarts?.[startKey];
   const patch = (partial: Partial<typeof card>) => {
     onChange({
@@ -161,20 +207,37 @@ function CardEditor({
           ))}
         </ul>
       ) : null}
-      <p style={{ margin: 0 }}>
-        <strong>Answer from the PDF: </strong>
-        {card.answer || card.correctLabels.join(', ') || 'None found'}
-      </p>
-      <label className="stack" style={{ gap: '0.35rem' }}>
-        <span>Explanation</span>
-        <textarea
-          className="field"
-          rows={4}
-          value={card.explanation ?? ''}
-          placeholder="No explanation provided in your PDF."
-          onChange={(event) => patch({ explanation: event.target.value.trim() ? event.target.value : null })}
-        />
-      </label>
+      {figureUrls.map((src) => (
+        <img key={src} className="figure-img" data-testid="review-figure" src={src} alt="Figure from your PDF" />
+      ))}
+      <button
+        className="btn btn-ghost btn-block"
+        data-testid="review-show-answer"
+        type="button"
+        aria-expanded={showAnswer}
+        onClick={() => setShowAnswer((value) => !value)}
+      >
+        {showAnswer ? 'Hide answer and explanation' : 'Show answer and explanation (spoiler)'}
+      </button>
+      {showAnswer ? (
+        <>
+          <p style={{ margin: 0 }} data-testid="review-answer">
+            <strong>Answer from the PDF: </strong>
+            {card.answer || card.correctLabels.join(', ') || 'None found'}
+          </p>
+          <label className="stack" style={{ gap: '0.35rem' }}>
+            <span>Explanation</span>
+            <textarea
+              className="field"
+              data-testid="review-explanation"
+              rows={4}
+              value={card.explanation ?? ''}
+              placeholder="No explanation provided in your PDF."
+              onChange={(event) => patch({ explanation: event.target.value.trim() ? event.target.value : null })}
+            />
+          </label>
+        </>
+      ) : null}
       <label className="stack" style={{ gap: '0.35rem' }}>
         <span>Section</span>
         <input

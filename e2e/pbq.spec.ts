@@ -1,9 +1,10 @@
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 
 const pdfPath = path.resolve('uploads/messer-aplus-core1-practice-exams_5c83.pdf');
-const shots = '/opt/cursor/artifacts';
+const shots = process.env.E2E_SHOTS ?? path.resolve('test-results/shots');
+mkdirSync(shots, { recursive: true });
 
 async function openDeck(page: Page, name: string) {
   await page.locator(`[data-deck-name="${name}"]`).click();
@@ -31,6 +32,16 @@ test('phone import shows PBQ figures and hides answers until submit', async ({ p
   await expect(page.locator('[data-subject-name="Core 1"]')).toHaveClass(/on/);
   await page.getByTestId('pdf-file').setInputFiles(pdfPath);
   await expect(page.getByTestId('save-tests')).toBeVisible({ timeout: 240_000 });
+  // The import check must not spoil the answer, and it shows the captured diagram.
+  await expect(page.getByTestId('review-notice')).toBeVisible();
+  await expect(page.getByTestId('review-answer')).toHaveCount(0);
+  await expect(page.getByTestId('review-explanation')).toHaveCount(0);
+  await expect(page.getByText(/Answer from the PDF/)).toHaveCount(0);
+  await expect(page.getByTestId('review-figure').first()).toBeVisible();
+  await page.getByTestId('review-show-answer').click();
+  await expect(page.getByTestId('review-answer')).toBeVisible();
+  await page.getByTestId('review-show-answer').click();
+  await expect(page.getByTestId('review-answer')).toHaveCount(0);
   await page.getByTestId('save-tests').click();
   await expect(page.locator('[data-deck-name="Practice Exam A"]')).toBeVisible();
 
