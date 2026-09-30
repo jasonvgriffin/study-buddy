@@ -1,4 +1,4 @@
-import type { ParsedCard, PbqGrade, PbqItem, PbqTask, PlacedLine, TextPage } from './types';
+import type { ParsedCard, PbqGrade, PbqItem, PbqTask, PlacedLine } from './types';
 
 export type Piece = PlacedLine & { page: number };
 
@@ -80,9 +80,8 @@ export function gradePbq(
     const row = values[index] ?? [];
     const correct =
       item.controls.length > 0 &&
-      item.controls.every((control, controlIndex) =>
-        controlMatches(row[controlIndex] ?? '', item.accept[controlIndex] ?? [], task.grade),
-      );
+      item.accept.length === item.controls.length &&
+      item.accept.every((accepted, controlIndex) => controlMatches(row[controlIndex] ?? '', accepted, task.grade));
     return {
       id: item.id,
       correct,

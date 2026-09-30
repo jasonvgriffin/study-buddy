@@ -425,7 +425,7 @@ async function paintCanvas(width: number, height: number): Promise<PaintCanvas |
     canvas.height = h;
     return canvas;
   }
-  const napi = (await import(/* @vite-ignore */ '@napi-rs/canvas')) as {
+  const napi = (await import(/* @vite-ignore */ '@napi-rs/canvas')) as unknown as {
     createCanvas: (width: number, height: number) => PaintCanvas;
   };
   return napi.createCanvas(w, h);

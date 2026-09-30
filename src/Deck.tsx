@@ -18,16 +18,20 @@ export function DeckScreen({ deckId }: { deckId: string }) {
   useEffect(() => {
     if (deck) setName(deck.name);
   }, [deck]);
-  const cardIds = snap?.cards.filter((card) => card.deckId === deckId).map((card) => card.id) ?? [];
+  const cardKey = snap?.cards
+    .filter((card) => card.deckId === deckId)
+    .map((card) => card.id)
+    .join('|') ?? '';
   useEffect(() => {
     let alive = true;
-    void figureCountForCards(cardIds).then((count) => {
+    const ids = cardKey.length ? cardKey.split('|') : [];
+    void figureCountForCards(ids).then((count) => {
       if (alive) setFigureCount(count);
     });
     return () => {
       alive = false;
     };
-  }, [deckId, cardIds.join('|')]);
+  }, [deckId, cardKey]);
   if (!snap || !deck) {
     return (
       <Screen title="Test" onBack={() => navigate('/')}>
