@@ -147,6 +147,14 @@ export async function putFigures(figures: StoredFigure[]): Promise<void> {
   await tx.done;
 }
 
+export async function figureCountForCards(cardIds: string[]): Promise<number> {
+  if (!cardIds.length) return 0;
+  const db = await openStudyDb();
+  const want = new Set(cardIds);
+  const figures = await db.getAll('figures');
+  return figures.filter((figure) => figure.role === 'question' && !!figure.cardId && want.has(figure.cardId)).length;
+}
+
 export async function figuresForCard(cardId: string): Promise<StoredFigure[]> {
   const db = await openStudyDb();
   const figures = (await db.getAll('figures')).filter((figure) => figure.cardId === cardId);

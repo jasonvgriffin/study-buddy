@@ -118,6 +118,14 @@ a { color: inherit; }
 .choice.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, var(--card)); }
 .result-correct { color: var(--good); font-weight: 750; font-size: 1.2rem; }
 .result-wrong { color: var(--bad); font-weight: 750; font-size: 1.2rem; }
+.figure-button {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 0.75rem;
+}
 .figure-img {
   display: block;
   width: 100%;
@@ -125,6 +133,28 @@ a { color: inherit; }
   border-radius: 0.75rem;
   background: #fff;
   border: 1px solid var(--line);
+}
+.zoom-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem;
+  background: rgba(20, 16, 12, 0.88);
+}
+.zoom-layer img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 0.5rem;
+}
+.pbq-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
 .bar {
   height: 0.55rem;

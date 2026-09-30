@@ -32,6 +32,7 @@ import { newId } from './lib/format';
 import { lessonTitle, watchUrl } from './lib/lessons';
 import { assignFigures, bindFiguresToCards } from './lib/figures';
 import { extractPdfStudy } from './lib/pdfExtract';
+import { questionRegions } from './lib/regions';
 import { choiceGraded, gradeLabels, parseDocument } from './lib/parser';
 import { dueCardIds } from './lib/queue';
 import {
@@ -322,11 +323,32 @@ export function StudyProvider({ children }: { children: ReactNode }) {
         chrome: extracted.chrome,
         images: extracted.images,
       });
+      const regionJobs = questionRegions({
+        labels: tests.flatMap((test) => test.cards.filter((card) => card.pbq).map((card) => card.sourceLabel)),
+        lines: extracted.lines,
+        chrome: extracted.chrome,
+        pages: extracted.pageSizes,
+      });
+      const regionPngs = regionJobs.length ? await extracted.renderRegions(regionJobs) : new Map<string, Blob>();
+      const figures = [];
+      for (const test of tests) {
+        for (const card of test.cards) {
+          const png = card.captureId ? regionPngs.get(card.sourceLabel) : undefined;
+          if (!png || !card.captureId) continue;
+          figures.push({
+            id: newId(),
+            draftId: draft.id,
+            cardId: null,
+            captureId: card.captureId,
+            role: 'question' as const,
+            png,
+          });
+        }
+      }
       if (mapped.assignments.length) {
         setBusy('Saving figures from the PDF');
         const pngs = await extracted.rasterize(mapped.assignments.map((item) => item.imageIndex));
         const links = bindFiguresToCards(tests, mapped.slots);
-        const figures = [];
         for (const link of links) {
           const card = tests[link.testIndex]?.cards[link.cardIndex];
           const slot = mapped.slots[link.slotIndex];
@@ -350,6 +372,9 @@ export function StudyProvider({ children }: { children: ReactNode }) {
             }
           }
         }
+      }
+      if (figures.length) {
+        setBusy('Saving figures from the PDF');
         await putFigures(figures);
       }
       await putDraft(draft);

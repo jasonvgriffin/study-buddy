@@ -1,3 +1,4 @@
+import { buildPbq, explanationFrom, type Piece } from './pbq';
 import type { ParsedCard, ParsedChoice, ParsedDocument, ParsedDomain, ParsedTest, TextPage } from './types';
 
 type Mode = 'seek' | 'questions' | 'key' | 'details';
@@ -184,6 +185,16 @@ function blankCard(label: string, section: string | null): WorkCard {
   };
 }
 
+function stripChromeNoise(text: string): string {
+  return clean(
+    text
+      .replace(/\bAnswer\s*Page:\s*\d{1,4}\b/gi, ' ')
+      .replace(/\bThe Details:\s*\d{1,4}\b/gi, ' ')
+      .replace(/\bAnswer:\s*\d{1,4}\b/gi, ' ')
+      .replace(/\s+Quick\s*$/gi, ' '),
+  );
+}
+
 function paragraphs(lines: string[]): string {
   const parts: string[] = [];
   let buf: string[] = [];
@@ -229,11 +240,12 @@ function finalize(card: WorkCard): ParsedCard {
   });
   return {
     sourceLabel: card.sourceLabel,
-    question: clean(card.question),
-    choices,
+    question: stripChromeNoise(card.question),
+    choices: choices.map((choice) => ({ ...choice, text: stripChromeNoise(choice.text) })),
     correctLabels: card.correctLabels,
     answer: answer || '',
     explanation: prose.length ? explanationText : null,
+    pbq: card.pbq ?? null,
     section: card.section,
     domainNumber: card.domainNumber,
     domainName: card.domainName,
@@ -581,6 +593,8 @@ export function parseDocument(pages: TextPage[]): ParsedDocument {
     }
   }
 
+  attachPbq(tests, pages);
+
   const parsedTests: ParsedTest[] = tests
     .map((item) => ({
       name: item.name,
@@ -598,6 +612,104 @@ export function parseDocument(pages: TextPage[]): ParsedDocument {
     domains: [...domains.values()].sort((a, b) => a.number - b.number),
     tests: parsedTests,
   };
+}
+
+function attachPbq(tests: { name: string; cards: WorkCard[] }[], pages: TextPage[]) {
+  type Bucket = { test: string; label: string; q: Piece[]; a: Piece[] };
+  const buckets: Bucket[] = [];
+  let testName = 'Imported test';
+  let pbqQuestions = false;
+  let pbqAnswers = false;
+  let current: Bucket | null = null;
+  let skippingMeta = false;
+
+  const piecesOf = (page: TextPage, pageNumber: number): Piece[] => {
+    const source = page.pieces?.length
+      ? page.pieces
+      : page.lines.map((text, index) => ({ text, x: 0, y: (page.lines.length - index) * 40 }));
+    return source
+      .map((piece) => ({ ...piece, page: pageNumber }))
+      .filter((piece) => clean(piece.text) && !isChromeLine(piece.text));
+  };
+
+  for (let pageIndex = 0; pageIndex < pages.length; pageIndex += 1) {
+    const page = pages[pageIndex];
+    if (!page) continue;
+    for (const piece of piecesOf(page, pageIndex + 1)) {
+      const line = clean(piece.text);
+      if (/performance[-\s]?based\s+questions/i.test(line)) {
+        pbqQuestions = true;
+        pbqAnswers = false;
+        current = null;
+        skippingMeta = false;
+        continue;
+      }
+      if (/performance[-\s]?based\s+answers/i.test(line)) {
+        pbqQuestions = false;
+        pbqAnswers = true;
+        current = null;
+        skippingMeta = false;
+        continue;
+      }
+      if (/multiple[-\s]?choice\s+questions/i.test(line)) {
+        pbqQuestions = false;
+        current = null;
+        continue;
+      }
+      if (/detailed\s+answers/i.test(line) && !/performance/i.test(line)) {
+        pbqAnswers = false;
+        current = null;
+        skippingMeta = false;
+        continue;
+      }
+      if (modeHeading(line)) continue;
+      const heading = testHeading(line);
+      if (heading) {
+        testName = heading;
+        continue;
+      }
+      const started = questionStart(line);
+      if (pbqQuestions && started) {
+        current = { test: testName, label: started.label, q: [{ ...piece, text: started.rest }], a: [] };
+        buckets.push(current);
+        skippingMeta = false;
+        continue;
+      }
+      if (pbqAnswers && started) {
+        current =
+          buckets.find(
+            (bucket) => bucket.label === started.label && bucket.test.toLowerCase() === testName.toLowerCase(),
+          ) ?? null;
+        skippingMeta = false;
+        continue;
+      }
+      if (pbqQuestions && current) {
+        current.q.push(piece);
+        continue;
+      }
+      if (pbqAnswers && current && !skippingMeta) {
+        if (/^more information:?$/i.test(line)) {
+          skippingMeta = true;
+          continue;
+        }
+        current.a.push(piece);
+      }
+    }
+  }
+
+  for (const bucket of buckets) {
+    const test = tests.find((item) => item.name.toLowerCase() === bucket.test.toLowerCase());
+    const card = test?.cards.find((entry) => entry.sourceLabel === bucket.label);
+    if (!card || !bucket.q.length) continue;
+    const task = buildPbq(bucket.q, bucket.a);
+    const explanation = explanationFrom(bucket.a, task.instruction);
+    card.question = task.instruction || card.question;
+    card.pbq = task;
+    card.choices = [];
+    card.correctLabels = [];
+    card.answer = '';
+    if (explanation) card.explanationLines = explanation.split('\n');
+  }
 }
 
 export function parsePages(pages: TextPage[]): ParsedTest[] {

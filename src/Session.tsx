@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { figuresForCard } from './lib/db';
 import { formatDuration, formatPercent } from './lib/format';
 import { choiceGraded, gradeLabels } from './lib/parser';
+import { PbqForm } from './PbqForm';
 import { elapsedMs, liveScore } from './lib/session';
 import { navigate } from './nav';
 import { WatchLesson } from './bits';
@@ -26,6 +27,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
     question: [],
     explanation: [],
   });
+  const [zoom, setZoom] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session || session.status !== 'active') return;
@@ -89,7 +91,8 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
   const paused = session.status !== 'active';
   const graded = card ? choiceGraded(card) : false;
   const multi = graded && !!card && card.correctLabels.length > 1;
-  const showExplanation = !!reveal && !!card?.explanation && (!reveal.correct || why);
+  const pbq = card?.pbq ?? null;
+  const showExplanation = !!reveal && !!card?.explanation && (!!pbq || !reveal.correct || why);
   const href = card ? lessonHref(card) : null;
 
   const submit = (chosen: string[], correct: boolean) => {
@@ -152,7 +155,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
           style={{ padding: '1rem' }}
           onTouchStart={(event) => setTouchX(event.changedTouches[0]?.clientX ?? null)}
           onTouchEnd={(event) => {
-            if (touchX == null || graded || reveal || paused || pending) return;
+            if (touchX == null || graded || pbq || reveal || paused || pending) return;
             const dx = (event.changedTouches[0]?.clientX ?? touchX) - touchX;
             if (dx > 70) submit([], true);
             if (dx < -70) submit([], false);
@@ -168,9 +171,16 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
           {figures.question.length ? (
             <div className="stack">
               {figures.question.map((src) => (
-                <img key={src} className="figure-img" data-testid="question-figure" src={src} alt="Figure from your PDF" />
+                <button key={src} className="figure-button" type="button" data-testid="zoom-figure" onClick={() => setZoom(src)}>
+                  <img className="figure-img" data-testid="question-figure" src={src} alt="Figure from your PDF" />
+                </button>
               ))}
             </div>
+          ) : null}
+          {zoom ? (
+            <button className="zoom-layer" type="button" data-testid="zoom-close" onClick={() => setZoom(null)}>
+              <img src={zoom} alt="Enlarged figure from your PDF" />
+            </button>
           ) : null}
           {card.choices.length ? (
             <div className="stack">
@@ -216,6 +226,16 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
               })}
             </div>
           ) : null}
+          {pbq ? (
+            <PbqForm
+              key={card.id}
+              task={pbq}
+              paused={paused}
+              pending={pending}
+              revealed={!!reveal && reveal.cardId === card.id}
+              onSubmit={(correct, chosen) => submit(chosen, correct)}
+            />
+          ) : null}
           {!reveal && multi ? (
             <button
               className="btn btn-primary btn-block"
@@ -227,7 +247,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
               Submit
             </button>
           ) : null}
-          {!reveal && !graded ? (
+          {!reveal && !graded && !pbq ? (
             <div className="stack">
               <p className="muted" style={{ margin: 0 }}>
                 This item has no lettered key. Grade it yourself, or swipe right for correct and left for missed.
@@ -245,7 +265,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
               <p data-testid="result" className={reveal.correct ? 'result-correct' : 'result-wrong'} style={{ margin: 0 }}>
                 {reveal.correct ? 'Correct' : 'Incorrect'}
               </p>
-              {!reveal.correct && !graded && card.answer ? (
+              {!reveal.correct && !graded && !pbq && card.answer ? (
                 <p data-testid="correct-answer" style={{ margin: 0 }}>
                   {card.answer}
                 </p>

@@ -1,5 +1,6 @@
 import type { LayoutImage, LayoutLine, LayoutPage } from './figures';
-import { layoutLinesFromGlyphs, linesFromGlyphs, type Glyph } from './pdfLayout';
+import type { RegionJob } from './regions';
+import { layoutLinesFromGlyphs, linesFromGlyphs, type Glyph, type PositionedLine } from './pdfLayout';
 import { encodePng, fitRgba } from './png';
 import type { TextPage } from './types';
 
@@ -86,6 +87,16 @@ async function openDocument(data: Uint8Array): Promise<{ doc: PdfDoc; ops: PdfMo
       : { data },
   ).promise;
   return { doc, ops: pdfjs.OPS };
+}
+
+function dedupePieces(lines: PositionedLine[]): PositionedLine[] {
+  const out: PositionedLine[] = [];
+  for (const line of lines) {
+    const prev = out[out.length - 1];
+    if (prev && prev.text === line.text && Math.abs(prev.y - line.y) < 2.5 && Math.abs(prev.x - line.x) < 8) continue;
+    out.push(line);
+  }
+  return out;
 }
 
 function glyphsOf(items: PdfItem[]): Glyph[] {
@@ -259,9 +270,10 @@ export type PdfStudyExtract = {
   pageCount: number;
   pageSizes: LayoutPage[];
   lines: LayoutLine[];
-  chrome: { page: number; text: string }[];
+  chrome: { page: number; text: string; y: number }[];
   images: LayoutImage[];
   rasterize: (imageIndexes: number[]) => Promise<Map<number, Blob>>;
+  renderRegions: (jobs: RegionJob[]) => Promise<Map<string, Blob>>;
 };
 
 export async function extractPdfStudy(
@@ -272,7 +284,7 @@ export async function extractPdfStudy(
   const textPages: TextPage[] = [];
   const pageSizes: LayoutPage[] = [];
   const lines: LayoutLine[] = [];
-  const chrome: { page: number; text: string }[] = [];
+  const chrome: { page: number; text: string; y: number }[] = [];
   const stored: StoredImage[] = [];
 
   for (let number = 1; number <= doc.numPages; number += 1) {
@@ -283,9 +295,10 @@ export async function extractPdfStudy(
     const content = await page.getTextContent();
     const glyphs = glyphsOf(content.items);
     const layout = layoutLinesFromGlyphs(glyphs);
+    const fine = layoutLinesFromGlyphs(glyphs, 8);
     for (const line of layout.lines) lines.push({ page: number, ...line });
-    for (const text of layout.chrome) chrome.push({ page: number, text });
-    textPages.push({ lines: linesFromGlyphs(glyphs) });
+    for (const item of layout.chrome) chrome.push({ page: number, text: item.text, y: item.y });
+    textPages.push({ lines: linesFromGlyphs(glyphs), pieces: dedupePieces(fine.lines) });
     try {
       const opList = await page.getOperatorList();
       const { placed } = imagePlacements(opList, ops, number);
@@ -305,6 +318,14 @@ export async function extractPdfStudy(
     lines,
     chrome,
     images,
+    renderRegions: async (jobs: RegionJob[]) => {
+      const out = new Map<string, Blob>();
+      for (const job of jobs) {
+        const blob = await renderJob(doc, job);
+        if (blob) out.set(job.id, blob);
+      }
+      return out;
+    },
     rasterize: async (imageIndexes: number[]) => {
       const want = new Set(imageIndexes);
       const out = new Map<number, Blob>();
@@ -385,6 +406,89 @@ async function cropFigures(
     if (blob) out.set(index, blob);
   }
   return out;
+}
+
+type PaintCanvas = {
+  width: number;
+  height: number;
+  getContext: (kind: '2d') => CanvasRenderingContext2D | null;
+  toBlob?: (callback: (blob: Blob | null) => void, type?: string) => void;
+  toBuffer?: (type: 'image/png') => Uint8Array;
+};
+
+async function paintCanvas(width: number, height: number): Promise<PaintCanvas | null> {
+  const w = Math.max(1, Math.ceil(width));
+  const h = Math.max(1, Math.ceil(height));
+  if (typeof document !== 'undefined') {
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    return canvas;
+  }
+  const napi = (await import(/* @vite-ignore */ '@napi-rs/canvas')) as {
+    createCanvas: (width: number, height: number) => PaintCanvas;
+  };
+  return napi.createCanvas(w, h);
+}
+
+async function canvasToBlob(canvas: PaintCanvas): Promise<Blob | null> {
+  if (canvas.toBlob) {
+    return new Promise((resolve) => canvas.toBlob?.((value) => resolve(value), 'image/png'));
+  }
+  if (!canvas.toBuffer) return null;
+  const buffer = canvas.toBuffer('image/png');
+  const copy = new Uint8Array(buffer.byteLength);
+  copy.set(buffer);
+  return new Blob([copy]);
+}
+
+async function renderJob(doc: PdfDoc, job: RegionJob): Promise<Blob | null> {
+  const scale = 2;
+  const slices: PaintCanvas[] = [];
+  for (const box of job.boxes) {
+    const page = await doc.getPage(box.page);
+    const viewport = page.getViewport({ scale });
+    const [, yTop] = viewport.convertToViewportPoint(0, box.top);
+    const [, yBottom] = viewport.convertToViewportPoint(0, box.bottom);
+    const top = Math.max(0, Math.min(yTop, yBottom));
+    const cropHeight = Math.min(viewport.height - top, Math.abs(yBottom - yTop));
+    const cropWidth = viewport.width;
+    if (cropWidth < 8 || cropHeight < 8) continue;
+    const longest = Math.max(cropWidth, cropHeight);
+    const fit = longest > 1800 ? 1800 / longest : 1;
+    const full = await paintCanvas(viewport.width, viewport.height);
+    const target = await paintCanvas(cropWidth * fit, cropHeight * fit);
+    if (!full || !target) continue;
+    const fullContext = full.getContext('2d');
+    const targetContext = target.getContext('2d');
+    if (!fullContext || !targetContext) continue;
+    fullContext.fillStyle = '#ffffff';
+    fullContext.fillRect(0, 0, viewport.width, viewport.height);
+    await page.render({
+      canvasContext: fullContext,
+      viewport,
+      canvas: full as unknown as HTMLCanvasElement,
+    }).promise;
+    targetContext.fillStyle = '#ffffff';
+    targetContext.fillRect(0, 0, target.width, target.height);
+    targetContext.drawImage(full as unknown as CanvasImageSource, 0, top, cropWidth, cropHeight, 0, 0, target.width, target.height);
+    slices.push(target);
+  }
+  if (!slices.length) return null;
+  if (slices.length === 1) return canvasToBlob(slices[0]);
+  const width = Math.max(...slices.map((slice) => slice.width));
+  const height = slices.reduce((sum, slice) => sum + slice.height, 0);
+  const stacked = await paintCanvas(width, height);
+  const context = stacked?.getContext('2d');
+  if (!stacked || !context) return null;
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, width, height);
+  let y = 0;
+  for (const slice of slices) {
+    context.drawImage(slice as unknown as CanvasImageSource, 0, y);
+    y += slice.height;
+  }
+  return canvasToBlob(stacked);
 }
 
 export async function extractPdfPages(

@@ -51,7 +51,10 @@ export type PositionedLine = {
  * A wide horizontal gap starts a new column so margin links are not glued
  * onto answer choices. Large vertical gaps become blank lines (paragraphs).
  */
-export function layoutLinesFromGlyphs(glyphs: Glyph[]): { lines: PositionedLine[]; chrome: string[] } {
+export function layoutLinesFromGlyphs(
+  glyphs: Glyph[],
+  columnGap = 32,
+): { lines: PositionedLine[]; chrome: { text: string; y: number }[] } {
   const rows: { y: number; glyphs: Glyph[] }[] = [];
   for (const g of glyphs) {
     if (!g.str) continue;
@@ -65,14 +68,14 @@ export function layoutLinesFromGlyphs(glyphs: Glyph[]): { lines: PositionedLine[
   rows.sort((a, b) => b.y - a.y);
 
   const lines: PositionedLine[] = [];
-  const chrome: string[] = [];
+  const chrome: { text: string; y: number }[] = [];
   for (const row of rows) {
     const sorted = [...row.glyphs].sort((a, b) => a.x - b.x);
     const clusters: Glyph[][] = [];
     let current: Glyph[] = [];
     let prev: Glyph | null = null;
     for (const g of sorted) {
-      if (prev && g.x - (prev.x + prev.w) > 32 && current.length) {
+      if (prev && g.x - (prev.x + prev.w) > columnGap && current.length) {
         clusters.push(current);
         current = [];
       }
@@ -84,8 +87,9 @@ export function layoutLinesFromGlyphs(glyphs: Glyph[]): { lines: PositionedLine[
     for (const cluster of clusters) {
       const text = joinGlyphs(cluster);
       if (!text) continue;
-      if (isMarginChrome(text) || isFooterChrome(text)) {
-        chrome.push(text);
+      const footerNumber = /^\d{1,3}$/.test(text) && row.y < 48;
+      if (isMarginChrome(text) || isFooterChrome(text) || footerNumber) {
+        chrome.push({ text, y: row.y });
         continue;
       }
       lines.push({ text, x: cluster[0]?.x ?? 0, y: row.y });

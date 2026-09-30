@@ -11,6 +11,37 @@ export type ParsedDomain = {
   weight: number | null;
 };
 
+export type PbqControl = {
+  kind: 'select' | 'text';
+  /** Short label for the control, such as the bank heading from the question. */
+  title: string;
+  /** Selection list taken from the question. Empty for a plain text box. */
+  options: string[];
+};
+
+export type PbqItem = {
+  id: string;
+  prompt: string;
+  controls: PbqControl[];
+  /**
+   * Acceptable answers per control, in display form.
+   * Rendered only after the learner submits.
+   */
+  accept: string[][];
+  /** Correct position for an ordering item. Ignored for other formats. */
+  place: number;
+};
+
+export type PbqFormat = 'match-two' | 'select' | 'pins' | 'text' | 'order' | 'free';
+export type PbqGrade = 'exact' | 'loose' | 'ports' | 'raid' | 'order';
+
+export type PbqTask = {
+  format: PbqFormat;
+  grade: PbqGrade;
+  instruction: string;
+  items: PbqItem[];
+};
+
 export type ParsedCard = {
   sourceLabel: string;
   question: string;
@@ -29,6 +60,8 @@ export type ParsedCard = {
   lessonUrl: string | null;
   /** Stable id assigned at import so figures survive a rename or split. */
   captureId?: string;
+  /** Interactive performance question. Absent for ordinary cards. */
+  pbq?: PbqTask | null;
 };
 
 export type ParsedTest = {
@@ -41,8 +74,16 @@ export type ParsedDocument = {
   tests: ParsedTest[];
 };
 
+export type PlacedLine = {
+  text: string;
+  x: number;
+  y: number;
+};
+
 export type TextPage = {
   lines: string[];
+  /** Finer column splits used to build performance questions. */
+  pieces?: PlacedLine[];
 };
 
 export type Subject = {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { figureCountForCards } from './lib/db';
 import { dueCardIds } from './lib/queue';
 import { isUnclearedMiss, rollup } from './lib/scoring';
 import { activeSessionForDeck, resumeLabel } from './lib/session';
@@ -13,9 +14,20 @@ export function DeckScreen({ deckId }: { deckId: string }) {
   const deck = snap?.decks.find((item) => item.id === deckId) ?? null;
   const [editing, setEditing] = useState<string | null>(null);
   const [name, setName] = useState(deck?.name ?? '');
+  const [figureCount, setFigureCount] = useState<number | null>(null);
   useEffect(() => {
     if (deck) setName(deck.name);
   }, [deck]);
+  const cardIds = snap?.cards.filter((card) => card.deckId === deckId).map((card) => card.id) ?? [];
+  useEffect(() => {
+    let alive = true;
+    void figureCountForCards(cardIds).then((count) => {
+      if (alive) setFigureCount(count);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [deckId, cardIds.join('|')]);
   if (!snap || !deck) {
     return (
       <Screen title="Test" onBack={() => navigate('/')}>
@@ -36,7 +48,12 @@ export function DeckScreen({ deckId }: { deckId: string }) {
 
   return (
     <Screen title={deck.name} lede={deck.sourceFileName} onBack={() => navigate('/')}>
-      <p className="muted" style={{ margin: 0 }}>
+      {figureCount === 0 ? (
+        <p className="banner" data-testid="reimport-figures" style={{ margin: 0 }}>
+          No diagrams are saved with this test. If the PDF has pictures, import it again.
+        </p>
+      ) : null}
+      <p className="muted" data-testid="figure-status" data-count={figureCount == null ? '' : String(figureCount)} style={{ margin: 0 }}>
         {cards.length} cards
         {stats.attempts ? ` · ${stats.correct} right, ${stats.incorrect} wrong` : ' · no answers yet'}
       </p>
