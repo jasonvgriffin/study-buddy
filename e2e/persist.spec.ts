@@ -1,4 +1,4 @@
-import { chromium, expect, test } from '@playwright/test';
+import { chromium, expect, firefox, test, webkit } from '@playwright/test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -6,12 +6,22 @@ import path from 'node:path';
 const sampleThree = path.resolve('public/samples/sample-three-tests.pdf');
 const sampleNotes = path.resolve('public/samples/sample-notes.pdf');
 
+function browserType() {
+  const name = test.info().project.use.browserName ?? 'chromium';
+  if (name === 'firefox') return firefox;
+  if (name === 'webkit') return webkit;
+  return chromium;
+}
+
 async function context(userData: string) {
-  return chromium.launchPersistentContext(userData, {
-    viewport: { width: 412, height: 915 },
-    hasTouch: true,
-    isMobile: true,
-    deviceScaleFactor: 2.625,
+  const use = test.info().project.use;
+  const name = use.browserName ?? 'chromium';
+  return browserType().launchPersistentContext(userData, {
+    baseURL: typeof use.baseURL === 'string' ? use.baseURL : undefined,
+    viewport: use.viewport ?? { width: 412, height: 915 },
+    hasTouch: use.hasTouch,
+    deviceScaleFactor: use.deviceScaleFactor,
+    ...(name === 'chromium' ? { isMobile: use.isMobile } : {}),
   });
 }
 

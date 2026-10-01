@@ -16,7 +16,9 @@ test('keyboard grading, missed review, domain scores, and the backup reminder', 
   await page.getByTestId('start-untimed').click();
 
   await expect(page.getByRole('heading', { name: 'Which river runs through Cairo?' })).toBeVisible();
-  await expect(page.getByTestId('kbd-hint')).toBeHidden();
+  const desktopPointer = await page.evaluate(() => matchMedia('(hover: hover) and (pointer: fine)').matches);
+  if (desktopPointer) await expect(page.getByTestId('kbd-hint')).toBeVisible();
+  else await expect(page.getByTestId('kbd-hint')).toBeHidden();
   await page.keyboard.press('b');
   await expect(page.getByTestId('result')).toHaveText('✗ Incorrect');
   await expect(page.getByTestId('choice').filter({ hasText: 'Amazon' })).toHaveClass(/wrong/);
