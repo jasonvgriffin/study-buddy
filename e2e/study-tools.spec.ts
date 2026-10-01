@@ -5,6 +5,7 @@ const sampleThree = path.resolve('public/samples/sample-three-tests.pdf');
 
 test('skip, text size, and the question navigator', async ({ page }) => {
   await page.goto('./');
+  await page.getByTestId('home-tab-library').click();
   await page.getByTestId('subject-name').fill('Tools');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Tools"]')).toHaveClass(/on/);

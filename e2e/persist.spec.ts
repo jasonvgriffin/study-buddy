@@ -30,6 +30,7 @@ test('paused progress survives a full browser restart', async () => {
   const first = await context(userData);
   const page = first.pages()[0] ?? (await first.newPage());
   await page.goto('./');
+  await page.getByTestId('home-tab-library').click();
   await page.getByTestId('subject-name').fill('Rivers');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Rivers"]')).toHaveClass(/on/);
@@ -78,6 +79,7 @@ test('two subjects keep their PDFs apart', async () => {
   const browser = await context(userData);
   const page = browser.pages()[0] ?? (await browser.newPage());
   await page.goto('./');
+  await page.getByTestId('home-tab-library').click();
   await page.getByTestId('subject-name').fill('Rivers');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Rivers"]')).toHaveClass(/on/);

@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -74,6 +75,7 @@ import type {
   StoredFigure,
   Subject,
 } from './lib/types';
+import { parseHomeTab, resolveHomeTab, type HomeTab } from './homeTab';
 import { navigate, parseRoute, type Route } from './nav';
 
 type StudyApi = {
@@ -83,6 +85,8 @@ type StudyApi = {
   message: string | null;
   route: Route;
   focus: string | 'all';
+  homeTab: HomeTab | null;
+  setHomeTab: (tab: HomeTab) => void;
   snap: StudySnapshot | null;
   setFocus: (id: string | 'all') => void;
   setMessage: (message: string | null) => void;
@@ -149,12 +153,21 @@ export function StudyProvider({ children }: { children: ReactNode }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [route, setRoute] = useState<Route>(() => parseRoute(location.hash));
+  const [homeTab, setHomeTabState] = useState<HomeTab | null>(() =>
+    parseRoute(location.hash).name === 'home' ? parseHomeTab(location.hash) : null,
+  );
   const [focus, setFocus] = useState<string | 'all'>('all');
   const routeRef = useRef(route);
+  const homeTabRef = useRef(homeTab);
   const focusRef = useRef(focus);
   const draftWrites = useRef(Promise.resolve());
   routeRef.current = route;
   focusRef.current = focus;
+
+  const setHomeTab = useCallback((tab: HomeTab) => {
+    homeTabRef.current = tab;
+    setHomeTabState(tab);
+  }, []);
 
   const replaceSnap = (next: StudySnapshot) => {
     snapRef.current = next;
@@ -212,14 +225,24 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       void pause(from.sessionId);
     };
     const onHash = () => {
+      const prev = routeRef.current;
       const next = parseRoute(location.hash);
-      pauseIfLeaving(routeRef.current, next);
+      if (next.name === 'home') {
+        const resolved = resolveHomeTab({
+          current: homeTabRef.current,
+          requested: parseHomeTab(location.hash),
+          arriving: prev.name !== 'home',
+          from: prev,
+        });
+        if (resolved && resolved !== homeTabRef.current) setHomeTab(resolved);
+      }
+      pauseIfLeaving(prev, next);
       routeRef.current = next;
       setRoute(next);
     };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
-  }, []);
+  }, [setHomeTab]);
 
   useEffect(() => {
     const hide = () => {
@@ -918,6 +941,8 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       message,
       route,
       focus,
+      homeTab,
+      setHomeTab,
       snap,
       setFocus,
       setMessage,
@@ -953,7 +978,7 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       restoreBackup,
       askPersist,
     }),
-    [ready, bootError, busy, message, route, focus, snap],
+    [ready, bootError, busy, message, route, focus, homeTab, setHomeTab, snap],
   );
 
   return <StudyContext.Provider value={api}>{children}</StudyContext.Provider>;

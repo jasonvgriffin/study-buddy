@@ -6,6 +6,7 @@ const sampleFigure = path.resolve('public/samples/sample-figure.pdf');
 
 test('tapping a choice grades it and shows the explanation underneath', async ({ page }) => {
   await page.goto('./');
+  await page.getByTestId('home-tab-library').click();
   await page.getByTestId('subject-name').fill('Rivers');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Rivers"]')).toHaveClass(/on/);
@@ -47,6 +48,7 @@ test('a wrong choice shows the correct answer, the PDF explanation, and the less
     Object.defineProperty(navigator, 'vibrate', { configurable: true, writable: true, value: vibrate });
   });
   await page.goto('./');
+  await page.getByTestId('home-tab-library').click();
   await page.getByTestId('subject-name').fill('Rivers');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Rivers"]')).toHaveClass(/on/);
@@ -125,6 +127,7 @@ test('a wrong choice shows the correct answer, the PDF explanation, and the less
 
 test("I don't know reveals the answer and lesson and counts the question missed", async ({ page }) => {
   await page.goto('./');
+  await page.getByTestId('home-tab-library').click();
   await page.getByTestId('subject-name').fill('Rivers');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Rivers"]')).toHaveClass(/on/);
@@ -166,6 +169,7 @@ test("I don't know reveals the answer and lesson and counts the question missed"
 
 test('choose two submits only after two taps, and a missing explanation is stated', async ({ page }) => {
   await page.goto('./');
+  await page.getByTestId('home-tab-library').click();
   await page.getByTestId('subject-name').fill('Rivers');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Rivers"]')).toHaveClass(/on/);
@@ -203,6 +207,7 @@ test('choose two submits only after two taps, and a missing explanation is state
 
 test('a question figure from the PDF is shown before the answer', async ({ page }) => {
   await page.goto('./');
+  await page.getByTestId('home-tab-library').click();
   await page.getByTestId('subject-name').fill('Color');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Color"]')).toHaveClass(/on/);
