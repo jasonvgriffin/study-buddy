@@ -60,7 +60,7 @@ import {
   resumeSession,
   skipQuestion,
   skippedUnanswered,
-  toggleFlag,
+  storedFlagged,
 } from './lib/session';
 import type {
   BackupFile,
@@ -117,8 +117,6 @@ type StudyApi = {
   pause: (sessionId: string) => Promise<void>;
   resume: (sessionId: string) => Promise<void>;
   discard: (sessionId: string) => Promise<void>;
-  flag: (sessionId: string, cardId: string) => Promise<void>;
-  flagProblem: (card: Card, sessionId?: string | null) => Promise<void>;
   removeCard: (cardId: string) => Promise<void>;
   jumpToAny: (sessionId: string, cardId: string) => Promise<void>;
   skip: (sessionId: string, cardId: string) => Promise<void>;
@@ -756,44 +754,6 @@ export function StudyProvider({ children }: { children: ReactNode }) {
     navigate('/');
   }
 
-  async function flag(sessionId: string, cardId: string) {
-    const session = snapRef.current?.sessions.find((item) => item.id === sessionId);
-    if (!session) return;
-    const next = toggleFlag(session, cardId, Date.now());
-    await putSession(next);
-    patch((state) => ({
-      ...state,
-      sessions: state.sessions.map((item) => (item.id === sessionId ? next : item)),
-    }));
-  }
-
-  async function flagProblem(card: Card, sessionId?: string | null) {
-    const reported = !card.reported;
-    const nextCard: Card = { ...card, reported };
-    await putCard(nextCard);
-    const now = Date.now();
-    const sessions = snapRef.current?.sessions ?? [];
-    const updates: LiveSession[] = [];
-    for (const session of sessions) {
-      const inSession = sessionId ? session.id === sessionId : session.cardIds.includes(card.id);
-      if (!inSession) continue;
-      const flagged = reported
-        ? session.flagged.includes(card.id)
-          ? session.flagged
-          : [...session.flagged, card.id]
-        : session.flagged.filter((id) => id !== card.id);
-      if (flagged === session.flagged) continue;
-      const next = { ...session, flagged, updatedAt: now };
-      updates.push(next);
-    }
-    for (const session of updates) await putSession(session);
-    patch((state) => ({
-      ...state,
-      cards: state.cards.map((item) => (item.id === card.id ? nextCard : item)),
-      sessions: state.sessions.map((item) => updates.find((next) => next.id === item.id) ?? item),
-    }));
-  }
-
   async function removeCard(cardId: string) {
     await deleteCard(cardId);
     patch((state) => ({
@@ -802,15 +762,18 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       reviews: state.reviews.filter((review) => review.cardId !== cardId),
       memories: state.memories.filter((memory) => memory.cardId !== cardId),
       sessions: state.sessions.map((session) => {
-        if (!session.cardIds.includes(cardId)) return session;
+        const flagged = storedFlagged(session);
+        if (!session.cardIds.includes(cardId) && !flagged.includes(cardId) && !session.skipped.includes(cardId)) {
+          return session;
+        }
         const cardIds = session.cardIds.filter((id) => id !== cardId);
         return {
           ...session,
           cardIds,
-          originalCount: Math.max(0, session.originalCount - 1),
+          originalCount: session.cardIds.includes(cardId) ? Math.max(0, session.originalCount - 1) : session.originalCount,
           index: Math.min(session.index, Math.max(cardIds.length - 1, 0)),
           answers: session.answers.filter((item) => item.cardId !== cardId),
-          flagged: session.flagged.filter((id) => id !== cardId),
+          flagged: flagged.filter((id) => id !== cardId),
           skipped: session.skipped.filter((id) => id !== cardId),
         };
       }),
@@ -977,8 +940,6 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       pause,
       resume,
       discard,
-      flag,
-      flagProblem,
       removeCard,
       jumpToAny,
       skip,

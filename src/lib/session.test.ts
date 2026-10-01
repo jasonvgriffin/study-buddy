@@ -276,5 +276,14 @@ describe('skip for later', () => {
     expect(filled.skipReview).toBe(false);
     expect(filled.returnToReview).toBe(false);
     expect(filled.bookmarkIndex).toBeNull();
+    const older = { ...createExamSession(deck, cards, 'untimed', 0) };
+    delete (older as { flagged?: string[] }).flagged;
+    expect(normalizeSession(older).flagged).toEqual([]);
+    const kept = normalizeSession({
+      ...createExamSession(deck, cards, 'untimed', 0),
+      flagged: ['c0', 4 as unknown as string],
+    });
+    expect(kept.flagged).toEqual(['c0']);
+    expect(kept.cardIds).toContain('c0');
   });
 });

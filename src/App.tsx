@@ -1,7 +1,6 @@
 import { BackupReminder } from './BackupReminder';
 import { PressFeedback } from './PressFeedback';
 import { DeckScreen } from './Deck';
-import { FlaggedScreen } from './Flagged';
 import { Home } from './Home';
 import { ResultsScreen } from './Results';
 import { ReviewScreen } from './Review';
@@ -42,7 +41,6 @@ function Shell() {
         ) : null}
         {study.ready && route.name !== 'session' && route.name !== 'review' ? <BackupReminder /> : null}
         {study.ready && route.name === 'home' ? <Home /> : null}
-        {study.ready && route.name === 'flagged' ? <FlaggedScreen /> : null}
         {study.ready && route.name === 'stats' ? <Stats /> : null}
         {study.ready && route.name === 'settings' ? <Settings /> : null}
         {study.ready && route.name === 'review' ? <ReviewScreen draftId={route.draftId} /> : null}

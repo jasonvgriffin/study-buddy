@@ -32,7 +32,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
   );
   const [zoom, setZoom] = useState<string | null>(null);
   const [navOpen, setNavOpen] = useState(false);
-  const [navFilter, setNavFilter] = useState<'all' | 'flagged' | 'skipped'>('all');
+  const [navFilter, setNavFilter] = useState<'all' | 'skipped'>('all');
   const [editing, setEditing] = useState(false);
   const keyRef = useRef<((event: KeyboardEvent) => void) | null>(null);
   const presentation = useRef<{ id: string; seed: number }>({ id: '', seed: 1 });
@@ -168,11 +168,6 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
       submit([pick.label], gradeLabels(card.correctLabels, [pick.label]));
       return;
     }
-    if (key === 'f' && !pick) {
-      event.preventDefault();
-      void study.flagProblem(card, session.id);
-      return;
-    }
     if (key === 's' && !reveal) {
       event.preventDefault();
       pendingRef.current = true;
@@ -276,7 +271,6 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
           <div className="row-scroll" role="tablist" aria-label="Question filters">
             {([
               ['all', 'All'],
-              ['flagged', 'Flagged'],
               ['skipped', 'Skipped'],
             ] as const).map(([id, label]) => (
               <button
@@ -297,14 +291,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
               seen.add(id);
               return true;
             });
-            const visible = rows.filter((id) => {
-              if (navFilter === 'skipped') return skippedIds.includes(id);
-              if (navFilter === 'flagged') {
-                const item = study.snap?.cards.find((entry) => entry.id === id);
-                return session.flagged.includes(id) || !!item?.reported;
-              }
-              return true;
-            });
+            const visible = rows.filter((id) => (navFilter === 'skipped' ? skippedIds.includes(id) : true));
             if (!visible.length) return <p data-testid="nav-empty">No questions in this filter.</p>;
             return visible.map((id) => {
               const item = study.snap?.cards.find((entry) => entry.id === id);
@@ -314,7 +301,6 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
               const marks = [
                 session.answers.some((answer) => answer.cardId === id) ? 'Answered' : 'Unanswered',
                 skippedIds.includes(id) ? 'Skipped' : '',
-                session.flagged.includes(id) || item?.reported ? 'Flagged' : '',
               ].filter(Boolean);
               return (
                 <button
@@ -410,9 +396,9 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
             <p className="kbd-hint muted" data-testid="kbd-hint" style={{ margin: 0 }}>
               {shown.length
                 ? multi
-                  ? 'Keys: 1–9 or A–D toggle, Enter submits. S skips, F flags.'
-                  : 'Keys: 1–9 or A–D answer, Enter next. S skips, F flags.'
-                : 'Keys: S skips, F flags.'}
+                  ? 'Keys: 1–9 or A–D toggle, Enter submits. S skips.'
+                  : 'Keys: 1–9 or A–D answer, Enter next. S skips.'
+                : 'Keys: S skips.'}
             </p>
           ) : null}
           {figures.question.length ? (
@@ -606,19 +592,9 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
               }}
             />
           ) : (
-            <div className="stack">
-              <button
-                className="btn btn-ghost btn-block"
-                data-testid="flag-card"
-                type="button"
-                onClick={() => void study.flagProblem(card, session.id)}
-              >
-                {card.reported ? 'Flagged' : 'Flag'}
-              </button>
-              <button className="btn btn-ghost btn-block" data-testid="edit-card" type="button" onClick={() => setEditing(true)}>
-                Edit
-              </button>
-            </div>
+            <button className="btn btn-ghost btn-block" data-testid="edit-card" type="button" onClick={() => setEditing(true)}>
+              Edit
+            </button>
           )}
         </article>
       ) : (

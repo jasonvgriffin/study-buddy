@@ -34,14 +34,14 @@ Scanned pages are not read. Study Buddy does not OCR.
 
 ## Study
 
-- Home leads with Continue, or Start studying when nothing is in progress. The rest is grouped: Study (practice exam, drill, review due), Library (decks, import, flagged cards), Progress (stats, domains, missed questions), and Settings and backup.
+- Home leads with Continue, or Start studying when nothing is in progress. The rest is grouped: Study (practice exam, drill, review due), Library (decks, import), Progress (stats, domains, missed questions), and Settings and backup.
 - Untimed mode, or a 90-minute exam. The clock stores active time only. Pause, or leave the tab, and it stops. Hiding the page does not add the time you were away. Skip for later does not stop a timed exam.
 - Skip for later leaves the question unanswered and moves on. Skipped questions stay on that sitting through pause and refresh. At the end, or when you tap Finish, a review list lets you jump back to each one. Until you answer them they count as unanswered, not right or wrong, and they are not treated as a miss on the review ladder.
-- The header reads Question 12 of 90, with a bar for how far you are. All questions opens a list you can filter to flagged or skipped cards and jump to any question.
-- Flag marks a card as broken (a bad parse, a wrong key, or a missing picture). Flagged cards on the home screen lets you edit, unflag, or delete them. Edit on the study card saves the question, options, correct answers, and explanation on this device.
+- The header reads Question 12 of 90, with a bar for how far you are. All questions opens a list you can filter to skipped cards and jump to any question.
+- Edit on the study card saves the question, options, correct answers, and explanation on this device.
 - Settings has a text size: small, normal, large, or extra large. It stays on this device after a refresh. Buttons are sized for a phone.
 - Answer choices are mixed each time a question is shown. The correct letter stays on its text. Options such as All of the above or Both A and B stay in place. Turn this off under Settings. The choice is remembered on this device.
-- On a desktop keyboard, 1–9 or A–D (and further letters) pick an answer. Choose-N toggles until Enter or Space submits. Enter or Space also moves to the next card. S skips. F flags, unless that letter is one of the answers. A short hint is shown on desktop only.
+- On a desktop keyboard, 1–9 or A–D (and further letters) pick an answer. Choose-N toggles until Enter or Space submits. Enter or Space also moves to the next card. S skips, unless that letter is one of the answers. A short hint is shown on desktop only.
 - At the end of a sitting, missed questions list your answer, the right answer, and the explanation, with a link that opens that card in the test.
 - Results and Stats break the score down by the domain and objective already stored on each card.
 - After you have answered a card, if you have not exported a backup in 7 days, a banner offers Export backup. Dismiss hides it for 7 days.

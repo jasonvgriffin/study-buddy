@@ -382,7 +382,6 @@ function LibraryPanel({
     list.push(deck);
     groups.set(deck.sourceGroupId, list);
   }
-  const flagged = snap.cards.filter((card) => card.reported && inFocus(card.subjectId)).length;
   const drafts = snap.drafts.filter((draft) => !draft.subjectId || inFocus(draft.subjectId));
 
   return (
@@ -464,9 +463,6 @@ function LibraryPanel({
         </form>
       ) : null}
       <UploadBlock />
-      <button className="btn btn-ghost btn-block" type="button" data-testid="flagged-link" onClick={() => navigate('/flagged')}>
-        Flagged cards ({flagged})
-      </button>
       {drafts.length ? (
         <div className="stack">
           <h2>Waiting for review</h2>
