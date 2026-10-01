@@ -10,11 +10,9 @@ import {
   isUnclearedMiss,
   memoryFromReviews,
   orderForDrill,
-  rankStudyAreas,
   studyStreak,
   trailingCorrectStreak,
   weakestMemories,
-  type AreaInput,
 } from './scoring';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -114,98 +112,5 @@ describe('scoring', () => {
     const strong = applyReview(applyReview(emptyMemory('strong', 'd', 's'), true, 1), true, 2);
     const weak = applyReview(applyReview(emptyMemory('weak', 'd', 's'), false, 1), false, 2);
     expect(weakestMemories([strong, weak], 1)[0].cardId).toBe('weak');
-  });
-});
-
-describe('recommendations', () => {
-  const now = Date.parse('2026-06-15T00:00:00Z');
-
-  function area(partial: Partial<AreaInput> & Pick<AreaInput, 'id' | 'label'>): AreaInput {
-    return {
-      scope: 'section',
-      deckId: 'deck-1',
-      deckName: 'Practice Test 1',
-      subjectId: 'sub-1',
-      subjectName: 'Field notes',
-      section: partial.label,
-      reviews: [],
-      totalCards: 10,
-      neverAttempted: 0,
-      dueCards: 0,
-      ...partial,
-    };
-  }
-
-  it('weights recent answers more than old ones and flags under 70%', () => {
-    const recentMisses = Array.from({ length: 8 }, (_, i) => ({
-      correct: false,
-      at: now - i * 60 * 60 * 1000,
-    }));
-    const oldMisses = Array.from({ length: 8 }, (_, i) => ({
-      correct: false,
-      at: now - (40 + i) * DAY,
-    }));
-    const recentHits = Array.from({ length: 8 }, (_, i) => ({
-      correct: true,
-      at: now - i * 60 * 60 * 1000,
-    }));
-    const fading = area({
-      id: 'fading',
-      label: 'Signal flags',
-      reviews: [...oldMisses.map((review) => ({ ...review, correct: true })), ...recentMisses],
-    });
-    const recovering = area({
-      id: 'recovering',
-      label: 'Harbor lights',
-      reviews: [...oldMisses, ...recentHits],
-    });
-    const ranked = rankStudyAreas([recovering, fading], now);
-    expect(ranked[0].label).toBe('Signal flags');
-    expect(ranked[0].weak).toBe(true);
-    expect(ranked[0].text).toBe(
-      `Signal flags: ${Math.round((ranked[0].accuracy ?? 0) * 100)}% over your last ${ranked[0].sampleSize} answers, focus here`,
-    );
-    expect(ranked[0].accuracy ?? 1).toBeLessThan(0.7);
-    expect(ranked[1].accuracy ?? 0).toBeGreaterThan(ranked[0].accuracy ?? 0);
-    expect(ranked[0].deckId).toBe('deck-1');
-    expect(ranked.every((item) => item.text.includes(item.label))).toBe(true);
-  });
-
-  it('raises never-attempted and due cards without inventing a label', () => {
-    const unseen = area({
-      id: 'unseen',
-      label: 'Paper boats',
-      neverAttempted: 10,
-      totalCards: 10,
-    });
-    const due = area({
-      id: 'due',
-      label: 'Paper boats',
-      reviews: Array.from({ length: 6 }, (_, i) => ({ correct: true, at: now - i * DAY })),
-      dueCards: 8,
-      totalCards: 10,
-    });
-    const ranked = rankStudyAreas([due, unseen], now);
-    expect(ranked[0].id).toBe('unseen');
-    expect(ranked[0].text).toContain('Paper boats');
-    expect(ranked[0].text).not.toMatch(/network|comptia|exam a/i);
-    expect(ranked[1].text).toContain('100%');
-  });
-
-  it('weights a larger exam domain ahead of an equal accuracy on a smaller one', () => {
-    const reviews = Array.from({ length: 8 }, (_, index) => ({
-      correct: index < 3,
-      at: now - index * 60 * 60 * 1000,
-    }));
-    const ranked = rankStudyAreas(
-      [
-        area({ id: 'small', label: 'Waterways', examWeight: 0.13, reviews }),
-        area({ id: 'large', label: 'Skies', examWeight: 0.28, reviews }),
-      ],
-      now,
-    );
-    expect(ranked[0].label).toBe('Skies');
-    expect(ranked[0].text).toContain('28% of the exam');
-    expect(ranked[1].text).toContain('13% of the exam');
   });
 });

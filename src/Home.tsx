@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { DestructiveConfirm, ResetConfirm } from './bits';
-import { studyRecommendations } from './lib/areas';
 import { domainBreakdown } from './lib/domains';
 import { formatPercent } from './lib/format';
 import { dueCardIds } from './lib/queue';
@@ -32,15 +31,6 @@ export function Home() {
     .filter((session) => session.status !== 'finished' && inFocus(session.subjectId))
     .sort((a, b) => b.updatedAt - a.updatedAt);
   const primary = sessions[0] ?? null;
-  const recommendations = studyRecommendations(
-    snap.subjects,
-    snap.decks,
-    snap.cards,
-    snap.reviews,
-    snap.memories,
-    study.focus,
-    now,
-  ).slice(0, 6);
   const focused = subjects.find((subject) => subject.id === study.focus) ?? null;
   const examDeck = decks.find((deck) => deck.id === examDeckId) ?? decks[0] ?? null;
   const recentDeck =
@@ -125,7 +115,6 @@ export function Home() {
               decks={decks}
               examDeck={examDeck}
               dueCount={due.length}
-              recommendations={recommendations}
               onPickDeck={setExamDeckId}
               onLibrary={() => study.setHomeTab('library')}
               onResume={(id) => void study.resume(id)}
@@ -145,7 +134,6 @@ export function Home() {
                   scopeKey: `review:home:${study.focus}`,
                 });
               }}
-              onRecommendation={(item) => void study.startRecommendation(item)}
             />
           ) : null}
           {tab === 'library' ? (
@@ -236,7 +224,6 @@ function StudyPanel({
   decks,
   examDeck,
   dueCount,
-  recommendations,
   onPickDeck,
   onLibrary,
   onResume,
@@ -245,7 +232,6 @@ function StudyPanel({
   onTimed,
   onDrill,
   onReviewDue,
-  onRecommendation,
 }: {
   sessions: LiveSession[];
   primary: LiveSession | null;
@@ -253,7 +239,6 @@ function StudyPanel({
   decks: Deck[];
   examDeck: Deck | null;
   dueCount: number;
-  recommendations: ReturnType<typeof studyRecommendations>;
   onPickDeck: (id: string) => void;
   onLibrary: () => void;
   onResume: (id: string) => void;
@@ -262,7 +247,6 @@ function StudyPanel({
   onTimed: () => void;
   onDrill: () => void;
   onReviewDue: () => void;
-  onRecommendation: (item: ReturnType<typeof studyRecommendations>[number]) => void;
 }) {
   const [confirmReset, setConfirmReset] = useState(false);
   const others = sessions.filter((session) => session.id !== primary?.id);
@@ -325,19 +309,6 @@ function StudyPanel({
           </button>
         </>
       )}
-      {recommendations.length ? (
-        <div className="stack">
-          <h2>What to study next</h2>
-          {recommendations.map((item) => (
-            <article key={item.id} className="stack">
-              <p style={{ margin: 0 }}>{item.text}</p>
-              <button className="btn btn-primary btn-block" type="button" onClick={() => onRecommendation(item)}>
-                Study this
-              </button>
-            </article>
-          ))}
-        </div>
-      ) : null}
       {confirmReset ? (
         <ResetConfirm
           onConfirm={() => {

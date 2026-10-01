@@ -19,5 +19,10 @@ export function newId(): string {
   return crypto.randomUUID();
 }
 
+/** Natural, case-insensitive order so "Exam 2" sorts before "Exam 10". */
+export function compareTestNames(a: string, b: string): number {
+  return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+}
+
 /** Shown after grading when the PDF has no explanation for that card. */
 export const MISSING_EXPLANATION = 'No explanation provided in your PDF.';

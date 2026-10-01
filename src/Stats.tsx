@@ -1,7 +1,7 @@
 import { domainBreakdown } from './lib/domains';
 import { accuracyByDay, rollup, studyStreak, weakestMemories } from './lib/scoring';
 import { elapsedMs } from './lib/session';
-import { formatDuration, formatPercent } from './lib/format';
+import { compareTestNames, formatDuration, formatPercent } from './lib/format';
 import { Screen } from './bits';
 import { useStudy } from './store';
 
@@ -79,10 +79,10 @@ export function Stats() {
           </article>
         ))}
       </section>
-      <section className="stack">
+      <section className="stack" data-testid="by-test">
         <h2>By test</h2>
         {!decks.length ? <p className="muted">No tests in this view.</p> : null}
-        {decks.map((deck) => {
+        {[...decks].sort((a, b) => compareTestNames(a.name, b.name)).map((deck) => {
           const stats = rollup(memories.filter((memory) => memory.deckId === deck.id));
           return (
             <article key={deck.id} className="card" style={{ padding: '0.85rem' }}>
