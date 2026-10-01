@@ -4,7 +4,7 @@ import path from 'node:path';
 const sampleThree = path.resolve('public/samples/sample-three-tests.pdf');
 const sampleFigure = path.resolve('public/samples/sample-figure.pdf');
 
-test('a correct choice stays on the card without the explanation', async ({ page }) => {
+test('tapping a choice grades it and shows the explanation underneath', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('subject-name').fill('Rivers');
   await page.getByTestId('add-subject').click();
@@ -18,15 +18,21 @@ test('a correct choice stays on the card without the explanation', async ({ page
   await expect(page.getByTestId('watch-lesson')).toHaveCount(0);
   await expect(page.getByTestId('why')).toHaveCount(0);
   await expect(page.getByText('Cairo sits on the Nile')).toHaveCount(0);
-  await page.getByTestId('choice').nth(0).click();
+  const choice = page.getByTestId('choice').nth(0);
+  await expect(choice).not.toHaveClass(/correct|wrong/);
+  const box = await choice.boundingBox();
+  expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await choice.click();
   await expect(page.getByTestId('result')).toHaveText('Correct');
-  await expect(page.getByTestId('choice').nth(0)).toHaveClass(/correct/);
-  await expect(page.getByTestId('explanation')).toHaveCount(0);
+  await expect(choice).toHaveClass(/correct/);
+  await expect(page.getByTestId('explanation')).toContainText('Cairo sits on the Nile');
+  await expect(page.getByTestId('why')).toHaveCount(0);
+  const lesson = page.getByTestId('watch-lesson');
+  await expect(lesson).toBeVisible();
+  await expect(lesson).toHaveAttribute('href', /example\.com\/lessons\/nile/);
   await expect(page.getByTestId('next')).toBeVisible();
   await page.waitForTimeout(600);
   await expect(page.getByTestId('position')).toHaveText(/question 1 of/);
-  await page.getByTestId('why').click();
-  await expect(page.getByTestId('explanation')).toContainText('Cairo sits on the Nile');
 });
 
 test('a wrong choice shows the correct answer, the PDF explanation, and the lesson', async ({ page }) => {
@@ -43,13 +49,14 @@ test('a wrong choice shows the correct answer, the PDF explanation, and the less
   await expect(page.getByTestId('choice').nth(1)).toHaveClass(/wrong/);
   await expect(page.getByTestId('choice').nth(0)).toHaveClass(/correct/);
   await expect(page.getByTestId('explanation')).toContainText('Cairo sits on the Nile');
+  await expect(page.getByTestId('why')).toHaveCount(0);
   const lesson = page.getByTestId('watch-lesson');
   await expect(lesson).toHaveAttribute('target', '_blank');
   await expect(lesson).toHaveAttribute('rel', /noopener/);
   await expect(lesson).toHaveAttribute('href', /example\.com\/lessons\/nile/);
 });
 
-test('multi-select waits for submit, and a card with no explanation stays quiet', async ({ page }) => {
+test('choose two submits only after two taps, and a missing explanation is stated', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('subject-name').fill('Rivers');
   await page.getByTestId('add-subject').click();
@@ -61,19 +68,28 @@ test('multi-select waits for submit, and a card with no explanation stays quiet'
   await page.getByTestId('choice').nth(0).click();
   await page.getByTestId('next').click();
   await expect(page.getByTestId('result')).toHaveCount(0);
-  await page.getByTestId('choice').nth(0).click();
-  await expect(page.getByTestId('result')).toHaveCount(0);
   await expect(page.getByTestId('explanation')).toHaveCount(0);
+  await expect(page.getByText('both flow through Europe')).toHaveCount(0);
+  await page.getByTestId('choice').nth(0).click();
+  await expect(page.getByTestId('submit')).toBeDisabled();
+  await expect(page.getByTestId('result')).toHaveCount(0);
+  await page.getByTestId('choice').nth(0).click();
+  await page.getByTestId('choice').nth(0).click();
   await page.getByTestId('choice').nth(2).click();
+  await expect(page.getByTestId('choose-count')).toContainText('2 of 2');
+  await expect(page.getByTestId('submit')).toBeEnabled();
   await page.getByTestId('submit').click();
   await expect(page.getByTestId('result')).toHaveText('Correct');
-  await expect(page.getByTestId('explanation')).toHaveCount(0);
+  await expect(page.getByTestId('explanation')).toContainText('both flow through Europe');
+  await expect(page.getByTestId('choice').nth(0)).toHaveClass(/correct/);
+  await expect(page.getByTestId('choice').nth(2)).toHaveClass(/correct/);
   await page.getByTestId('next').click();
+  await expect(page.getByTestId('explanation')).toHaveCount(0);
   await page.getByTestId('choice').nth(1).click();
   await expect(page.getByTestId('result')).toHaveText('Incorrect');
-  await expect(page.getByTestId('explanation')).toHaveCount(0);
-  await expect(page.getByText('No explanation provided in your PDF.')).toHaveCount(0);
+  await expect(page.getByTestId('explanation')).toHaveText('No explanation provided in your PDF.');
   await expect(page.getByTestId('choice').nth(0)).toHaveClass(/correct/);
+  await expect(page.getByTestId('choice').nth(1)).toHaveClass(/wrong/);
 });
 
 test('a question figure from the PDF is shown before the answer', async ({ page }) => {

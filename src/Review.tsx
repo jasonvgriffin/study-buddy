@@ -1,6 +1,7 @@
 import { PbqAnswerList } from './PbqAnswers';
 import { useEffect, useState } from 'react';
 import { figuresForDraftCapture } from './lib/db';
+import { MISSING_EXPLANATION } from './lib/format';
 import { mergeWithPrevious, renameSection, renameTest, splitAt, updateParsedCard } from './lib/draft';
 import type { ImportDraft } from './lib/types';
 import { navigate } from './nav';
@@ -259,7 +260,7 @@ function CardEditor({
               data-testid="review-explanation"
               rows={4}
               value={card.explanation ?? ''}
-              placeholder="No explanation provided in your PDF."
+              placeholder={MISSING_EXPLANATION}
               onChange={(event) => patch({ explanation: event.target.value.trim() ? event.target.value : null })}
             />
           </label>

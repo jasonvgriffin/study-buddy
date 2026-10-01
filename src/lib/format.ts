@@ -18,3 +18,6 @@ export function dayKey(ts: number, offsetMinutes: number): string {
 export function newId(): string {
   return crypto.randomUUID();
 }
+
+/** Shown after grading when the PDF has no explanation for that card. */
+export const MISSING_EXPLANATION = 'No explanation provided in your PDF.';

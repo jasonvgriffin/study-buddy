@@ -1,4 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
+import { normalizeSession } from './session';
 import type {
   BackupFile,
   Card,
@@ -95,7 +96,7 @@ export async function loadSnapshot(): Promise<StudySnapshot> {
     decks,
     cards,
     reviews,
-    sessions,
+    sessions: sessions.map((session) => normalizeSession(session)),
     memories,
     drafts,
     persist: persist ?? null,

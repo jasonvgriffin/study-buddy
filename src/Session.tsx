@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { figuresForCard } from './lib/db';
-import { formatDuration, formatPercent } from './lib/format';
+import { MISSING_EXPLANATION, formatDuration, formatPercent } from './lib/format';
 import { choiceGraded, gradeLabels } from './lib/parser';
 import { PbqForm } from './PbqForm';
 import { itemExplanations } from './lib/pbq';
-import { elapsedMs, liveScore } from './lib/session';
+import { elapsedMs, liveScore, skippedUnanswered } from './lib/session';
 import { navigate } from './nav';
 import { WatchLesson } from './bits';
 import { lessonHref, lessonLabel, useStudy } from './store';
@@ -14,7 +14,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
   const session = study.snap?.sessions.find((item) => item.id === sessionId) ?? null;
   const [now, setNow] = useState(() => Date.now());
   const [picked, setPicked] = useState<string[]>([]);
-  const [why, setWhy] = useState(false);
+  const [pickedFor, setPickedFor] = useState<string | null>(null);
   const [reveal, setReveal] = useState<{
     cardId: string;
     correct: boolean;
@@ -45,6 +45,10 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
     ? session.cardIds[Math.min(session.index, Math.max(session.cardIds.length - 1, 0))]
     : null;
   const card = revealedCard ?? study.snap?.cards.find((item) => item.id === currentId) ?? null;
+  if ((card?.id ?? null) !== pickedFor) {
+    setPickedFor(card?.id ?? null);
+    setPicked([]);
+  }
 
   useEffect(() => {
     if (!card) return;
@@ -95,8 +99,11 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
   const multi = graded && !!card && card.correctLabels.length > 1;
   const pbq = card?.pbq ?? null;
   const pbqNotes = pbq && card ? itemExplanations(pbq, card.explanation) : null;
-  const showExplanation = !!reveal && !pbq && !!card?.explanation && (!reveal.correct || why);
   const href = card ? lessonHref(card) : null;
+  const required = graded && card ? card.correctLabels.length : 0;
+  const skippedIds = skippedUnanswered(session);
+  const showSkipReview = session.skipReview && !reveal && session.status !== 'finished';
+  const explanationText = card?.explanation?.trim() ? card.explanation : MISSING_EXPLANATION;
 
   const submit = (chosen: string[], correct: boolean) => {
     if (!card || reveal || paused || pendingRef.current) return;
@@ -104,7 +111,6 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
     setPending(true);
     void study.answer(session.id, card, chosen, correct)
       .then((result) => {
-        setWhy(false);
         setReveal({ cardId: card.id, correct, chosen, finished: result.finished });
         setPicked([]);
       })
@@ -128,20 +134,31 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
       <div className="card stack" style={{ padding: '0.9rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem' }}>
           <strong data-testid="position">
-            question {Math.min(positionIndex + 1, Math.max(total, 1))} of {total}
+            {showSkipReview
+              ? 'Skipped questions'
+              : `question ${Math.min(positionIndex + 1, Math.max(total, 1))} of ${total}`}
           </strong>
           <span data-testid="elapsed">{formatDuration(elapsed)}</span>
         </div>
         <p data-testid="live-score" style={{ margin: 0 }}>
           {score.percent == null
-            ? 'No answers yet'
-            : `${formatPercent(score.percent)} · ${score.correct} of ${score.answered} correct`}
+            ? skippedIds.length
+              ? `No answers yet · ${skippedIds.length} skipped`
+              : 'No answers yet'
+            : `${formatPercent(score.percent)} · ${score.correct} of ${score.answered} correct${
+                skippedIds.length ? ` · ${skippedIds.length} skipped` : ''
+              }`}
         </p>
         <div className="bar" aria-hidden="true">
           <span style={{ width: `${total ? Math.min(100, (score.answered / total) * 100) : 0}%` }} />
         </div>
         {remaining != null ? <p style={{ margin: 0 }}>Time left {formatDuration(remaining)}</p> : null}
         {session.status === 'finished' && session.finishedReason === 'time' ? <p style={{ margin: 0 }}>Time is up.</p> : null}
+        {session.status === 'finished' && !reveal ? (
+          <button className="btn btn-primary btn-block" data-testid="see-results" type="button" onClick={() => navigate(`/results/${session.id}`)}>
+            See results
+          </button>
+        ) : null}
       </div>
       {paused && session.status !== 'finished' ? (
         <button className="btn btn-primary btn-block" data-testid="resume" type="button" onClick={() => void study.resume(session.id)}>
@@ -152,7 +169,54 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
           Pause
         </button>
       )}
-      {card ? (
+      {showSkipReview ? (
+        <section className="card stack" data-testid="skip-review" style={{ padding: '1rem' }}>
+          <h2>Skipped questions</h2>
+          <p data-testid="unanswered-count" style={{ margin: 0 }}>
+            {skippedIds.length === 1
+              ? '1 unanswered question. Jump back to answer it, or finish and leave it unanswered.'
+              : `${skippedIds.length} unanswered questions. Jump back to answer one, or finish and leave them unanswered.`}
+          </p>
+          {skippedIds.map((id) => {
+            const item = study.snap?.cards.find((entry) => entry.id === id);
+            const number = session.cardIds.indexOf(id) + 1;
+            const flat = (item?.question ?? 'Question').replace(/\s+/g, ' ').trim();
+            const short = flat.length > 160 ? `${flat.slice(0, 157)}…` : flat;
+            return (
+              <button
+                key={id}
+                className="choice"
+                type="button"
+                data-testid="jump-skipped"
+                disabled={paused || pending}
+                onClick={() => void study.jumpTo(session.id, id)}
+              >
+                <strong>Question {number}.</strong> {short}
+              </button>
+            );
+          })}
+          {session.bookmarkIndex != null ? (
+            <button
+              className="btn btn-primary btn-block"
+              data-testid="continue-session"
+              type="button"
+              disabled={paused || pending}
+              onClick={() => void study.continueSession(session.id)}
+            >
+              Continue where you left off
+            </button>
+          ) : null}
+          <button
+            className="btn btn-primary btn-block"
+            data-testid="finish"
+            type="button"
+            disabled={paused || pending}
+            onClick={() => void study.endSession(session.id)}
+          >
+            Finish
+          </button>
+        </section>
+      ) : card ? (
         <article
           className="card stack"
           style={{ padding: '1rem' }}
@@ -219,7 +283,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
                     }}
                   >
                     <strong>{choice.label}.</strong> {choice.text}
-                    {showExplanation && choice.explanation ? (
+                    {reveal && choice.explanation ? (
                       <span className="muted" style={{ display: 'block', marginTop: '0.35rem' }}>
                         {choice.explanation}
                       </span>
@@ -243,15 +307,20 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
             />
           ) : null}
           {!reveal && multi ? (
-            <button
-              className="btn btn-primary btn-block"
-              data-testid="submit"
-              type="button"
-              disabled={paused || pending || picked.length === 0}
-              onClick={() => submit(picked, gradeLabels(card.correctLabels, picked))}
-            >
-              Submit
-            </button>
+            <div className="stack">
+              <p className="muted" data-testid="choose-count" style={{ margin: 0 }}>
+                Choose {required}. {picked.length} of {required} selected.
+              </p>
+              <button
+                className="btn btn-primary btn-block"
+                data-testid="submit"
+                type="button"
+                disabled={paused || pending || picked.length !== required}
+                onClick={() => submit(picked, gradeLabels(card.correctLabels, picked))}
+              >
+                Submit
+              </button>
+            </div>
           ) : null}
           {!reveal && !graded && !pbq ? (
             <div className="stack">
@@ -276,11 +345,6 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
                   {card.answer}
                 </p>
               ) : null}
-              {reveal.correct && card.explanation && !pbq ? (
-                <button className="btn btn-ghost btn-block" data-testid="why" type="button" onClick={() => setWhy((open) => !open)}>
-                  {why ? 'Hide explanation' : 'Why?'}
-                </button>
-              ) : null}
               {pbq && figures.explanation.length ? (
                 <div className="stack">
                   {figures.explanation.map((src) => (
@@ -288,10 +352,10 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
                   ))}
                 </div>
               ) : null}
-              {showExplanation ? (
+              {!pbq ? (
                 <div className="stack">
                   <p data-testid="explanation" style={{ margin: 0 }}>
-                    {card.explanation}
+                    {explanationText}
                   </p>
                   {figures.explanation.map((src) => (
                     <img key={src} className="figure-img" data-testid="explanation-figure" src={src} alt="Figure from your PDF" />
@@ -311,15 +375,45 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
                 type="button"
                 onClick={() => {
                   const finished = reveal.finished || session.status === 'finished';
-                  setWhy(false);
                   setReveal(null);
+                  setPicked([]);
                   if (finished) navigate(`/results/${session.id}`);
                 }}
               >
-                {reveal.finished || session.status === 'finished' ? 'See results' : 'Next'}
+                {reveal.finished || session.status === 'finished' ? 'See results' : session.skipReview ? 'Review skipped' : 'Next'}
               </button>
             </div>
-          ) : null}
+          ) : (
+            <div className="stack">
+              <button
+                className="btn btn-ghost btn-block"
+                data-testid="skip-for-later"
+                type="button"
+                disabled={paused || pending}
+                onClick={() => {
+                  if (pendingRef.current) return;
+                  pendingRef.current = true;
+                  setPending(true);
+                  void study.skip(session.id, card.id).finally(() => {
+                    pendingRef.current = false;
+                    setPending(false);
+                    setPicked([]);
+                  });
+                }}
+              >
+                Skip for later
+              </button>
+              <button
+                className="btn btn-ghost btn-block"
+                data-testid="finish"
+                type="button"
+                disabled={paused || pending}
+                onClick={() => void study.endSession(session.id)}
+              >
+                Finish
+              </button>
+            </div>
+          )}
           <button
             className="btn btn-ghost"
             type="button"

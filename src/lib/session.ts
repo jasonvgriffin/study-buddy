@@ -9,9 +9,15 @@ export function elapsedMs(session: Pick<LiveSession, 'accumulatedMs' | 'runningS
 }
 
 export function resumeLabel(session: LiveSession, now: number): string {
+  const elapsed = formatDuration(elapsedMs(session, now));
+  if (session.skipReview) {
+    const left = skippedUnanswered(session).length;
+    const noun = left === 1 ? 'question' : 'questions';
+    return `Resume ${session.deckName}: ${left} skipped ${noun} to review, ${elapsed} elapsed`;
+  }
   const total = session.kind === 'exam' ? session.originalCount : session.cardIds.length;
   const question = Math.min(session.index + 1, Math.max(total, 1));
-  return `Resume ${session.deckName}: question ${question} of ${total}, ${formatDuration(elapsedMs(session, now))} elapsed`;
+  return `Resume ${session.deckName}: question ${question} of ${total}, ${elapsed} elapsed`;
 }
 
 function baseSession(input: {
@@ -42,6 +48,10 @@ function baseSession(input: {
     index: 0,
     answers: [],
     flagged: [],
+    skipped: [],
+    skipReview: false,
+    returnToReview: false,
+    bookmarkIndex: null,
     accumulatedMs: 0,
     runningSince: input.now,
     status: 'active',
@@ -168,7 +178,9 @@ export function resumeSession(session: LiveSession, now: number): LiveSession {
 }
 
 export function rehydrateSession(session: LiveSession, now: number): LiveSession {
-  if (session.status === 'finished') return session;
+  const normalized = normalizeSession(session);
+  if (normalized.status === 'finished') return normalized;
+  session = normalized;
   let accumulatedMs = session.accumulatedMs;
   if (session.runningSince != null) {
     const until = Math.min(now, session.updatedAt);
@@ -195,19 +207,52 @@ export function toggleFlag(session: LiveSession, cardId: string, now: number): L
   return touch({ ...session, flagged }, now);
 }
 
+/** Older saves have no skip fields. Fill them in so a reload cannot crash. */
+export function normalizeSession(session: LiveSession): LiveSession {
+  const raw = session as LiveSession & {
+    skipped?: unknown;
+    skipReview?: unknown;
+    returnToReview?: unknown;
+    bookmarkIndex?: unknown;
+  };
+  return {
+    ...session,
+    skipped: Array.isArray(raw.skipped) ? raw.skipped.filter((id): id is string => typeof id === 'string') : [],
+    skipReview: raw.skipReview === true,
+    returnToReview: raw.returnToReview === true,
+    bookmarkIndex: typeof raw.bookmarkIndex === 'number' ? raw.bookmarkIndex : null,
+  };
+}
+
+/** Skipped cards that still have no answer, in exam order. */
+export function skippedUnanswered(session: Pick<LiveSession, 'skipped' | 'answers' | 'cardIds'>): string[] {
+  const answered = new Set(session.answers.map((answer) => answer.cardId));
+  const skipped = new Set(session.skipped ?? []);
+  const ordered: string[] = [];
+  for (const id of session.cardIds) {
+    if (skipped.has(id) && !answered.has(id) && !ordered.includes(id)) ordered.push(id);
+  }
+  return ordered;
+}
+
 export function liveScore(session: LiveSession): {
   answered: number;
   total: number;
   correct: number;
+  incorrect: number;
+  unanswered: number;
   percent: number | null;
 } {
   const unique = new Set(session.answers.map((answer) => answer.cardId));
   const correct = session.answers.filter((answer) => answer.correct).length;
+  const incorrect = session.answers.filter((answer) => !answer.correct).length;
   const total = session.originalCount;
   return {
     answered: unique.size,
     total,
     correct,
+    incorrect,
+    unanswered: Math.max(0, total - unique.size),
     percent: session.answers.length ? correct / session.answers.length : null,
   };
 }
@@ -238,34 +283,156 @@ function expireIfNeeded(session: LiveSession, now: number): LiveSession {
   };
 }
 
+function markComplete(session: LiveSession, now: number): LiveSession {
+  return {
+    ...session,
+    status: 'finished',
+    finishedReason: 'complete',
+    runningSince: null,
+    accumulatedMs: elapsedMs(session, now),
+    skipReview: false,
+    returnToReview: false,
+    updatedAt: now,
+  };
+}
+
+/**
+ * Leave the current card by answering it or skipping it.
+ * A skip does not record an answer and does not requeue the card.
+ */
+function settle(
+  session: LiveSession,
+  leftCardId: string,
+  mode: 'answer' | 'skip',
+  correct: boolean,
+  now: number,
+): LiveSession {
+  let updated: LiveSession = { ...session };
+  const fromReview = session.returnToReview;
+  const drillLike = updated.kind === 'drill' || updated.kind === 'review';
+  const onCurrent = updated.cardIds[updated.index] === leftCardId;
+  const drillMiss = mode === 'answer' && !correct && drillLike;
+
+  if (mode === 'skip') {
+    if (!updated.skipped.includes(leftCardId)) updated.skipped = [...updated.skipped, leftCardId];
+  } else {
+    updated.skipped = updated.skipped.filter((id) => id !== leftCardId);
+  }
+  if (drillMiss) updated.cardIds = [...updated.cardIds, leftCardId];
+
+  if (fromReview) {
+    updated.returnToReview = false;
+    const remaining = skippedUnanswered(updated);
+    if (remaining.length > 0) {
+      updated.skipReview = true;
+      return updated;
+    }
+    if (drillMiss && updated.bookmarkIndex == null) {
+      updated.skipReview = false;
+      updated.index = updated.cardIds.length - 1;
+      return updated;
+    }
+    if (updated.bookmarkIndex != null && updated.bookmarkIndex < updated.cardIds.length) {
+      updated.index = updated.bookmarkIndex;
+      updated.bookmarkIndex = null;
+      updated.skipReview = false;
+      return updated;
+    }
+    if (drillMiss) {
+      updated.skipReview = false;
+      updated.index = Math.max(0, updated.cardIds.length - 1);
+      return updated;
+    }
+    updated.skipReview = false;
+    return markComplete(updated, now);
+  }
+
+  if (onCurrent) updated.index = Math.min(updated.index + 1, updated.cardIds.length);
+  updated.returnToReview = false;
+  const remaining = skippedUnanswered(updated);
+  const atEnd = updated.index >= updated.cardIds.length;
+  const answeredIds = new Set(updated.answers.map((item) => item.cardId));
+  const examDone = updated.kind === 'exam' && answeredIds.size >= updated.originalCount;
+  const drillDone = drillLike && atEnd && remaining.length === 0;
+  if (examDone || drillDone) return markComplete(updated, now);
+  if (atEnd && remaining.length > 0) {
+    updated.skipReview = true;
+    updated.bookmarkIndex = null;
+    return updated;
+  }
+  updated.skipReview = false;
+  return updated;
+}
+
+/** Leave the card blank, advance, and keep the clock running. Not a review. */
+export function skipQuestion(session: LiveSession, cardId: string, now: number): LiveSession {
+  const next = touch(normalizeSession(session), now);
+  if (next.status === 'finished') return next;
+  const answered = new Set(next.answers.map((answer) => answer.cardId));
+  if (answered.has(cardId)) return next;
+  return expireIfNeeded(settle(next, cardId, 'skip', false, now), now);
+}
+
+/** Show the skipped-question list and remember where to continue. The clock keeps running. */
+export function openSkipReview(session: LiveSession, now: number): LiveSession {
+  const next = touch(normalizeSession(session), now);
+  if (next.status === 'finished') return next;
+  const atEnd = next.index >= next.cardIds.length;
+  return {
+    ...next,
+    skipReview: true,
+    returnToReview: false,
+    bookmarkIndex: atEnd ? null : next.index,
+  };
+}
+
+export function jumpToSkipped(session: LiveSession, cardId: string, now: number): LiveSession {
+  const next = touch(normalizeSession(session), now);
+  if (next.status === 'finished') return next;
+  const index = next.cardIds.indexOf(cardId);
+  if (index < 0 || !skippedUnanswered(next).includes(cardId)) return next;
+  return {
+    ...next,
+    index,
+    skipReview: false,
+    returnToReview: true,
+  };
+}
+
+export function continueAfterReview(session: LiveSession, now: number): LiveSession {
+  const next = touch(normalizeSession(session), now);
+  if (next.status === 'finished' || next.bookmarkIndex == null) return next;
+  const index = Math.max(0, Math.min(next.bookmarkIndex, Math.max(next.cardIds.length - 1, 0)));
+  return {
+    ...next,
+    index,
+    skipReview: false,
+    returnToReview: false,
+    bookmarkIndex: null,
+  };
+}
+
+export function finishSession(session: LiveSession, now: number): LiveSession {
+  const next = normalizeSession(session);
+  if (next.status === 'finished') return next;
+  return {
+    ...next,
+    accumulatedMs: elapsedMs(next, now),
+    runningSince: null,
+    status: 'finished',
+    finishedReason: 'complete',
+    skipReview: false,
+    returnToReview: false,
+    updatedAt: now,
+  };
+}
+
 export function answerSession(
   session: LiveSession,
   answer: SessionAnswer,
 ): { session: LiveSession; finished: boolean } {
-  const next = touch(session, answer.at);
-  const answers = [...next.answers, answer];
-  let cardIds = next.cardIds;
-  if ((next.kind === 'drill' || next.kind === 'review') && !answer.correct) {
-    cardIds = [...cardIds, answer.cardId];
-  }
-  let index = next.index;
-  if (next.cardIds[next.index] === answer.cardId) index = Math.min(index + 1, cardIds.length);
-  let updated: LiveSession = { ...next, answers, cardIds, index };
-  const examDone =
-    updated.kind === 'exam' &&
-    new Set(updated.answers.map((item) => item.cardId)).size >= updated.originalCount;
-  const drillDone =
-    (updated.kind === 'drill' || updated.kind === 'review') && updated.index >= updated.cardIds.length;
-  if (examDone || drillDone) {
-    updated = {
-      ...updated,
-      status: 'finished',
-      finishedReason: 'complete',
-      runningSince: null,
-      accumulatedMs: elapsedMs(updated, answer.at),
-    };
-  }
-  updated = expireIfNeeded(updated, answer.at);
+  const next = touch(normalizeSession(session), answer.at);
+  const updated = expireIfNeeded(settle({ ...next, answers: [...next.answers, answer] }, answer.cardId, 'answer', answer.correct, answer.at), answer.at);
   return { session: updated, finished: updated.status === 'finished' };
 }
 

@@ -16,7 +16,7 @@ import {
   resetStudyDb,
 } from './db';
 import { emptyMemory } from './scoring';
-import { createExamSession, pauseSession } from './session';
+import { createExamSession, pauseSession, skipQuestion } from './session';
 import type { Card, Review } from './types';
 
 beforeEach(async () => {
@@ -76,6 +76,58 @@ describe('IndexedDB', () => {
     expect(again.sessions[0].accumulatedMs).toBe(75_000);
     expect(again.sessions[0].status).toBe('paused');
     expect(again.memories[0].correct).toBe(1);
+  });
+
+  it('keeps skipped questions on a paused session with no review recorded', async () => {
+    const now = 1_700_000_000_000;
+    await putSubject({ id: 'sub', name: 'Field notes', createdAt: now, updatedAt: now });
+    const cards: Card[] = [
+      {
+        id: 'card-1',
+        deckId: 'deck-1',
+        subjectId: 'sub',
+        order: 0,
+        sourceLabel: '1',
+        question: 'Which river runs through Cairo?',
+        choices: [],
+        correctLabels: ['A'],
+        answer: 'Nile',
+        explanation: null,
+        section: 'Section: Rivers',
+      },
+      {
+        id: 'card-2',
+        deckId: 'deck-1',
+        subjectId: 'sub',
+        order: 1,
+        sourceLabel: '2',
+        question: 'Which two rivers are in Europe?',
+        choices: [],
+        correctLabels: ['A', 'C'],
+        answer: 'Danube and Rhine',
+        explanation: null,
+        section: 'Section: Rivers',
+      },
+    ];
+    let session = createExamSession(
+      { id: 'deck-1', subjectId: 'sub', name: 'Practice Test 1' },
+      cards,
+      'timed',
+      now,
+    );
+    session = skipQuestion(session, 'card-1', now + 5_000);
+    session = pauseSession(session, now + 8_000);
+    await putSession(session);
+    await closeStudyDb();
+    const again = await loadSnapshot();
+    expect(again.sessions).toHaveLength(1);
+    expect(again.sessions[0].skipped).toEqual(['card-1']);
+    expect(again.sessions[0].index).toBe(1);
+    expect(again.sessions[0].answers).toEqual([]);
+    expect(again.sessions[0].status).toBe('paused');
+    expect(again.reviews).toHaveLength(0);
+    expect(again.memories).toHaveLength(0);
+    expect(again.sessions[0].accumulatedMs).toBe(8_000);
   });
 
   it('keeps two subjects separate when one is deleted', async () => {
