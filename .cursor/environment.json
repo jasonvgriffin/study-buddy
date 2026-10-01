@@ -1,0 +1,10 @@
+{
+  "install": "npm ci && npx playwright install --with-deps chromium",
+  "terminals": [
+    {
+      "name": "Vite dev server",
+      "command": "npm run dev -- --host 127.0.0.1",
+      "description": "Study Buddy at http://127.0.0.1:43123/study-buddy/. Playwright starts its own server on port 43124, so this does not conflict."
+    }
+  ]
+}
