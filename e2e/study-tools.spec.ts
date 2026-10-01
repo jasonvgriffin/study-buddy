@@ -23,7 +23,8 @@ test('skip, text size, and the question navigator', async ({ page }) => {
   await expect(page.getByTestId('flag-card')).toHaveCount(0);
   await expect(page.getByTestId('edit-card')).toHaveCount(0);
   await expect(page.getByTestId('skip-for-later')).toBeVisible();
-  await expect(page.getByTestId('finish')).toBeVisible();
+  await expect(page.getByRole('button', { name: "I don't know", exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'End session', exact: true })).toBeVisible();
   await page.keyboard.press('e');
   await expect(page.getByTestId('card-editor')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Which river runs through Cairo?' })).toBeVisible();

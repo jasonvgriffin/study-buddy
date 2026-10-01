@@ -123,7 +123,7 @@ test('a wrong choice shows the correct answer, the PDF explanation, and the less
   expect(pressed).toBe('var(--link-pressed)');
 });
 
-test('Finish reveals the answer and lesson and counts the question missed', async ({ page }) => {
+test("I don't know reveals the answer and lesson and counts the question missed", async ({ page }) => {
   await page.goto('./');
   await page.getByTestId('subject-name').fill('Rivers');
   await page.getByTestId('add-subject').click();
@@ -136,11 +136,12 @@ test('Finish reveals the answer and lesson and counts the question missed', asyn
 
   await expect(page.getByTestId('edit-card')).toHaveCount(0);
   await expect(page.getByTestId('skip-for-later')).toBeVisible();
-  await expect(page.getByTestId('finish')).toHaveText('Finish');
+  const giveUp = page.getByRole('button', { name: "I don't know", exact: true });
+  await expect(giveUp).toHaveText("I don't know");
   await expect(page.getByTestId('end-session')).toHaveText('End session');
   const sessionHash = await page.evaluate(() => location.hash);
   expect(sessionHash).toMatch(/^#\/session\//);
-  await page.getByTestId('finish').click();
+  await giveUp.click();
   await expect(page.getByTestId('result')).toHaveText('✗ Incorrect');
   await expect(page.getByTestId('choice').filter({ hasText: 'Nile' })).toHaveClass(/correct/);
   await expect(page.getByTestId('explanation')).toContainText('Cairo sits on the Nile');

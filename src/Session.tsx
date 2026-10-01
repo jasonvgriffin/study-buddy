@@ -585,12 +585,13 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
               </button>
               <button
                 className="btn btn-ghost btn-block"
-                data-testid="finish"
+                data-testid="i-dont-know"
                 type="button"
+                aria-label="I don't know"
                 disabled={paused || pending}
                 onClick={() => submit([], false)}
               >
-                Finish
+                I don't know
               </button>
             </div>
           )}

@@ -167,7 +167,7 @@ export type LiveSession = {
   skipReview: boolean;
   /** True after jumping from that list, so the next step returns there. */
   returnToReview: boolean;
-  /** Question index to resume when Finish opened the review before the end. */
+  /** Question index to resume when End session opened the review before the end. */
   bookmarkIndex: number | null;
   accumulatedMs: number;
   runningSince: number | null;
