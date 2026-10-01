@@ -11,6 +11,7 @@ test('keyboard grading, missed review, domain scores, and the backup reminder', 
   await expect(page.locator('[data-subject-name="Finish"]')).toHaveClass(/on/);
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
   await page.getByTestId('save-tests').click();
+  await page.getByTestId('home-tab-library').click();
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await page.getByTestId('start-untimed').click();
 
@@ -54,7 +55,7 @@ test('keyboard grading, missed review, domain scores, and the backup reminder', 
   await expect(page.locator('[data-card-id]').filter({ hasText: 'Which river runs through Cairo?' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Back', exact: true }).click();
-  await page.getByRole('button', { name: 'Stats' }).click();
+  await page.getByRole('button', { name: 'Stats', exact: true }).click();
   await expect(page.getByTestId('domain-stats')).toContainText('No domain');
   await expect(page.getByTestId('domain-stats')).toContainText('1 right, 2 wrong');
 
@@ -66,7 +67,7 @@ test('keyboard grading, missed review, domain scores, and the backup reminder', 
   await page.reload();
   await expect(page.getByTestId('backup-reminder')).toHaveCount(0);
 
-  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(page.getByTestId('shuffle-toggle')).toHaveAttribute('aria-pressed', 'true');
   await page.getByTestId('shuffle-toggle').click();
   await expect(page.getByTestId('shuffle-toggle')).toHaveAttribute('aria-pressed', 'false');
@@ -76,7 +77,8 @@ test('keyboard grading, missed review, domain scores, and the backup reminder', 
   expect(download.suggestedFilename()).toMatch(/study-buddy-backup-/);
   await download.delete();
 
-  await page.getByRole('button', { name: 'Home' }).click();
+  await page.getByRole('button', { name: 'Home', exact: true }).click();
+  await page.getByTestId('home-tab-library').click();
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await page.getByTestId('start-untimed').click();
   await expect(page.getByTestId('choice').nth(0)).toContainText('Nile');

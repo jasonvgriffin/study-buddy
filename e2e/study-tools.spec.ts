@@ -10,6 +10,7 @@ test('flag, edit, text size, and the question navigator', async ({ page }) => {
   await expect(page.locator('[data-subject-name="Tools"]')).toHaveClass(/on/);
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
   await page.getByTestId('save-tests').click();
+  await page.getByTestId('home-tab-library').click();
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await page.getByTestId('start-untimed').click();
 
@@ -56,6 +57,7 @@ test('flag, edit, text size, and the question navigator', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Edited river question?' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Back' }).click();
+  await page.getByTestId('home-tab-library').click();
   await expect(page.getByTestId('flagged-link')).toHaveText('Flagged cards (2)');
   await page.getByTestId('flagged-link').click();
   await expect(page.getByTestId('flagged-card')).toHaveCount(2);
@@ -71,7 +73,7 @@ test('flag, edit, text size, and the question navigator', async ({ page }) => {
   await expect(page.getByTestId('flagged-empty')).toBeVisible();
 
   await page.getByRole('button', { name: 'Back' }).click();
-  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByTestId('text-size-large').click();
   await expect(page.locator('html')).toHaveAttribute('data-text-size', 'large');
   await page.reload();

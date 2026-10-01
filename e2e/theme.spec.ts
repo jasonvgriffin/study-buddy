@@ -14,12 +14,12 @@ test('dark mode preference still shows the light palette', async ({ page }) => {
       return { bg: body.backgroundColor, color: body.color, cardBg, theme };
     });
   const colors = await read();
-  expect(colors.bg).toBe('rgb(244, 241, 234)');
+  expect(colors.bg).toBe('rgb(255, 255, 255)');
   expect(colors.color).toBe('rgb(31, 41, 51)');
-  expect(colors.cardBg).toBe('rgb(251, 249, 244)');
-  expect(colors.theme?.toLowerCase()).toBe('#f4f1ea');
+  expect(colors.cardBg).toBe('rgb(255, 255, 255)');
+  expect(colors.theme?.toLowerCase()).toBe('#ffffff');
   for (const name of ['Stats', 'Settings']) {
-    await page.getByRole('button', { name }).click();
+    await page.getByRole('button', { name, exact: true }).click();
     await expect(page.locator('.card').first()).toBeVisible();
     const again = await read();
     expect(again.bg).toBe(colors.bg);
@@ -31,6 +31,6 @@ test('dark mode preference still shows the light palette', async ({ page }) => {
     const response = await fetch(href ?? '');
     return response.json();
   });
-  expect(String(manifest.theme_color).toLowerCase()).toBe('#f4f1ea');
-  expect(String(manifest.background_color).toLowerCase()).toBe('#f4f1ea');
+  expect(String(manifest.theme_color).toLowerCase()).toBe('#ffffff');
+  expect(String(manifest.background_color).toLowerCase()).toBe('#ffffff');
 });

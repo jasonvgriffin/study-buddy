@@ -34,6 +34,7 @@ Scanned pages are not read. Study Buddy does not OCR.
 
 ## Study
 
+- Home leads with Continue, or Start studying when nothing is in progress. The rest is grouped: Study (practice exam, drill, review due), Library (decks, import, flagged cards), Progress (stats, domains, missed questions), and Settings and backup.
 - Untimed mode, or a 90-minute exam. The clock stores active time only. Pause, or leave the tab, and it stops. Hiding the page does not add the time you were away. Skip for later does not stop a timed exam.
 - Skip for later leaves the question unanswered and moves on. Skipped questions stay on that sitting through pause and refresh. At the end, or when you tap Finish, a review list lets you jump back to each one. Until you answer them they count as unanswered, not right or wrong, and they are not treated as a miss on the review ladder.
 - The header reads Question 12 of 90, with a bar for how far you are. All questions opens a list you can filter to flagged or skipped cards and jump to any question.
