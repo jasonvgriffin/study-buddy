@@ -17,7 +17,7 @@ export function resumeLabel(session: LiveSession, now: number): string {
   }
   const total = session.kind === 'exam' ? session.originalCount : session.cardIds.length;
   const question = Math.min(session.index + 1, Math.max(total, 1));
-  return `Resume ${session.deckName}: question ${question} of ${total}, ${elapsed} elapsed`;
+  return `Resume ${session.deckName}: Question ${question} of ${total}, ${elapsed} elapsed`;
 }
 
 function baseSession(input: {
@@ -386,6 +386,20 @@ export function openSkipReview(session: LiveSession, now: number): LiveSession {
   };
 }
 
+/** Jump to any question in the sitting. Skipped cards still return to the skip list afterward. */
+export function jumpToQuestion(session: LiveSession, cardId: string, now: number): LiveSession {
+  const next = touch(normalizeSession(session), now);
+  if (next.status === 'finished') return next;
+  const index = next.cardIds.indexOf(cardId);
+  if (index < 0) return next;
+  return {
+    ...next,
+    index,
+    skipReview: false,
+    returnToReview: skippedUnanswered(next).includes(cardId),
+  };
+}
+
 export function jumpToSkipped(session: LiveSession, cardId: string, now: number): LiveSession {
   const next = touch(normalizeSession(session), now);
   if (next.status === 'finished') return next;
@@ -432,7 +446,11 @@ export function answerSession(
   answer: SessionAnswer,
 ): { session: LiveSession; finished: boolean } {
   const next = touch(normalizeSession(session), answer.at);
-  const updated = expireIfNeeded(settle({ ...next, answers: [...next.answers, answer] }, answer.cardId, 'answer', answer.correct, answer.at), answer.at);
+  const answers =
+    next.kind === 'exam' && next.answers.some((item) => item.cardId === answer.cardId)
+      ? next.answers.map((item) => (item.cardId === answer.cardId ? answer : item))
+      : [...next.answers, answer];
+  const updated = expireIfNeeded(settle({ ...next, answers }, answer.cardId, 'answer', answer.correct, answer.at), answer.at);
   return { session: updated, finished: updated.status === 'finished' };
 }
 

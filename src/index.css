@@ -18,7 +18,12 @@
   font-family: "Avenir Next", "Segoe UI", system-ui, sans-serif;
   background: var(--bg);
   color: var(--ink);
+  font-size: 17px;
 }
+html[data-text-size='small'] { font-size: 15px; }
+html[data-text-size='normal'] { font-size: 17px; }
+html[data-text-size='large'] { font-size: 20px; }
+html[data-text-size='xlarge'] { font-size: 24px; }
 
 * { box-sizing: border-box; }
 html, body, #root { min-height: 100%; }
@@ -26,12 +31,13 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font-size: 17px;
+  font-size: 1rem;
   line-height: 1.45;
 }
 button, a, input, textarea, select { touch-action: manipulation; }
 button, input, textarea, select { font: inherit; color: inherit; }
-input, textarea, select { font-size: 16px; }
+input[type='checkbox'] { width: 1.35rem; height: 1.35rem; accent-color: var(--moss); }
+input, textarea, select { font-size: max(16px, 1rem); }
 button { cursor: pointer; }
 a { color: inherit; }
 
@@ -60,8 +66,8 @@ a { color: inherit; }
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  min-height: 48px;
-  padding: 0.7rem 1rem;
+  min-height: 56px;
+  padding: 0.85rem 1.15rem;
   border-radius: 999px;
   border: 1px solid transparent;
   font-weight: 650;
@@ -74,7 +80,7 @@ a { color: inherit; }
 .btn-block { width: 100%; }
 .field {
   width: 100%;
-  min-height: 48px;
+  min-height: 52px;
   border: 1px solid var(--line);
   background: var(--card);
   border-radius: 0.9rem;
@@ -95,7 +101,7 @@ a { color: inherit; }
   z-index: 20;
 }
 .nav a, .nav button {
-  min-height: 48px;
+  min-height: 52px;
   border: 0;
   background: transparent;
   border-radius: 0.8rem;
@@ -106,7 +112,7 @@ a { color: inherit; }
 .nav .on { background: var(--card); color: var(--ink); }
 .choice {
   width: 100%;
-  min-height: 48px;
+  min-height: 56px;
   text-align: left;
   border-radius: 1rem;
   border: 2px solid var(--line);
@@ -168,7 +174,7 @@ a { color: inherit; }
 }
 .bar > span { display: block; height: 100%; background: var(--moss); }
 .chip {
-  min-height: 44px;
+  min-height: 48px;
   padding: 0.45rem 0.85rem;
   border-radius: 999px;
   border: 1px solid var(--line);

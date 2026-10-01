@@ -8,6 +8,7 @@ import {
   createExamSession,
   elapsedMs,
   finishSession,
+  jumpToQuestion,
   jumpToSkipped,
   liveScore,
   normalizeSession,
@@ -226,6 +227,37 @@ describe('skip for later', () => {
     });
     expect(continued.session.index).toBe(2);
     expect(continued.finished).toBe(false);
+  });
+
+  it('jumps to any question and replaces an exam answer when that card is graded again', () => {
+    let session = createExamSession(deck, cards.slice(0, 3), 'untimed', 0);
+    session = skipQuestion(session, 'c0', 1_000);
+    const first = answerSession(session, {
+      cardId: 'c1',
+      correct: false,
+      chosenLabels: ['B'],
+      at: 2_000,
+    });
+    expect(first.session.index).toBe(2);
+    const jumped = jumpToQuestion(first.session, 'c1', 2_500);
+    expect(jumped.index).toBe(1);
+    expect(jumped.skipReview).toBe(false);
+    expect(jumped.returnToReview).toBe(false);
+    const replaced = answerSession(jumped, {
+      cardId: 'c1',
+      correct: true,
+      chosenLabels: ['A'],
+      at: 3_000,
+    });
+    expect(replaced.session.answers).toEqual([
+      { cardId: 'c1', correct: true, chosenLabels: ['A'], at: 3_000 },
+    ]);
+    expect(liveScore(replaced.session)).toMatchObject({ correct: 1, incorrect: 0, answered: 1, unanswered: 2 });
+    const toSkipped = jumpToQuestion(replaced.session, 'c0', 3_500);
+    expect(toSkipped.index).toBe(0);
+    expect(toSkipped.returnToReview).toBe(true);
+    const missing = jumpToQuestion(toSkipped, 'missing', 4_000);
+    expect(missing.index).toBe(0);
   });
 
   it('returns to a paused review from continue, and repairs a session saved before skip existed', () => {

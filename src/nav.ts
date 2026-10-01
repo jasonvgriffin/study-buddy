@@ -5,7 +5,8 @@ export type Route =
   | { name: 'review'; draftId: string }
   | { name: 'deck'; deckId: string }
   | { name: 'session'; sessionId: string }
-  | { name: 'results'; sessionId: string };
+  | { name: 'results'; sessionId: string }
+  | { name: 'flagged' };
 
 export function parseRoute(hash: string): Route {
   const path = (hash.replace(/^#/, '') || '/').split('?')[0] ?? '/';
@@ -16,6 +17,7 @@ export function parseRoute(hash: string): Route {
   if (parts[0] === 'deck' && parts[1]) return { name: 'deck', deckId: parts[1] };
   if (parts[0] === 'session' && parts[1]) return { name: 'session', sessionId: parts[1] };
   if (parts[0] === 'results' && parts[1]) return { name: 'results', sessionId: parts[1] };
+  if (parts[0] === 'flagged') return { name: 'flagged' };
   return { name: 'home' };
 }
 

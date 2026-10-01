@@ -15,11 +15,11 @@ async function context(userData: string) {
   });
 }
 
-test('paused progress survives a full browser restart', async ({ baseURL }) => {
+test('paused progress survives a full browser restart', async () => {
   const userData = await mkdtemp(path.join(tmpdir(), 'study-buddy-e2e-'));
   const first = await context(userData);
   const page = first.pages()[0] ?? (await first.newPage());
-  await page.goto(baseURL ?? '/');
+  await page.goto('./');
   await page.getByTestId('subject-name').fill('Rivers');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Rivers"]')).toHaveClass(/on/);
@@ -44,12 +44,12 @@ test('paused progress survives a full browser restart', async ({ baseURL }) => {
 
   const second = await context(userData);
   const again = second.pages()[0] ?? (await second.newPage());
-  await again.goto(baseURL ?? '/');
+  await again.goto('./');
   const card = again.getByTestId('resume-card').first();
   await expect(card).toContainText('Practice Test 1');
   await expect(card).toContainText(`${elapsed} elapsed`);
   const label = await card.innerText();
-  const where = label.match(/question \d+ of \d+/);
+  const where = label.match(/Question \d+ of \d+/);
   await card.getByTestId('resume').click();
   await expect(again.getByTestId('elapsed')).toHaveText(elapsed);
   if (where) await expect(again.getByTestId('position')).toHaveText(where[0]);
@@ -61,11 +61,11 @@ test('paused progress survives a full browser restart', async ({ baseURL }) => {
   await rm(userData, { recursive: true, force: true });
 });
 
-test('two subjects keep their PDFs apart', async ({ baseURL }) => {
+test('two subjects keep their PDFs apart', async () => {
   const userData = await mkdtemp(path.join(tmpdir(), 'study-buddy-subjects-'));
   const browser = await context(userData);
   const page = browser.pages()[0] ?? (await browser.newPage());
-  await page.goto(baseURL ?? '/');
+  await page.goto('./');
   await page.getByTestId('subject-name').fill('Rivers');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Rivers"]')).toHaveClass(/on/);

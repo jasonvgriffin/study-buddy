@@ -2,12 +2,14 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   closeStudyDb,
+  deleteCard,
   deleteDraft,
   deleteSubject,
   exportBackup,
   figuresForCard,
   importBackup,
   loadSnapshot,
+  putDeckBundle,
   putFigures,
   putReviewBundle,
   putSession,
@@ -17,7 +19,7 @@ import {
 } from './db';
 import { emptyMemory } from './scoring';
 import { createExamSession, pauseSession, skipQuestion } from './session';
-import type { Card, Review } from './types';
+import type { Card, Deck, Review } from './types';
 
 beforeEach(async () => {
   await resetStudyDb();
@@ -168,5 +170,81 @@ describe('IndexedDB', () => {
     const restored = await figuresForCard('card-1');
     expect(restored).toHaveLength(1);
     expect(new Uint8Array(await restored[0].png.arrayBuffer())[0]).toBe(137);
+  });
+
+  it('keeps a flagged card after reopen and removes it from the test and the sitting', async () => {
+    const now = 1_700_000_000_000;
+    await putSubject({ id: 'sub', name: 'Field notes', createdAt: now, updatedAt: now });
+    const deck: Deck = {
+      id: 'deck-1',
+      subjectId: 'sub',
+      name: 'Practice Test 1',
+      sourceFileName: 'sample.pdf',
+      sourceGroupId: 'group-1',
+      domains: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    const cards: Card[] = [
+      {
+        id: 'card-1',
+        deckId: 'deck-1',
+        subjectId: 'sub',
+        order: 0,
+        sourceLabel: '1',
+        question: 'Which river runs through Cairo?',
+        choices: [{ label: 'A', text: 'Nile', explanation: null }],
+        correctLabels: ['A'],
+        answer: 'A. Nile',
+        explanation: 'Cairo sits on the Nile.',
+        section: null,
+        domainNumber: null,
+        domainName: null,
+        objective: null,
+        objectiveTitle: null,
+        examCode: null,
+        lessonUrl: null,
+        videoStartSec: null,
+        reported: true,
+      },
+      {
+        id: 'card-2',
+        deckId: 'deck-1',
+        subjectId: 'sub',
+        order: 1,
+        sourceLabel: '2',
+        question: 'Which tool drives a nail?',
+        choices: [],
+        correctLabels: [],
+        answer: 'Hammer',
+        explanation: null,
+        section: null,
+        domainNumber: null,
+        domainName: null,
+        objective: null,
+        objectiveTitle: null,
+        examCode: null,
+        lessonUrl: null,
+        videoStartSec: null,
+      },
+    ];
+    await putDeckBundle(deck, cards);
+    let session = createExamSession({ id: 'deck-1', subjectId: 'sub', name: 'Practice Test 1' }, cards, 'untimed', now);
+    session = { ...session, flagged: ['card-1'], skipped: ['card-1'], index: 1 };
+    await putSession(session);
+    await closeStudyDb();
+    const again = await loadSnapshot();
+    expect(again.cards.find((card) => card.id === 'card-1')?.reported).toBe(true);
+    expect(again.cards.find((card) => card.id === 'card-2')?.reported).toBeUndefined();
+    await deleteCard('card-1');
+    await closeStudyDb();
+    const after = await loadSnapshot();
+    expect(after.cards.map((card) => card.id)).toEqual(['card-2']);
+    expect(after.sessions).toHaveLength(1);
+    expect(after.sessions[0].cardIds).toEqual(['card-2']);
+    expect(after.sessions[0].originalCount).toBe(1);
+    expect(after.sessions[0].flagged).toEqual([]);
+    expect(after.sessions[0].skipped).toEqual([]);
+    expect(after.sessions[0].index).toBe(0);
   });
 });

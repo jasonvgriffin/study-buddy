@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Screen } from './bits';
+import { TEXT_SIZE_LABELS, TEXT_SIZES, readTextSize, writeTextSize, type TextSize } from './lib/textSize';
 import { useStudy } from './store';
 
 export function Settings() {
   const study = useStudy();
   const [error, setError] = useState<string | null>(null);
+  const [textSize, setTextSize] = useState<TextSize>(() => readTextSize());
   const persist = study.snap?.persist;
   const persistText =
     persist?.granted === true
@@ -15,6 +17,29 @@ export function Settings() {
 
   return (
     <Screen title="Settings" lede="Decks, answers, and paused exams stay in IndexedDB on this device.">
+      <article className="card stack" style={{ padding: '1rem' }}>
+        <h2>Text size</h2>
+        <p className="muted" style={{ margin: 0 }}>
+          Applies on this device and stays after a refresh.
+        </p>
+        <div className="stack">
+          {TEXT_SIZES.map((size) => (
+            <button
+              key={size}
+              className={textSize === size ? 'btn btn-primary btn-block' : 'btn btn-ghost btn-block'}
+              type="button"
+              data-testid={`text-size-${size}`}
+              aria-pressed={textSize === size}
+              onClick={() => {
+                writeTextSize(size);
+                setTextSize(size);
+              }}
+            >
+              {TEXT_SIZE_LABELS[size]}
+            </button>
+          ))}
+        </div>
+      </article>
       <article className="card stack" style={{ padding: '1rem' }}>
         <h2>Storage</h2>
         <p style={{ margin: 0 }}>{persistText}</p>

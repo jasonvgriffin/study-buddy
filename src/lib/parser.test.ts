@@ -217,6 +217,86 @@ https://example.com/lessons/rivers
   });
 });
 
+describe('question cleanup', () => {
+  it('splits two questions that were merged onto one line', () => {
+    const text = `
+Practice Test 9
+1. Which river runs through Cairo? 2. What is the capital of Portugal?
+a) Nile
+b) Amazon
+Answer Key
+1. a
+2. c
+`;
+    const cards = parsePlainText(text)[0].cards;
+    expect(cards.map((card) => card.question)).toEqual([
+      'Which river runs through Cairo?',
+      'What is the capital of Portugal?',
+    ]);
+    expect(cards[0].choices.map((choice) => choice.label)).toEqual(['A', 'B']);
+    expect(cards[0].correctLabels).toEqual(['A']);
+    expect(cards[1].sourceLabel).toBe('2');
+  });
+
+  it('joins a word split by a hyphen across a page and keeps the following question', () => {
+    const text = [
+      'Practice Test 9',
+      '1. Which cable is a net-',
+      'Sample footer line',
+      '\f',
+      'Core 1 Practice Questions',
+      'work cable?',
+      'a)',
+      'HDMI',
+      'b) RJ45',
+      'Page 2',
+      '\f',
+      'Core 1 Practice Questions',
+      '2. Which tool drives a nail?',
+      'a) Hammer',
+      'b) Saw',
+      'Sample footer line',
+      'Page 3',
+      '\f',
+      'Answer Key',
+      '1. b',
+      '2. a',
+    ].join('\n');
+    const cards = parsePlainText(text)[0].cards;
+    expect(cards[0].question).toBe('Which cable is a network cable?');
+    expect(cards[0].choices.map((choice) => choice.text)).toEqual(['HDMI', 'RJ45']);
+    expect(cards[0].correctLabels).toEqual(['B']);
+    expect(cards[0].question).not.toMatch(/Page|footer|Practice Questions/);
+    expect(cards[1].question).toBe('Which tool drives a nail?');
+    expect(cards.map((card) => card.question)).toHaveLength(2);
+  });
+
+  it('drops a duplicate question and keeps the copy that has an explanation', () => {
+    const text = `
+Practice Test 9
+1. Which river runs through Cairo?
+a) Nile
+b) Amazon
+1. Which river runs through Cairo?
+a) Nile
+b) Amazon
+Answer Key
+1. a
+Detailed Answers
+1. Which river runs through Cairo?
+a) Nile
+b) Amazon
+The Answer: a) Nile
+Cairo sits on the Nile.
+`;
+    const cards = parsePlainText(text)[0].cards;
+    expect(cards).toHaveLength(1);
+    expect(cards[0].question).toBe('Which river runs through Cairo?');
+    expect(cards[0].correctLabels).toEqual(['A']);
+    expect(cards[0].explanation).toContain('Cairo sits on the Nile');
+  });
+});
+
 describe('draft edits', () => {
   it('merges and splits tests without mixing their cards', () => {
     const tests = parsePlainText(three);

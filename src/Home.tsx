@@ -129,6 +129,15 @@ export function Home() {
         </form>
       ) : null}
 
+      <button
+        className="btn btn-ghost btn-block"
+        type="button"
+        data-testid="flagged-link"
+        onClick={() => navigate('/flagged')}
+      >
+        Flagged cards ({snap.cards.filter((card) => card.reported && inFocus(card.subjectId)).length})
+      </button>
+
       <section className="card stack" style={{ padding: '1rem' }}>
         <h2>{due.length ? `${due.length} due for review` : 'Nothing due yet'}</h2>
         <p className="muted" style={{ margin: 0 }}>
