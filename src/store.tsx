@@ -105,14 +105,6 @@ type StudyApi = {
   startExam: (deck: Deck, timed: boolean) => Promise<void>;
   startMissedDrill: (deck: Deck, section: string | null) => Promise<void>;
   startDueReview: (label: string, filter: ReviewFilter) => Promise<void>;
-  startRecommendation: (rec: {
-    id: string;
-    scope: string;
-    label: string;
-    deckId: string | null;
-    subjectId: string;
-    section: string | null;
-  }) => Promise<void>;
   answer: (
     sessionId: string,
     card: Card,
@@ -659,71 +651,6 @@ export function StudyProvider({ children }: { children: ReactNode }) {
     await openSession(session);
   }
 
-  async function startRecommendation(rec: {
-    id: string;
-    scope: string;
-    label: string;
-    deckId: string | null;
-    subjectId: string;
-    section: string | null;
-  }) {
-    const state = snapRef.current;
-    if (!state) return;
-    if (rec.scope === 'subject' || rec.scope === 'domain') {
-      const domainNumber = rec.scope === 'domain' ? Number(rec.id.split(':').at(-1)) : null;
-      await startDueReview(rec.label, {
-        subjectId: rec.subjectId,
-        domainNumber: Number.isFinite(domainNumber) ? domainNumber : null,
-        scopeKey: `review:${rec.id}`,
-      });
-      return;
-    }
-    if (!rec.deckId) {
-      setMessage('Nothing is due there yet.');
-      return;
-    }
-    const deck = state.decks.find((item) => item.id === rec.deckId);
-    if (!deck) return;
-    const memories = new Map(state.memories.map((memory) => [memory.cardId, memory]));
-    const pool = state.cards.filter((card) => {
-      if (card.deckId !== deck.id) return false;
-      if (rec.scope === 'objective' && rec.section && card.objective !== rec.section) return false;
-      return true;
-    });
-    const missed = pool.filter((card) => {
-      const memory = memories.get(card.id);
-      return memory ? isUnclearedMiss(memory) : false;
-    });
-    if (missed.length) {
-      if (blockIfBusyDeck(deck.id)) return;
-      const ordered = orderForDrill(
-        missed.map((card) => memories.get(card.id)).filter((memory): memory is CardMemory => !!memory),
-        Date.now(),
-      );
-      const session = createDrillSession(deck, state.cards, ordered, rec.section, Date.now());
-      await openSession(session);
-      return;
-    }
-    const due = dueCardIds(pool, state.memories, Date.now(), { deckId: deck.id });
-    if (due.length) {
-      await startDueReview(rec.label, {
-        subjectId: deck.subjectId,
-        deckId: deck.id,
-        objective: rec.scope === 'objective' ? rec.section : null,
-        scopeKey: `review:${rec.id}`,
-      });
-      return;
-    }
-    const fresh = pool.filter((card) => (memories.get(card.id)?.attempts ?? 0) === 0).map((card) => card.id);
-    if (fresh.length) {
-      if (blockIfBusyDeck(deck.id)) return;
-      const session = createDrillSession(deck, state.cards, fresh, rec.section, Date.now());
-      await openSession(session);
-      return;
-    }
-    setMessage('Nothing is due there yet.');
-  }
-
   async function answer(sessionId: string, card: Card, chosenLabels: string[], correct: boolean) {
     const state = snapRef.current;
     const found = state?.sessions.find((session) => session.id === sessionId);
@@ -976,7 +903,6 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       startExam,
       startMissedDrill,
       startDueReview,
-      startRecommendation,
       answer,
       pause,
       resume,
