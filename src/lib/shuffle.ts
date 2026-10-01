@@ -6,8 +6,12 @@ const STORAGE_KEY = 'study-buddy-shuffle-answers';
 export function choiceReferencesOthers(text: string): boolean {
   const flat = text.replace(/\s+/g, ' ').trim();
   if (/\b(all|none|both|either|neither)\s+(of\s+)?(the\s+)?(above|these)\b/i.test(flat)) return true;
-  if (/\b[A-H]\s*(?:,|&|and|or)\s*[A-H]\b/i.test(flat)) return true;
-  if (/\b(options?|answers?|choices?)\s+[A-H]\b/i.test(flat)) return true;
+  // Option letters are capital and stand alone: "A and B", "B, C, or D". Words such as
+  // "cord" or "for a" must not look like a letter list.
+  if (/(?:^|[\s(])[A-H](?:\s*,\s*[A-H])*\s*(?:,|&|\s+and\s+|\s+or\s+)\s*(?:and\s+|or\s+)?[A-H](?=$|[\s.,;:)])/.test(flat)) {
+    return true;
+  }
+  if (/\b(?:[Oo]ptions?|[Aa]nswers?|[Cc]hoices?)\s+[A-H](?=$|[\s.,;:)])/.test(flat)) return true;
   return false;
 }
 

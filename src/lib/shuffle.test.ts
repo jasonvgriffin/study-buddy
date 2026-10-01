@@ -43,6 +43,12 @@ describe('shuffle answers', () => {
     expect(choiceReferencesOthers('Answers A and C')).toBe(true);
     expect(choiceReferencesOthers('HDMI cable')).toBe(false);
     expect(choiceReferencesOthers('A barometer measures pressure')).toBe(false);
+    expect(choiceReferencesOthers('B, C, or D')).toBe(true);
+    expect(choiceReferencesOthers('Option C')).toBe(true);
+    // Ordinary words that happen to spell letter-or-letter are not option references.
+    expect(choiceReferencesOthers('Replace the power cord')).toBe(false);
+    expect(choiceReferencesOthers('Check for a duplicate IP address')).toBe(false);
+    expect(choiceReferencesOthers('Answer a call on the headset')).toBe(false);
 
     const choices = [
       { label: 'A', text: 'Nile' },
