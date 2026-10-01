@@ -46,12 +46,27 @@ export function writeSounds(on: boolean): void {
 
 function vibrateApi(): ((pattern: number | number[]) => boolean) | null {
   try {
-    const nav = navigator as Navigator & { vibrate?: (pattern: number | number[]) => boolean };
-    if (typeof nav.vibrate === 'function') return nav.vibrate.bind(nav);
+    if (typeof navigator === 'undefined') return null;
+    const vibrate = navigator.vibrate;
+    // Firefox and Safari leave this undefined. Never call it unless it is a function.
+    if (typeof vibrate !== 'function') return null;
+    const fn = vibrate as (pattern: number | number[]) => boolean;
+    return (pattern) => fn.call(navigator, pattern);
   } catch {
     // Missing or throwing getters must not break a tap.
   }
   return null;
+}
+
+function iosLikely(): boolean {
+  try {
+    const ua = navigator.userAgent ?? '';
+    const touch = navigator.maxTouchPoints > 0;
+    if (/iPhone|iPad|iPod/i.test(ua)) return true;
+    return touch && /Macintosh/i.test(ua);
+  } catch {
+    return false;
+  }
 }
 
 /** iOS 18+ plays a system haptic when a switch checkbox is toggled inside a user gesture. */
@@ -91,7 +106,8 @@ export function vibrate(pattern: number | number[]): void {
       api(pattern);
       return;
     }
-    iosSwitchTap();
+    // No Vibration API (Firefox, desktop Safari). iOS can still use the switch haptic.
+    if (iosLikely()) iosSwitchTap();
   } catch {
     // Vibration can throw on some WebViews. Never surface that.
   }

@@ -90,11 +90,16 @@ describe('haptics', () => {
     expect(vibrate).not.toHaveBeenCalled();
 
     writeHaptics(true);
-    vi.stubGlobal('navigator', {});
-    expect(() => gradeFeedback(false)).not.toThrow();
-    const input = document.getElementById('ios-haptic-switch');
-    expect(input).toBeInstanceOf(HTMLInputElement);
-    expect(input?.getAttribute('switch')).toBe('');
+    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 Firefox/130.0', maxTouchPoints: 0, vibrate: undefined });
+    expect(() => {
+      pressFeedback();
+      gradeFeedback(false);
+    }).not.toThrow();
+    expect(document.getElementById('ios-haptic-switch')).toBeNull();
+
+    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15', maxTouchPoints: 0 });
+    expect(() => gradeFeedback(true)).not.toThrow();
+    expect(document.getElementById('ios-haptic-switch')).toBeNull();
 
     vi.stubGlobal('navigator', {
       vibrate: () => {
@@ -105,7 +110,10 @@ describe('haptics', () => {
   });
 
   it('toggles the iOS switch when vibration is unavailable', () => {
-    vi.stubGlobal('navigator', {});
+    vi.stubGlobal('navigator', {
+      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)',
+      maxTouchPoints: 5,
+    });
     const input = ensureIosHapticSwitch();
     expect(input?.checked).toBe(false);
     pressFeedback();
