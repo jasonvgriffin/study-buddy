@@ -10,22 +10,12 @@ import type { StudySnapshot } from './lib/db';
 import { useStudy } from './store';
 import type { Card, Deck, LiveSession, Subject } from './lib/types';
 
-type HomeTab = 'study' | 'library' | 'progress' | 'settings';
-
-function defaultTab(snap: StudySnapshot | null, focus: string): HomeTab {
-  if (!snap) return 'library';
-  const inFocus = (subjectId: string) => focus === 'all' || focus === subjectId;
-  const hasDeck = snap.decks.some((deck) => inFocus(deck.subjectId));
-  const hasSession = snap.sessions.some((session) => session.status !== 'finished' && inFocus(session.subjectId));
-  return hasDeck || hasSession ? 'study' : 'library';
-}
-
 export function Home() {
   const study = useStudy();
   const snap = study.snap;
+  const tab = study.homeTab;
   const [name, setName] = useState('');
   const [rename, setRename] = useState('');
-  const [tab, setTab] = useState<HomeTab>(() => defaultTab(study.snap, study.focus));
   const [examDeckId, setExamDeckId] = useState<string | null>(null);
   const [backupError, setBackupError] = useState<string | null>(null);
   if (!snap) return null;
@@ -92,7 +82,7 @@ export function Home() {
         }}
         onStart={() => {
           if (recentDeck) void study.startExam(recentDeck, false);
-          else setTab('library');
+          else study.setHomeTab('library');
         }}
       />
 
@@ -113,9 +103,9 @@ export function Home() {
             id={`home-tab-${id}`}
             data-testid={`home-tab-${id}`}
             aria-selected={tab === id}
-            aria-controls="home-panel"
+            aria-controls={tab === id ? 'home-panel' : undefined}
             aria-label={id === 'settings' ? 'Settings and backup' : label}
-            onClick={() => setTab(id)}
+            onClick={() => study.setHomeTab(id)}
           >
             <span>{label}</span>
             <span className="home-tab-note">{note}</span>
@@ -123,75 +113,81 @@ export function Home() {
         ))}
       </div>
 
-      <div className="card stack home-panel" role="tabpanel" id="home-panel" aria-labelledby={`home-tab-${tab}`}>
-        {tab === 'study' ? (
-          <StudyPanel
-            sessions={sessions}
-            primary={primary}
-            now={now}
-            decks={decks}
-            examDeck={examDeck}
-            dueCount={due.length}
-            recommendations={recommendations}
-            onPickDeck={setExamDeckId}
-            onLibrary={() => setTab('library')}
-            onResume={(id) => void study.resume(id)}
-            onDiscard={(id) => void study.discard(id)}
-            onUntimed={() => {
-              if (examDeck) void study.startExam(examDeck, false);
-            }}
-            onTimed={() => {
-              if (examDeck) void study.startExam(examDeck, true);
-            }}
-            onDrill={() => {
-              if (examDeck) void study.startMissedDrill(examDeck, null);
-            }}
-            onReviewDue={() => {
-              void study.startDueReview(study.focus === 'all' ? 'Due for review' : 'Due in this subject', {
-                subjectId: study.focus === 'all' ? null : study.focus,
-                scopeKey: `review:home:${study.focus}`,
-              });
-            }}
-            onRecommendation={(item) => void study.startRecommendation(item)}
-          />
-        ) : null}
-        {tab === 'library' ? (
-          <LibraryPanel
-            snap={snap}
-            decks={decks}
-            cards={cards}
-            subjects={subjects}
-            focused={focused}
-            name={name}
-            rename={rename}
-            inFocus={inFocus}
-            onName={setName}
-            onRename={setRename}
-            onAddSubject={() => {
-              void study.addSubject(name).then(() => setName(''));
-            }}
-            onSaveSubject={() => {
-              if (focused) void study.renameSubject(focused.id, rename || focused.name);
-            }}
-            onDeleteSubject={() => {
-              if (!focused) return;
-              if (window.confirm(`Delete ${focused.name} and every test inside it?`)) void study.removeSubject(focused.id);
-            }}
-          />
-        ) : null}
-        {tab === 'progress' ? <ProgressPanel snap={snap} cards={cards} inFocus={inFocus} /> : null}
-        {tab === 'settings' ? (
-          <SettingsPanel
-            error={backupError}
-            onExport={() => void study.downloadBackup()}
-            onImport={(file) => {
-              void study.restoreBackup(file).catch((reason: unknown) => {
-                setBackupError(reason instanceof Error ? reason.message : 'Could not import that file.');
-              });
-            }}
-          />
-        ) : null}
-      </div>
+      {tab ? (
+        <div className="card stack home-panel" role="tabpanel" id="home-panel" aria-labelledby={`home-tab-${tab}`}>
+          {tab === 'study' ? (
+            <StudyPanel
+              sessions={sessions}
+              primary={primary}
+              now={now}
+              decks={decks}
+              examDeck={examDeck}
+              dueCount={due.length}
+              recommendations={recommendations}
+              onPickDeck={setExamDeckId}
+              onLibrary={() => study.setHomeTab('library')}
+              onResume={(id) => void study.resume(id)}
+              onDiscard={(id) => void study.discard(id)}
+              onUntimed={() => {
+                if (examDeck) void study.startExam(examDeck, false);
+              }}
+              onTimed={() => {
+                if (examDeck) void study.startExam(examDeck, true);
+              }}
+              onDrill={() => {
+                if (examDeck) void study.startMissedDrill(examDeck, null);
+              }}
+              onReviewDue={() => {
+                void study.startDueReview(study.focus === 'all' ? 'Due for review' : 'Due in this subject', {
+                  subjectId: study.focus === 'all' ? null : study.focus,
+                  scopeKey: `review:home:${study.focus}`,
+                });
+              }}
+              onRecommendation={(item) => void study.startRecommendation(item)}
+            />
+          ) : null}
+          {tab === 'library' ? (
+            <LibraryPanel
+              snap={snap}
+              decks={decks}
+              cards={cards}
+              subjects={subjects}
+              focused={focused}
+              name={name}
+              rename={rename}
+              inFocus={inFocus}
+              onName={setName}
+              onRename={setRename}
+              onAddSubject={() => {
+                void study.addSubject(name).then(() => setName(''));
+              }}
+              onSaveSubject={() => {
+                if (focused) void study.renameSubject(focused.id, rename || focused.name);
+              }}
+              onDeleteSubject={() => {
+                if (!focused) return;
+                if (window.confirm(`Delete ${focused.name} and every test inside it?`)) void study.removeSubject(focused.id);
+              }}
+            />
+          ) : null}
+          {tab === 'progress' ? <ProgressPanel snap={snap} cards={cards} inFocus={inFocus} /> : null}
+          {tab === 'settings' ? (
+            <SettingsPanel
+              error={backupError}
+              onExport={() => void study.downloadBackup()}
+              onImport={(file) => {
+                void study.restoreBackup(file).catch((reason: unknown) => {
+                  setBackupError(reason instanceof Error ? reason.message : 'Could not import that file.');
+                });
+              }}
+            />
+          ) : null}
+        </div>
+      ) : (
+        <p className="muted home-tab-hint" data-testid="home-tab-hint">
+          Pick a tab to start
+        </p>
+      )}
     </div>
   );
 }

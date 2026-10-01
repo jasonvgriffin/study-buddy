@@ -6,6 +6,7 @@ const sampleThree = path.resolve('public/samples/sample-three-tests.pdf');
 test('keyboard grading, missed review, domain scores, and the backup reminder', async ({ page }) => {
   await page.goto('./');
   await expect(page.getByTestId('backup-reminder')).toHaveCount(0);
+  await page.getByTestId('home-tab-library').click();
   await page.getByTestId('subject-name').fill('Finish');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Finish"]')).toHaveClass(/on/);
