@@ -62,7 +62,7 @@ export function parseObjectiveLine(line: string): {
   title: string;
 } | null {
   const match = clean(line).match(
-    /^(?:([A-Za-z0-9.+-]+)\s*,\s*)?objective\s+(\d+)\.(\d+)\s*[-–—:]\s*(.+)$/i,
+    /^(?:([A-Za-z0-9.+-]+?)\s*(?:,|\s[-–—])\s*)?(?:objective|section)\s+(\d+)\.(\d+)\s*[-–—:]\s*(.+)$/i,
   );
   if (!match) return null;
   return {
@@ -326,7 +326,8 @@ function finalize(card: WorkCard): ParsedCard {
     question: stripChromeNoise(card.question),
     choices: choices.map((choice) => ({ ...choice, text: stripChromeNoise(choice.text) })),
     correctLabels: card.correctLabels,
-    answer: answer || '',
+    // A dashed separator after the last line belongs to the page layout, not the answer.
+    answer: (answer || '').replace(/(?:\s*[-–—]){5,}\s*$/, '').trim(),
     explanation: prose.length ? explanationText : null,
     pbq: card.pbq ?? null,
     section: card.section,

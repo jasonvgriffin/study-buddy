@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Screen } from './bits';
+import { readShuffle, writeShuffle } from './lib/shuffle';
 import { TEXT_SIZE_LABELS, TEXT_SIZES, readTextSize, writeTextSize, type TextSize } from './lib/textSize';
 import { useStudy } from './store';
 
@@ -7,6 +8,7 @@ export function Settings() {
   const study = useStudy();
   const [error, setError] = useState<string | null>(null);
   const [textSize, setTextSize] = useState<TextSize>(() => readTextSize());
+  const [shuffle, setShuffle] = useState(() => readShuffle());
   const persist = study.snap?.persist;
   const persistText =
     persist?.granted === true
@@ -39,6 +41,25 @@ export function Settings() {
             </button>
           ))}
         </div>
+      </article>
+      <article className="card stack" style={{ padding: '1rem' }}>
+        <h2>Answer order</h2>
+        <p className="muted" style={{ margin: 0 }}>
+          Mix the choices each time a question is shown. Options such as All of the above stay in place, and the correct letter stays on its text.
+        </p>
+        <button
+          className={shuffle ? 'btn btn-primary btn-block' : 'btn btn-ghost btn-block'}
+          type="button"
+          data-testid="shuffle-toggle"
+          aria-pressed={shuffle}
+          onClick={() => {
+            const next = !shuffle;
+            writeShuffle(next);
+            setShuffle(next);
+          }}
+        >
+          {shuffle ? 'Shuffle answers: on' : 'Shuffle answers: off'}
+        </button>
       </article>
       <article className="card stack" style={{ padding: '1rem' }}>
         <h2>Storage</h2>

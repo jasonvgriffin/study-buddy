@@ -246,6 +246,10 @@ h2 { font-size: 1.25rem; }
   font: inherit;
   font-size: 0.9rem;
 }
+.kbd-hint { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .kbd-hint { display: block; }
+}
 .sr-only {
   position: absolute;
   width: 1px;

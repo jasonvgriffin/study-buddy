@@ -297,6 +297,49 @@ Cairo sits on the Nile.
   });
 });
 
+describe('objective lines written as sections', () => {
+  it('reads "CODE - Section N.N - Title" and "CODE, Section N.N - Title" like an objective', () => {
+    const text = `
+Domain 1.0 - Waterways - 40%
+Domain 2.0 - Skies - 60%
+
+Practice Test 1
+1. Which river runs through Cairo?
+a) Nile
+b) Amazon
+2. Which cloud brings rain?
+a) Cirrus
+b) Nimbus
+
+Answer Key
+1. a
+2. b
+
+Detailed Answers
+1. a) Nile
+The Answer: a) Nile
+Cairo sits on the Nile.
+More information:
+SAMPLE-100 - Section 1.2 - Rivers of Africa
+https://example.com/lessons/rivers
+2. b) Nimbus
+The Answer: b) Nimbus
+Nimbus clouds carry rain.
+More information:
+SAMPLE-100, Section 2.3 - Clouds
+https://example.com/lessons/clouds
+`;
+    const [river, cloud] = parsePlainDocument(text).tests[0].cards;
+    expect([river.examCode, river.domainNumber, river.domainName, river.objective, river.objectiveTitle]).toEqual([
+      'SAMPLE-100', 1, 'Waterways', '1.2', 'Rivers of Africa',
+    ]);
+    expect(river.lessonUrl).toBe('https://example.com/lessons/rivers');
+    expect([cloud.examCode, cloud.domainNumber, cloud.domainName, cloud.objective]).toEqual(['SAMPLE-100', 2, 'Skies', '2.3']);
+    expect(cloud.lessonUrl).toBe('https://example.com/lessons/clouds');
+    expect(cloud.explanation).not.toContain('Section');
+  });
+});
+
 describe('page headers that carry structure', () => {
   // Every answer page of a practice exam starts with the exam name and its section heading,
   // and every explanation ends with an objective and a lesson link. Those repeat on page edges

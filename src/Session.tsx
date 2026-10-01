@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CardForm } from './CardForm';
 import { figuresForCard } from './lib/db';
 import { MISSING_EXPLANATION, formatDuration, formatPercent } from './lib/format';
 import { choiceGraded, gradeLabels } from './lib/parser';
+import { choiceForKey, presentChoices, readShuffle } from './lib/shuffle';
 import { PbqForm } from './PbqForm';
 import { itemExplanations } from './lib/pbq';
 import { elapsedMs, liveScore, skippedUnanswered } from './lib/session';
@@ -32,6 +33,14 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
   const [navOpen, setNavOpen] = useState(false);
   const [navFilter, setNavFilter] = useState<'all' | 'flagged' | 'skipped'>('all');
   const [editing, setEditing] = useState(false);
+  const keyRef = useRef<((event: KeyboardEvent) => void) | null>(null);
+  const presentation = useRef<{ id: string; seed: number }>({ id: '', seed: 1 });
+
+  useLayoutEffect(() => {
+    const onKey = (event: KeyboardEvent) => keyRef.current?.(event);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   useEffect(() => {
     if (!session || session.status !== 'active') return;
@@ -49,6 +58,10 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
     ? session.cardIds[Math.min(session.index, Math.max(session.cardIds.length - 1, 0))]
     : null;
   const card = revealedCard ?? study.snap?.cards.find((item) => item.id === currentId) ?? null;
+  if (card && presentation.current.id !== card.id) {
+    presentation.current = { id: card.id, seed: Math.floor(Math.random() * 0x7fffffff) };
+  }
+  const shown = card ? presentChoices(card.choices, presentation.current.seed, readShuffle()) : [];
   if ((card?.id ?? null) !== pickedFor) {
     setPickedFor(card?.id ?? null);
     setPicked([]);
@@ -83,6 +96,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
   }, [card?.id]);
 
   if (!session) {
+    keyRef.current = null;
     return (
       <div className="stack">
         <button className="btn btn-ghost" type="button" onClick={() => navigate('/')}>
@@ -122,6 +136,61 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
         pendingRef.current = false;
         setPending(false);
       });
+  };
+
+  keyRef.current = (event: KeyboardEvent) => {
+    if (event.repeat || event.metaKey || event.ctrlKey || event.altKey) return;
+    const target = event.target;
+    if (target instanceof HTMLElement) {
+      const tag = target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable) return;
+    }
+    if (!card || editing || navOpen || showSkipReview || pendingRef.current) return;
+    // A finished sitting is not "active", but Enter still has to leave the explanation.
+    if (paused && !reveal) return;
+    const key = event.key === ' ' ? ' ' : event.key.length === 1 ? event.key.toLowerCase() : event.key;
+    const pick = key === ' ' ? null : choiceForKey(shown, key);
+    if (pick && !reveal && graded && !pbq) {
+      event.preventDefault();
+      if (multi) {
+        setPicked((current) =>
+          current.includes(pick.label) ? current.filter((label) => label !== pick.label) : [...current, pick.label],
+        );
+        return;
+      }
+      submit([pick.label], gradeLabels(card.correctLabels, [pick.label]));
+      return;
+    }
+    if (key === 'f' && !pick) {
+      event.preventDefault();
+      void study.flagProblem(card, session.id);
+      return;
+    }
+    if (key === 's' && !reveal) {
+      event.preventDefault();
+      pendingRef.current = true;
+      setPending(true);
+      void study.skip(session.id, card.id).finally(() => {
+        pendingRef.current = false;
+        setPending(false);
+        setPicked([]);
+      });
+      return;
+    }
+    if (key === 'Enter' || key === ' ') {
+      if (reveal) {
+        event.preventDefault();
+        const finished = reveal.finished || session.status === 'finished';
+        setReveal(null);
+        setPicked([]);
+        if (finished) navigate(`/results/${session.id}`);
+        return;
+      }
+      if (multi && !pbq && picked.length === required) {
+        event.preventDefault();
+        submit(picked, gradeLabels(card.correctLabels, picked));
+      }
+    }
   };
 
   return (
@@ -329,6 +398,15 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
             {card.objective ? ` · ${card.objective}` : ''}
           </p>
           <h2 className="question">{card.question}</h2>
+          {!editing ? (
+            <p className="kbd-hint muted" data-testid="kbd-hint" style={{ margin: 0 }}>
+              {shown.length
+                ? multi
+                  ? 'Keys: 1–9 or A–D toggle, Enter submits. S skips, F flags.'
+                  : 'Keys: 1–9 or A–D answer, Enter next. S skips, F flags.'
+                : 'Keys: S skips, F flags.'}
+            </p>
+          ) : null}
           {figures.question.length ? (
             <div className="stack">
               {figures.question.map((src) => (
@@ -343,9 +421,9 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
               <img src={zoom} alt="Enlarged figure from your PDF" />
             </button>
           ) : null}
-          {!editing && card.choices.length ? (
+          {!editing && shown.length ? (
             <div className="stack">
-              {card.choices.map((choice) => {
+              {shown.map((choice) => {
                 const on = (reveal ? reveal.chosen : picked).includes(choice.label);
                 const isCorrect = card.correctLabels.includes(choice.label);
                 const className = [

@@ -1,3 +1,4 @@
+import { BackupReminder } from './BackupReminder';
 import { DeckScreen } from './Deck';
 import { FlaggedScreen } from './Flagged';
 import { Home } from './Home';
@@ -37,12 +38,13 @@ function Shell() {
             {study.message}
           </p>
         ) : null}
+        {study.ready && route.name !== 'session' && route.name !== 'review' ? <BackupReminder /> : null}
         {study.ready && route.name === 'home' ? <Home /> : null}
         {study.ready && route.name === 'flagged' ? <FlaggedScreen /> : null}
         {study.ready && route.name === 'stats' ? <Stats /> : null}
         {study.ready && route.name === 'settings' ? <Settings /> : null}
         {study.ready && route.name === 'review' ? <ReviewScreen draftId={route.draftId} /> : null}
-        {study.ready && route.name === 'deck' ? <DeckScreen deckId={route.deckId} /> : null}
+        {study.ready && route.name === 'deck' ? <DeckScreen deckId={route.deckId} cardId={route.cardId} /> : null}
         {study.ready && route.name === 'session' ? <SessionScreen sessionId={route.sessionId} /> : null}
         {study.ready && route.name === 'results' ? <ResultsScreen sessionId={route.sessionId} /> : null}
         <p className="muted" data-testid="build-version" style={{ fontSize: '0.75rem', textAlign: 'center', margin: '1.5rem 0 0' }}>

@@ -9,11 +9,20 @@ import { Screen } from './bits';
 import { useStudy } from './store';
 import type { Card } from './lib/types';
 
-export function DeckScreen({ deckId }: { deckId: string }) {
+export function DeckScreen({ deckId, cardId = null }: { deckId: string; cardId?: string | null }) {
   const study = useStudy();
   const snap = study.snap;
   const deck = snap?.decks.find((item) => item.id === deckId) ?? null;
-  const [editing, setEditing] = useState<string | null>(null);
+  const [editing, setEditing] = useState<string | null>(cardId);
+  const [openedCard, setOpenedCard] = useState<string | null>(cardId);
+  if (cardId !== openedCard) {
+    setOpenedCard(cardId);
+    setEditing(cardId);
+  }
+  useEffect(() => {
+    if (!cardId) return;
+    document.getElementById(`card-${cardId}`)?.scrollIntoView({ block: 'center' });
+  }, [cardId]);
   const [name, setName] = useState(deck?.name ?? '');
   const [figureCount, setFigureCount] = useState<number | null>(null);
   useEffect(() => {
@@ -140,7 +149,7 @@ export function DeckScreen({ deckId }: { deckId: string }) {
       </form>
       <div className="stack">
         {cards.map((card) => (
-          <div key={card.id} className="card stack" style={{ padding: '0.85rem' }}>
+          <div key={card.id} id={`card-${card.id}`} className="card stack" data-testid="deck-card" data-card-id={card.id} style={{ padding: '0.85rem' }}>
             <button className="btn btn-ghost btn-block" type="button" onClick={() => setEditing(editing === card.id ? null : card.id)}>
               {card.sourceLabel}. {card.question.slice(0, 90)}
             </button>

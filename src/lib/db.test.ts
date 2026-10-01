@@ -11,6 +11,7 @@ import {
   loadSnapshot,
   putDeckBundle,
   putFigures,
+  saveBackupMeta,
   putReviewBundle,
   putSession,
   putSubject,
@@ -246,5 +247,17 @@ describe('IndexedDB', () => {
     expect(after.sessions[0].flagged).toEqual([]);
     expect(after.sessions[0].skipped).toEqual([]);
     expect(after.sessions[0].index).toBe(0);
+  });
+
+  it('remembers when a backup was exported and when the reminder was dismissed', async () => {
+    await saveBackupMeta({ key: 'backup', exportedAt: 50, reminderDismissedAt: null });
+    await closeStudyDb();
+    const again = await loadSnapshot();
+    expect(again.backup).toEqual({ key: 'backup', exportedAt: 50, reminderDismissedAt: null });
+    await saveBackupMeta({ key: 'backup', exportedAt: 50, reminderDismissedAt: 80 });
+    await closeStudyDb();
+    const dismissed = await loadSnapshot();
+    expect(dismissed.backup?.reminderDismissedAt).toBe(80);
+    expect(dismissed.persist).toBeNull();
   });
 });

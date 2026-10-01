@@ -3,7 +3,7 @@ export type Route =
   | { name: 'stats' }
   | { name: 'settings' }
   | { name: 'review'; draftId: string }
-  | { name: 'deck'; deckId: string }
+  | { name: 'deck'; deckId: string; cardId: string | null }
   | { name: 'session'; sessionId: string }
   | { name: 'results'; sessionId: string }
   | { name: 'flagged' };
@@ -14,7 +14,10 @@ export function parseRoute(hash: string): Route {
   if (parts[0] === 'stats') return { name: 'stats' };
   if (parts[0] === 'settings') return { name: 'settings' };
   if (parts[0] === 'review' && parts[1]) return { name: 'review', draftId: parts[1] };
-  if (parts[0] === 'deck' && parts[1]) return { name: 'deck', deckId: parts[1] };
+  if (parts[0] === 'deck' && parts[1]) {
+    const cardId = parts[2] === 'card' && parts[3] ? parts[3] : null;
+    return { name: 'deck', deckId: parts[1], cardId };
+  }
   if (parts[0] === 'session' && parts[1]) return { name: 'session', sessionId: parts[1] };
   if (parts[0] === 'results' && parts[1]) return { name: 'results', sessionId: parts[1] };
   if (parts[0] === 'flagged') return { name: 'flagged' };

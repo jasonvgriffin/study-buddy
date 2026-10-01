@@ -204,6 +204,16 @@ export type PersistMeta = {
   at: number;
 };
 
+export type BackupMeta = {
+  key: 'backup';
+  /** When a backup file was last exported on this device. Null until the first export. */
+  exportedAt: number | null;
+  /** When the reminder banner was dismissed. Null until the learner dismisses it. */
+  reminderDismissedAt: number | null;
+};
+
+export type MetaRecord = PersistMeta | BackupMeta;
+
 export type StoredFigure = {
   id: string;
   draftId: string | null;

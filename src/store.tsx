@@ -25,6 +25,7 @@ import {
   putReviewBundle,
   putSession,
   putSubject,
+  saveBackupMeta,
   replaceMemories,
   requestPersistentStorage,
   type StudySnapshot,
@@ -63,6 +64,7 @@ import {
 } from './lib/session';
 import type {
   BackupFile,
+  BackupMeta,
   Card,
   CardMemory,
   Deck,
@@ -126,6 +128,7 @@ type StudyApi = {
   persistSession: (sessionId: string) => Promise<void>;
   syncTimer: (sessionId: string) => Promise<void>;
   downloadBackup: () => Promise<void>;
+  dismissBackupReminder: () => Promise<void>;
   restoreBackup: (file: File) => Promise<void>;
   askPersist: () => Promise<void>;
 };
@@ -901,6 +904,13 @@ export function StudyProvider({ children }: { children: ReactNode }) {
 
   async function downloadBackup() {
     const backup = await exportBackup();
+    const next: BackupMeta = {
+      key: 'backup',
+      exportedAt: Date.now(),
+      reminderDismissedAt: snapRef.current?.backup?.reminderDismissedAt ?? null,
+    };
+    await saveBackupMeta(next);
+    patch((state) => ({ ...state, backup: next }));
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -908,6 +918,16 @@ export function StudyProvider({ children }: { children: ReactNode }) {
     link.download = `study-buddy-backup-${backup.exportedAt.slice(0, 10)}.json`;
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function dismissBackupReminder() {
+    const next: BackupMeta = {
+      key: 'backup',
+      exportedAt: snapRef.current?.backup?.exportedAt ?? null,
+      reminderDismissedAt: Date.now(),
+    };
+    await saveBackupMeta(next);
+    patch((state) => ({ ...state, backup: next }));
   }
 
   async function restoreBackup(file: File) {
@@ -968,6 +988,7 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       persistSession,
       syncTimer,
       downloadBackup,
+      dismissBackupReminder,
       restoreBackup,
       askPersist,
     }),
