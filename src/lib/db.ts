@@ -182,12 +182,70 @@ export async function deleteDraft(id: string): Promise<void> {
   await tx.done;
 }
 
+const FIGURE_SAVE_ERROR =
+  'Could not save the pictures from this PDF. If this window is private, open a normal window and import the file again.';
+
+function figureSaveError(error: unknown): Error {
+  const raw = error instanceof Error ? error.message : '';
+  if (raw.startsWith('Could not save the pictures')) return error instanceof Error ? error : new Error(raw);
+  return new Error(FIGURE_SAVE_ERROR);
+}
+
+function copyBytes(value: unknown): Uint8Array<ArrayBuffer> | null {
+  let view: Uint8Array | null = null;
+  if (value instanceof ArrayBuffer) view = new Uint8Array(value);
+  else if (ArrayBuffer.isView(value)) view = new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+  if (!view || !view.byteLength) return null;
+  const copy = new Uint8Array(view.byteLength);
+  copy.set(view);
+  return copy;
+}
+
+/** Rebuild a Blob for display. Legacy records still hold a Blob in `png`. */
+export function figurePngBlob(figure: StoredFigure): Blob | null {
+  const bytes = copyBytes(figure.bytes);
+  if (bytes) return new Blob([bytes], { type: figure.mime || 'image/png' });
+  if (figure.png instanceof Blob && figure.png.size) return figure.png;
+  return null;
+}
+
+async function figureRecordForStore(figure: StoredFigure): Promise<StoredFigure> {
+  const fromBlob = figure.png instanceof Blob ? new Uint8Array(await figure.png.arrayBuffer()) : null;
+  const bytes = copyBytes(figure.bytes) ?? (fromBlob && fromBlob.byteLength ? copyBytes(fromBlob) : null);
+  if (!bytes) throw new Error(FIGURE_SAVE_ERROR);
+  const mime = figure.mime || (figure.png instanceof Blob ? figure.png.type : '') || 'image/png';
+  return {
+    id: figure.id,
+    draftId: figure.draftId,
+    cardId: figure.cardId,
+    captureId: figure.captureId,
+    role: figure.role,
+    itemId: figure.itemId ?? null,
+    bytes: bytes.buffer,
+    mime,
+  };
+}
+
+function withPngBlob(figure: StoredFigure): (StoredFigure & { png: Blob }) | null {
+  const png = figurePngBlob(figure);
+  if (!png) return null;
+  return { ...figure, png };
+}
+
 export async function putFigures(figures: StoredFigure[]): Promise<void> {
   if (!figures.length) return;
-  const db = await openStudyDb();
-  const tx = db.transaction('figures', 'readwrite');
-  for (const figure of figures) await tx.store.put(figure);
-  await tx.done;
+  try {
+    // Convert blobs before the transaction. Awaiting that work inside the transaction
+    // lets IndexedDB auto-commit, and the later put then fails.
+    const records: StoredFigure[] = [];
+    for (const figure of figures) records.push(await figureRecordForStore(figure));
+    const db = await openStudyDb();
+    const tx = db.transaction('figures', 'readwrite');
+    for (const record of records) await tx.store.put(record);
+    await tx.done;
+  } catch (error) {
+    throw figureSaveError(error);
+  }
 }
 
 export async function figureCountForCards(cardIds: string[]): Promise<number> {
@@ -198,27 +256,33 @@ export async function figureCountForCards(cardIds: string[]): Promise<number> {
   return figures.filter((figure) => figure.role === 'question' && !!figure.cardId && want.has(figure.cardId)).length;
 }
 
-export async function figuresForCard(cardId: string): Promise<StoredFigure[]> {
+export async function figuresForCard(cardId: string): Promise<(StoredFigure & { png: Blob })[]> {
   const db = await openStudyDb();
   const figures = (await db.getAll('figures')).filter((figure) => figure.cardId === cardId);
-  return figures.sort((a, b) => {
-    if (a.role !== b.role) return a.role === 'question' ? -1 : 1;
-    if (!!a.itemId !== !!b.itemId) return a.itemId ? 1 : -1;
-    return a.id.localeCompare(b.id);
-  });
+  return figures
+    .sort((a, b) => {
+      if (a.role !== b.role) return a.role === 'question' ? -1 : 1;
+      if (!!a.itemId !== !!b.itemId) return a.itemId ? 1 : -1;
+      return a.id.localeCompare(b.id);
+    })
+    .map(withPngBlob)
+    .filter((figure): figure is StoredFigure & { png: Blob } => figure != null);
 }
 
 /** Figures captured for one card of an import draft that has not been saved yet. */
-export async function figuresForDraftCapture(draftId: string, captureId: string): Promise<StoredFigure[]> {
+export async function figuresForDraftCapture(draftId: string, captureId: string): Promise<(StoredFigure & { png: Blob })[]> {
   const db = await openStudyDb();
   const figures = (await db.getAll('figures')).filter(
     (figure) => figure.draftId === draftId && figure.captureId === captureId,
   );
-  return figures.sort((a, b) => {
-    if (a.role !== b.role) return a.role === 'question' ? -1 : 1;
-    if (!!a.itemId !== !!b.itemId) return a.itemId ? 1 : -1;
-    return a.id.localeCompare(b.id);
-  });
+  return figures
+    .sort((a, b) => {
+      if (a.role !== b.role) return a.role === 'question' ? -1 : 1;
+      if (!!a.itemId !== !!b.itemId) return a.itemId ? 1 : -1;
+      return a.id.localeCompare(b.id);
+    })
+    .map(withPngBlob)
+    .filter((figure): figure is StoredFigure & { png: Blob } => figure != null);
 }
 
 export async function relinkDraftFigures(draftId: string, captureToCard: Map<string, string>): Promise<void> {
@@ -354,11 +418,18 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-function base64ToBlob(base64: string): Blob {
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-  return new Blob([bytes], { type: 'image/png' });
+  return bytes.buffer;
+}
+
+async function figurePngBytes(figure: StoredFigure): Promise<Uint8Array | null> {
+  const stored = copyBytes(figure.bytes);
+  if (stored) return stored;
+  if (figure.png instanceof Blob && figure.png.size) return copyBytes(await figure.png.arrayBuffer());
+  return null;
 }
 
 export async function savePersistMeta(meta: PersistMeta): Promise<void> {
@@ -390,7 +461,8 @@ export async function exportBackup(): Promise<BackupFile> {
   const encoded = [];
   for (const figure of figures) {
     if (!figure.cardId) continue;
-    const bytes = new Uint8Array(await figure.png.arrayBuffer());
+    const bytes = await figurePngBytes(figure);
+    if (!bytes) continue;
     encoded.push({
       id: figure.id,
       cardId: figure.cardId,
@@ -429,16 +501,21 @@ export async function importBackup(backup: BackupFile): Promise<void> {
   for (const review of backup.reviews) await tx.objectStore('reviews').put(review);
   for (const session of backup.sessions) await tx.objectStore('sessions').put(session);
   for (const memory of backup.memories) await tx.objectStore('memories').put(memory);
-  for (const figure of backup.figures ?? []) {
-    await tx.objectStore('figures').put({
-      id: figure.id,
-      draftId: null,
-      cardId: figure.cardId,
-      captureId: figure.captureId,
-      role: figure.role,
-      itemId: figure.itemId ?? null,
-      png: base64ToBlob(figure.pngBase64),
-    });
+  try {
+    for (const figure of backup.figures ?? []) {
+      await tx.objectStore('figures').put({
+        id: figure.id,
+        draftId: null,
+        cardId: figure.cardId,
+        captureId: figure.captureId,
+        role: figure.role,
+        itemId: figure.itemId ?? null,
+        bytes: base64ToArrayBuffer(figure.pngBase64),
+        mime: 'image/png',
+      });
+    }
+    await tx.done;
+  } catch (error) {
+    throw figureSaveError(error);
   }
-  await tx.done;
 }

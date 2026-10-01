@@ -222,7 +222,15 @@ export type StoredFigure = {
   role: 'question' | 'explanation';
   /** Set when the figure belongs to one sub-item of a performance-based question. */
   itemId?: string | null;
-  png: Blob;
+  /**
+   * Image bytes. New records store these instead of a Blob, because Safari private
+   * browsing rejects Blob values in IndexedDB.
+   */
+  bytes?: ArrayBuffer;
+  /** MIME type for bytes. Defaults to image/png when missing. */
+  mime?: string;
+  /** Older records stored the PNG as a Blob. Still read so existing decks keep their pictures. */
+  png?: Blob;
 };
 
 export type BackupFile = {

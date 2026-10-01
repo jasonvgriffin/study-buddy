@@ -8,6 +8,7 @@ import {
   exportBackup,
   figuresForCard,
   importBackup,
+  openStudyDb,
   loadSnapshot,
   putDeckBundle,
   putFigures,
@@ -149,6 +150,11 @@ describe('IndexedDB', () => {
     ]);
     await relinkDraftFigures('draft-1', new Map([['cap-1', 'card-1']]));
     await deleteDraft('draft-1');
+    const stored = await (await openStudyDb()).get('figures', 'fig-1');
+    expect(stored?.bytes).toBeInstanceOf(ArrayBuffer);
+    expect(stored?.mime).toBe('image/png');
+    expect(stored?.png).toBeUndefined();
+    expect(new Uint8Array(stored?.bytes ?? new ArrayBuffer(0))[0]).toBe(137);
     await closeStudyDb();
     const rows = await figuresForCard('card-1');
     expect(rows).toHaveLength(1);
@@ -171,6 +177,48 @@ describe('IndexedDB', () => {
     const restored = await figuresForCard('card-1');
     expect(restored).toHaveLength(1);
     expect(new Uint8Array(await restored[0].png.arrayBuffer())[0]).toBe(137);
+  });
+
+  it('still reads a figure that was saved as a Blob', async () => {
+    const db = await openStudyDb();
+    const png = new Blob([Uint8Array.from([137, 80, 78, 71, 13])], { type: 'image/png' });
+    await db.put('figures', {
+      id: 'legacy',
+      draftId: null,
+      cardId: 'card-legacy',
+      captureId: 'cap-legacy',
+      role: 'question',
+      png,
+    });
+    const [row] = await figuresForCard('card-legacy');
+    expect(new Uint8Array(await row.png.arrayBuffer())).toEqual(Uint8Array.from([137, 80, 78, 71, 13]));
+    const backup = await exportBackup();
+    expect(backup.figures?.find((figure) => figure.id === 'legacy')?.pngBase64).toBeTruthy();
+    await resetStudyDb();
+    await importBackup({
+      version: 1,
+      exportedAt: backup.exportedAt,
+      subjects: [],
+      decks: [],
+      cards: [],
+      reviews: [],
+      sessions: [],
+      memories: [],
+      figures: backup.figures,
+    });
+    const restored = await (await openStudyDb()).get('figures', 'legacy');
+    expect(restored?.bytes).toBeInstanceOf(ArrayBuffer);
+    expect(restored?.png).toBeUndefined();
+    const [again] = await figuresForCard('card-legacy');
+    expect(new Uint8Array(await again.png.arrayBuffer())[0]).toBe(137);
+  });
+
+  it('reports a plain message when a picture cannot be stored', async () => {
+    await expect(
+      putFigures([
+        { id: 'empty', draftId: null, cardId: null, captureId: 'cap', role: 'question' },
+      ]),
+    ).rejects.toThrow(/Could not save the pictures from this PDF/);
   });
 
   it('keeps a flagged card after reopen and removes it from the test and the sitting', async () => {
