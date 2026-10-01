@@ -210,11 +210,49 @@ export function isPageNumberLine(line: string): boolean {
   return false;
 }
 
-/** Join a wrapped line. A hyphen at the end of a word is a line-break, not a dash. */
-export function joinWrap(left: string, right: string): string {
+/** Words and hyphenated words seen whole in the document being parsed. */
+export type Lexicon = { words: Set<string>; hyphenated: Set<string> };
+
+const emptyLexicon: Lexicon = { words: new Set(), hyphenated: new Set() };
+let currentLexicon: Lexicon = emptyLexicon;
+
+/** Collect the words and hyphenated compounds that appear whole on a single line. */
+export function buildLexicon(lines: string[]): Lexicon {
+  const words = new Set<string>();
+  const hyphenated = new Set<string>();
+  for (const line of lines) {
+    // A trailing "word-" is a line break, so it is not evidence of anything.
+    const body = line.replace(/[A-Za-z]+-\s*$/, ' ');
+    for (const match of body.matchAll(/[A-Za-z]+(?:-[A-Za-z]+)*/g)) {
+      const token = match[0].toLowerCase();
+      if (token.includes('-')) hyphenated.add(token);
+      else words.add(token);
+    }
+  }
+  return { words, hyphenated };
+}
+
+/**
+ * Join a wrapped line. A hyphen at the end of a line is usually a break inside one word
+ * ("net-" + "work"), but a compound such as "third-party" or "five-minute" keeps it.
+ * Evidence comes from the rest of the document: a compound seen whole keeps its hyphen,
+ * a joined word seen whole is joined, and two halves that are both ordinary words stay hyphenated.
+ */
+export function joinWrap(left: string, right: string, lexicon: Lexicon = currentLexicon): string {
   const base = left.replace(/\s+$/, '');
   const next = right.replace(/^\s+/, '');
   if (/[A-Za-z]-$/.test(base) && /^[a-z(]/.test(next)) {
+    const head = (base.match(/([A-Za-z]+(?:-[A-Za-z]+)*)-$/)?.[1] ?? '').toLowerCase();
+    const tail = (next.match(/^[A-Za-z]+(?:-[A-Za-z]+)*/)?.[0] ?? '').toLowerCase();
+    const lastHead = head.split('-').pop() ?? '';
+    const firstTail = tail.split('-')[0] ?? '';
+    const keepHyphen =
+      Boolean(head && tail) &&
+      (lexicon.hyphenated.has(`${head}-${tail}`) ||
+        (!lexicon.words.has(`${lastHead}${firstTail}`) &&
+          lexicon.words.has(lastHead) &&
+          lexicon.words.has(firstTail)));
+    if (keepHyphen) return clean(`${base}${next}`);
     return clean(`${base.slice(0, -1)}${next}`);
   }
   return clean(`${base} ${next}`);
@@ -327,16 +365,37 @@ function edgeTexts(page: TextPage): string[] {
 }
 
 /** Drop running headers, footers, and page numbers that sit on the edge of a page. */
+/**
+ * Lines that carry structure or metadata. They often repeat at the top or bottom of a page
+ * (a mode heading on every answer-key page, an objective or lesson link under each answer),
+ * so they must never be mistaken for a running header or footer.
+ */
+function structuralLine(line: string): boolean {
+  return Boolean(
+    questionStart(line) ||
+      choiceStart(line) ||
+      promptStart(line) ||
+      testHeading(line) ||
+      modeHeading(line) ||
+      parseObjectiveLine(line) ||
+      /https?:\/\/|www\./i.test(line),
+  );
+}
+
 export function scrubPages(pages: TextPage[]): TextPage[] {
   const counts = new Map<string, number>();
   for (const page of pages) {
     for (const line of new Set(edgeTexts(page))) {
       if (line.length < 6 || line.length > 90) continue;
-      if (questionStart(line) || choiceStart(line) || promptStart(line) || testHeading(line)) continue;
+      if (structuralLine(line)) continue;
       counts.set(line, (counts.get(line) ?? 0) + 1);
     }
   }
-  const repeated = new Set([...counts.entries()].filter(([, count]) => count >= 2).map(([line]) => line));
+  // A running header or footer sits on the edge of a large share of pages, not just a few.
+  const minRepeats = Math.max(2, Math.ceil(pages.length * 0.4));
+  const repeated = new Set(
+    [...counts.entries()].filter(([, count]) => count >= minRepeats).map(([line]) => line),
+  );
   return pages.map((page) => {
     const nonempty: number[] = [];
     page.lines.forEach((raw, index) => {
@@ -346,7 +405,7 @@ export function scrubPages(pages: TextPage[]): TextPage[] {
     const consider = (index: number | undefined) => {
       if (index == null) return;
       const text = clean(page.lines[index] ?? '');
-      if (!text) return;
+      if (!text || structuralLine(text)) return;
       if (isPageNumberLine(text) || isChromeLine(text) || repeated.has(text)) drop.add(index);
     };
     consider(nonempty[0]);
@@ -433,7 +492,16 @@ export function tidyQuestions(cards: ParsedCard[]): ParsedCard[] {
 }
 
 export function parseDocument(pages: TextPage[]): ParsedDocument {
-  pages = scrubPages(pages);
+  const previousLexicon = currentLexicon;
+  currentLexicon = buildLexicon(pages.flatMap((page) => page.lines));
+  try {
+    return parseScrubbed(scrubPages(pages));
+  } finally {
+    currentLexicon = previousLexicon;
+  }
+}
+
+function parseScrubbed(pages: TextPage[]): ParsedDocument {
   const tests: { name: string; cards: WorkCard[] }[] = [];
   const domains = new Map<number, ParsedDomain>();
   let mode: Mode = 'seek';

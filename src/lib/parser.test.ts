@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { mergeWithPrevious, splitAt } from './draft';
-import { parsePlainDocument, parsePlainText } from './parser';
+import { buildLexicon, joinWrap, parsePlainDocument, parsePlainText } from './parser';
 
 const three = readFileSync('fixtures/three-tests.txt', 'utf8');
 const notes = readFileSync('fixtures/notes.txt', 'utf8');
@@ -294,6 +294,55 @@ Cairo sits on the Nile.
     expect(cards[0].question).toBe('Which river runs through Cairo?');
     expect(cards[0].correctLabels).toEqual(['A']);
     expect(cards[0].explanation).toContain('Cairo sits on the Nile');
+  });
+});
+
+describe('page headers that carry structure', () => {
+  // Every answer page of a practice exam starts with the exam name and its section heading,
+  // and every explanation ends with an objective and a lesson link. Those repeat on page edges
+  // but are structure, not running headers. Dropping them used to read the answer pages as new
+  // questions, so the restarted performance-based numbering opened extra "Test 2"/"Test 3" decks.
+  const page = (...lines: string[]) => lines.join('\n');
+  const footer = ['More information:', 'SAMPLE-100, Objective 1.1 - Hand tools', 'https://example.com/lessons/tools'];
+  const text = [
+    page('Practice Exam A', 'Performance-Based Questions', 'A1. Match the tool to the job.', 'Hammer', 'Saw'),
+    page('Practice Exam A', 'Performance-Based Questions', 'A2. Match the fastener to the tool.', 'Nail', 'Screw'),
+    page('Practice Exam A', 'Multiple Choice Questions', 'A3. Which tool drives a nail?', '❍ A. Hammer', '❍ B. Saw'),
+    page('Practice Exam A', 'Multiple Choice Questions', 'A4. Which tool cuts a board?', '❍ A. Hammer', '❍ B. Saw'),
+    page('Practice Exam A', 'Multiple Choice Quick Answers', 'A3. A'),
+    page('Practice Exam A', 'Multiple Choice Quick Answers', 'A4. B'),
+    page('Practice Exam A', 'Performance-Based Answers', 'A1. Match the tool to the job.', 'Hammer drives nails.', ...footer),
+    page('Practice Exam A', 'Performance-Based Answers', 'A2. Match the fastener to the tool.', 'A screwdriver turns screws.', ...footer),
+    page('Practice Exam A', 'Multiple Choice Detailed Answers', 'A3. Which tool drives a nail?', '❍ A. Hammer', '❍ B. Saw',
+      'The Answer: A. Hammer', 'A hammer strikes nails.', 'The incorrect answers:', 'B. Saw', 'A saw cuts.', ...footer),
+    page('Practice Exam A', 'Multiple Choice Detailed Answers', 'A4. Which tool cuts a board?', '❍ A. Hammer', '❍ B. Saw',
+      'The Answer: B. Saw', 'A saw cuts boards.', 'The incorrect answers:', 'A. Hammer', 'A hammer strikes.', ...footer),
+  ].join('\n\f\n');
+
+  it('keeps one deck with its key, explanations, and lesson links', () => {
+    const tests = parsePlainText(text);
+    expect(tests.map((test) => test.name)).toEqual(['Practice Exam A']);
+    const cards = tests[0].cards;
+    expect(cards.map((card) => card.sourceLabel)).toEqual(['A1', 'A2', 'A3', 'A4']);
+    expect(cards[2].choices.map((choice) => choice.text)).toEqual(['Hammer', 'Saw']);
+    expect(cards[2].correctLabels).toEqual(['A']);
+    expect(cards[3].correctLabels).toEqual(['B']);
+    expect(cards[0].explanation).toContain('Hammer drives nails.');
+    expect(cards[3].explanation).toContain('A saw cuts boards.');
+    expect(cards.every((card) => card.lessonUrl === 'https://example.com/lessons/tools')).toBe(true);
+    expect(cards.every((card) => card.objective === '1.1')).toBe(true);
+  });
+});
+
+describe('joinWrap', () => {
+  it('rejoins a word broken by a line-end hyphen', () => {
+    expect(joinWrap('Which cable is a net-', 'work cable?', buildLexicon(['a cable']))).toBe('Which cable is a network cable?');
+  });
+
+  it('keeps the hyphen of a compound seen whole elsewhere or made of two ordinary words', () => {
+    const lexicon = buildLexicon(['install third-party apps', 'wait five minutes', 'a five minute break']);
+    expect(joinWrap('installation of third-', 'party apps', lexicon)).toBe('installation of third-party apps');
+    expect(joinWrap('through five-', 'minute cycles', lexicon)).toBe('through five-minute cycles');
   });
 });
 
