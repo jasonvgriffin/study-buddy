@@ -7,6 +7,7 @@ test('keyboard grading, missed review, domain scores, and the backup reminder', 
   await page.goto('./');
   await expect(page.getByTestId('backup-reminder')).toHaveCount(0);
   await page.getByTestId('home-tab-library').click();
+  await page.getByTestId('start-subject').click();
   await page.getByTestId('subject-name').fill('Finish');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Finish"]')).toHaveClass(/on/);
@@ -16,6 +17,10 @@ test('keyboard grading, missed review, domain scores, and the backup reminder', 
   await page.getByTestId('start-untimed').click();
 
   await expect(page.getByRole('heading', { name: 'Which river runs through Cairo?' })).toBeVisible();
+  await expect(page.getByTestId('open-navigator')).toHaveCount(0);
+  await expect(page.getByTestId('end-session')).toHaveCount(0);
+  await expect(page.getByTestId('pause')).toBeVisible();
+  await expect(page.getByTestId('see-results')).toHaveCount(0);
   const desktopPointer = await page.evaluate(() => matchMedia('(hover: hover) and (pointer: fine)').matches);
   if (desktopPointer) await expect(page.getByTestId('kbd-hint')).toBeVisible();
   else await expect(page.getByTestId('kbd-hint')).toBeHidden();

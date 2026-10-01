@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { DestructiveConfirm, ResetConfirm } from './bits';
 import { domainBreakdown } from './lib/domains';
+import { readExamDeckId, resolveDeckPick, sortDecksByName, writeExamDeckId } from './lib/examDeck';
 import { formatPercent } from './lib/format';
 import { dueCardIds } from './lib/queue';
 import { isUnclearedMiss } from './lib/scoring';
@@ -17,14 +18,15 @@ export function Home() {
   const tab = study.homeTab;
   const [name, setName] = useState('');
   const [rename, setRename] = useState('');
-  const [examDeckId, setExamDeckId] = useState<string | null>(null);
+  const [examDeckId, setExamDeckId] = useState<string | null>(() => readExamDeckId());
+  const [naming, setNaming] = useState(false);
   const [backupError, setBackupError] = useState<string | null>(null);
   if (!snap) return null;
 
   const now = Date.now();
   const subjects = [...snap.subjects].sort((a, b) => a.name.localeCompare(b.name));
   const inFocus = (subjectId: string) => study.focus === 'all' || study.focus === subjectId;
-  const decks = snap.decks.filter((deck) => inFocus(deck.subjectId));
+  const decks = sortDecksByName(snap.decks.filter((deck) => inFocus(deck.subjectId)));
   const cards = snap.cards.filter((card) => inFocus(card.subjectId));
   const due = dueCardIds(snap.cards, snap.memories, now, study.focus === 'all' ? {} : { subjectId: study.focus });
   const sessions = snap.sessions
@@ -32,11 +34,8 @@ export function Home() {
     .sort((a, b) => b.updatedAt - a.updatedAt);
   const primary = sessions[0] ?? null;
   const focused = subjects.find((subject) => subject.id === study.focus) ?? null;
-  const examDeck = decks.find((deck) => deck.id === examDeckId) ?? decks[0] ?? null;
-  const recentDeck =
-    decks.find((deck) => deck.id === [...snap.sessions].sort((a, b) => b.updatedAt - a.updatedAt).find((session) => inFocus(session.subjectId))?.deckId) ??
-    decks[0] ??
-    null;
+  const examDeck = resolveDeckPick(decks, snap.sessions, inFocus, examDeckId);
+  const recentDeck = resolveDeckPick(decks, snap.sessions, inFocus, null);
 
   return (
     <div className="stack">
@@ -69,12 +68,17 @@ export function Home() {
         primary={primary}
         now={now}
         startDeck={recentDeck}
+        emptyDetail={focused ? `Import a PDF into ${focused.name}.` : 'Name a subject, then import its PDF.'}
+        emptyAction={focused ? 'Import a PDF' : 'Start a new subject'}
         onContinue={() => {
           if (primary) void study.resume(primary.id);
         }}
         onStart={() => {
           if (recentDeck) void study.startExam(recentDeck, false);
-          else study.setHomeTab('library');
+          else {
+            study.setHomeTab('library');
+            if (!focused) setNaming(true);
+          }
         }}
       />
 
@@ -115,7 +119,10 @@ export function Home() {
               decks={decks}
               examDeck={examDeck}
               dueCount={due.length}
-              onPickDeck={setExamDeckId}
+              onPickDeck={(id) => {
+                setExamDeckId(id);
+                writeExamDeckId(id);
+              }}
               onLibrary={() => study.setHomeTab('library')}
               onResume={(id) => void study.resume(id)}
               onReset={() => void study.discard()}
@@ -145,11 +152,16 @@ export function Home() {
               focused={focused}
               name={name}
               rename={rename}
+              naming={naming}
               inFocus={inFocus}
               onName={setName}
               onRename={setRename}
+              onNaming={setNaming}
               onAddSubject={() => {
-                void study.addSubject(name).then(() => setName(''));
+                void study.addSubject(name).then(() => {
+                  setName('');
+                  setNaming(false);
+                });
               }}
               onSaveSubject={() => {
                 if (focused) void study.renameSubject(focused.id, rename || focused.name);
@@ -182,12 +194,16 @@ function StudyHero({
   primary,
   now,
   startDeck,
+  emptyDetail,
+  emptyAction,
   onContinue,
   onStart,
 }: {
   primary: LiveSession | null;
   now: number;
   startDeck: Deck | null;
+  emptyDetail: string;
+  emptyAction: string;
   onContinue: () => void;
   onStart: () => void;
 }) {
@@ -209,9 +225,9 @@ function StudyHero({
       <p className="muted" style={{ margin: 0 }}>
         Start studying
       </p>
-      <p style={{ margin: 0 }}>{startDeck ? startDeck.name : 'Add a PDF to build your first test.'}</p>
+      <p style={{ margin: 0 }}>{startDeck ? startDeck.name : emptyDetail}</p>
       <button className="btn btn-primary btn-block" data-testid="start-studying" type="button" onClick={onStart}>
-        {startDeck ? 'Start studying' : 'Import a PDF'}
+        {startDeck ? 'Start studying' : emptyAction}
       </button>
     </article>
   );
@@ -334,9 +350,11 @@ function LibraryPanel({
   focused,
   name,
   rename,
+  naming,
   inFocus,
   onName,
   onRename,
+  onNaming,
   onAddSubject,
   onSaveSubject,
 }: {
@@ -347,9 +365,11 @@ function LibraryPanel({
   focused: Subject | null;
   name: string;
   rename: string;
+  naming: boolean;
   inFocus: (subjectId: string) => boolean;
   onName: (value: string) => void;
   onRename: (value: string) => void;
+  onNaming: (naming: boolean) => void;
   onAddSubject: () => void;
   onSaveSubject: () => void;
 }) {
@@ -363,13 +383,13 @@ function LibraryPanel({
       <h2>Library</h2>
       {!subjects.length ? (
         <p className="muted" style={{ margin: 0 }}>
-          Add a subject, then upload a PDF. Each file stays in the subject you pick.
+          Start a new subject, name it, then import that subject&apos;s PDF.
         </p>
       ) : null}
       {visibleSubjects.map((subject) => {
         const subjectDecks = decks.filter((deck) => deck.subjectId === subject.id);
         const groups = new Map<string, Deck[]>();
-        for (const deck of [...subjectDecks].sort((a, b) => a.name.localeCompare(b.name))) {
+        for (const deck of sortDecksByName(subjectDecks)) {
           const list = groups.get(deck.sourceGroupId) ?? [];
           list.push(deck);
           groups.set(deck.sourceGroupId, list);
@@ -505,27 +525,39 @@ function LibraryPanel({
             </button>
           </div>
         ))}
-      <form
-        className="stack"
-        onSubmit={(event) => {
-          event.preventDefault();
-          onAddSubject();
-        }}
-      >
-        <label className="stack" style={{ gap: '0.35rem' }}>
-          <span>New subject</span>
-          <input
-            className="field"
-            data-testid="subject-name"
-            value={name}
-            placeholder="Core 1, Network+, a textbook..."
-            onChange={(event) => onName(event.target.value)}
-          />
-        </label>
-        <button className="btn btn-primary btn-block" data-testid="add-subject" type="submit">
-          Add subject
+      {naming ? (
+        <form
+          className="stack"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onAddSubject();
+          }}
+        >
+          <label className="stack" style={{ gap: '0.35rem' }}>
+            <span>Subject name</span>
+            <input
+              className="field"
+              data-testid="subject-name"
+              value={name}
+              placeholder="Core 1, Network+, a textbook..."
+              onChange={(event) => onName(event.target.value)}
+            />
+          </label>
+          <button className="btn btn-primary btn-block" data-testid="add-subject" type="submit">
+            Save subject
+          </button>
+        </form>
+      ) : (
+        <button className="btn btn-primary btn-block" data-testid="start-subject" type="button" onClick={() => onNaming(true)}>
+          Start a new subject
         </button>
-      </form>
+      )}
+      {!focused && subjects.length ? (
+        <p className="muted" data-testid="pick-subject-hint" style={{ margin: 0 }}>
+          Choose a subject to import a PDF into it. All subjects is only a view.
+        </p>
+      ) : null}
+      {focused ? <UploadBlock subjectName={focused.name} /> : null}
       {focused ? (
         <form
           className="stack"
@@ -543,7 +575,6 @@ function LibraryPanel({
           </button>
         </form>
       ) : null}
-      <UploadBlock />
       {pending?.kind === 'subject' ? (
         <DestructiveConfirm
           title={`Delete ${pending.name}?`}
@@ -685,26 +716,22 @@ function SettingsPanel({
   );
 }
 
-function UploadBlock() {
+function UploadBlock({ subjectName }: { subjectName: string }) {
   const study = useStudy();
-  const snap = study.snap;
-  const needsSubject = study.focus === 'all' || !snap?.subjects.some((subject) => subject.id === study.focus);
 
   return (
-    <div className="stack">
-      <h2>Import a PDF</h2>
+    <div className="stack" data-testid="import-for-subject">
+      <h2>Import a PDF into {subjectName}</h2>
       <p className="muted" style={{ margin: 0 }}>
-        {needsSubject
-          ? 'Choose a subject first. All subjects is only a view. Uploads stay on this device.'
-          : 'Text is copied from the PDF as written. Study Buddy does not write new questions.'}
+        This file is saved in {subjectName}. Text is copied from the PDF as written. Study Buddy does not write new questions.
       </p>
-      <label className="btn btn-primary btn-block" style={{ opacity: needsSubject ? 0.55 : 1 }}>
-        Upload a PDF
+      <label className="btn btn-primary btn-block">
+        Import a PDF
         <input
           data-testid="pdf-file"
           type="file"
           accept="application/pdf,.pdf"
-          disabled={needsSubject || !!study.busy}
+          disabled={!!study.busy}
           hidden
           onChange={(event) => {
             const file = event.target.files?.[0];
@@ -713,27 +740,6 @@ function UploadBlock() {
           }}
         />
       </label>
-      <button
-        className="btn btn-ghost btn-block"
-        data-testid="load-sample-three"
-        type="button"
-        disabled={needsSubject || !!study.busy}
-        onClick={() => void study.loadSample('three')}
-      >
-        Load sample: three tests
-      </button>
-      <button
-        className="btn btn-ghost btn-block"
-        data-testid="load-sample-notes"
-        type="button"
-        disabled={needsSubject || !!study.busy}
-        onClick={() => void study.loadSample('notes')}
-      >
-        Load sample: notes
-      </button>
-      <p className="muted" style={{ margin: 0 }}>
-        Samples are labeled practice files. They are not added until you save them.
-      </p>
     </div>
   );
 }

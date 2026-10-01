@@ -31,6 +31,7 @@ test('paused progress survives a full browser restart', async () => {
   const page = first.pages()[0] ?? (await first.newPage());
   await page.goto('./');
   await page.getByTestId('home-tab-library').click();
+  await page.getByTestId('start-subject').click();
   await page.getByTestId('subject-name').fill('Rivers');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Rivers"]')).toHaveClass(/on/);
@@ -79,12 +80,14 @@ test('two subjects keep their PDFs apart', async () => {
   const page = browser.pages()[0] ?? (await browser.newPage());
   await page.goto('./');
   await page.getByTestId('home-tab-library').click();
+  await page.getByTestId('start-subject').click();
   await page.getByTestId('subject-name').fill('Rivers');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Rivers"]')).toHaveClass(/on/);
   await expect(page.getByTestId('pdf-file')).toBeEnabled();
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
   await page.getByTestId('save-tests').click();
+  await page.getByTestId('start-subject').click();
   await page.getByTestId('subject-name').fill('Soil');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Soil"]')).toHaveClass(/on/);

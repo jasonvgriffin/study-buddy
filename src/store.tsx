@@ -52,7 +52,6 @@ import {
   createExamSession,
   createReviewSession,
   finishSession,
-  jumpToQuestion,
   jumpToSkipped,
   noteHidden,
   openSkipReview,
@@ -95,7 +94,6 @@ type StudyApi = {
   removeSubject: (id: string) => Promise<void>;
   removeSource: (sourceGroupId: string) => Promise<void>;
   importPdf: (file: File) => Promise<void>;
-  loadSample: (which: 'three' | 'notes') => Promise<void>;
   saveDraftTests: (draft: ImportDraft, options?: { replaceDeckIds?: string[] }) => Promise<void>;
   writeDraft: (draft: ImportDraft) => Promise<void>;
   dropDraft: (id: string) => Promise<void>;
@@ -115,7 +113,6 @@ type StudyApi = {
   resume: (sessionId: string) => Promise<void>;
   discard: () => Promise<void>;
   removeCard: (cardId: string) => Promise<void>;
-  jumpToAny: (sessionId: string, cardId: string) => Promise<void>;
   skip: (sessionId: string, cardId: string) => Promise<void>;
   jumpTo: (sessionId: string, cardId: string) => Promise<void>;
   continueSession: (sessionId: string) => Promise<void>;
@@ -450,26 +447,6 @@ export function StudyProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function loadSample(which: 'three' | 'notes') {
-    const subjectId = selectedSubjectId();
-    if (!subjectId) {
-      setMessage('Choose a subject before loading a sample.');
-      return;
-    }
-    const fileName = which === 'three' ? 'sample-three-tests.pdf' : 'sample-notes.pdf';
-    setBusy('Loading the sample PDF');
-    try {
-      const response = await fetch(`${import.meta.env.BASE_URL}samples/${fileName}`);
-      if (!response.ok) throw new Error('The sample PDF is missing from this build.');
-      const blob = await response.blob();
-      const file = new File([blob], fileName, { type: 'application/pdf' });
-      await importPdf(file);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Could not load the sample.');
-      setBusy(null);
-    }
-  }
-
   async function writeDraft(draft: ImportDraft) {
     const next = { ...draft, updatedAt: Date.now() };
     patch((state) => ({
@@ -744,15 +721,6 @@ export function StudyProvider({ children }: { children: ReactNode }) {
     }));
   }
 
-  async function jumpToAny(sessionId: string, cardId: string) {
-    const session = liveOrResumed(sessionId);
-    if (!session || session.status === 'finished') {
-      if (session?.status === 'finished') await writeSession(sessionId, session);
-      return;
-    }
-    await writeSession(sessionId, jumpToQuestion(session, cardId, Date.now()));
-  }
-
   async function writeSession(sessionId: string, next: LiveSession) {
     await putSession(next);
     patch((state) => ({
@@ -893,7 +861,6 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       removeSubject,
       removeSource,
       importPdf,
-      loadSample,
       saveDraftTests,
       writeDraft,
       dropDraft,
@@ -908,7 +875,6 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       resume,
       discard,
       removeCard,
-      jumpToAny,
       skip,
       jumpTo,
       continueSession,

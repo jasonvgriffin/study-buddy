@@ -37,6 +37,7 @@ test('discard and start over clears every saved study record', async ({ page }) 
   await page.goto('./');
   await expect(page.getByTestId('app-footer')).toHaveText('Built by Jason Griffin with GrokBot/cursor');
   await page.getByTestId('home-tab-library').click();
+  await page.getByTestId('start-subject').click();
   await page.getByTestId('subject-name').fill('A+');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="A+"]')).toHaveClass(/on/);
@@ -72,7 +73,8 @@ test('discard and start over clears every saved study record', async ({ page }) 
   await expect(page.getByRole('heading', { name: 'What to study next' })).toHaveCount(0);
   await expect(page.locator('[data-subject-name="A+"]')).toHaveCount(0);
   await expect(page.getByTestId('resume-card')).toHaveCount(0);
-  await expect(page.getByTestId('study-hero')).toContainText('Add a PDF to build your first test.');
+  await expect(page.getByTestId('study-hero')).toContainText('Name a subject, then import its PDF.');
+  await expect(page.getByTestId('start-studying')).toHaveText('Start a new subject');
   await shot(page, 'fresh-after-reset');
   await expect(page.getByTestId('app-footer')).toHaveText('Built by Jason Griffin with GrokBot/cursor');
   await page.getByTestId('app-footer').evaluate((node) => {
@@ -108,6 +110,7 @@ test('discard and start over clears every saved study record', async ({ page }) 
 test('library can delete one PDF and an entire subject', async ({ page }) => {
   await page.goto('./');
   await page.getByTestId('home-tab-library').click();
+  await page.getByTestId('start-subject').click();
   await page.getByTestId('subject-name').fill('A+');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="A+"]')).toHaveClass(/on/);
@@ -136,6 +139,7 @@ test('library can delete one PDF and an entire subject', async ({ page }) => {
   await expect(page.locator('[data-deck-name="Practice Test 2"]')).toBeVisible();
   await expect(page.getByTestId('delete-source')).toHaveCount(1);
 
+  await page.getByTestId('start-subject').click();
   await page.getByTestId('subject-name').fill('Network+');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Network+"]')).toHaveClass(/on/);

@@ -3,9 +3,10 @@ import path from 'node:path';
 
 const sampleThree = path.resolve('public/samples/sample-three-tests.pdf');
 
-test('skip, text size, and the question navigator', async ({ page }) => {
+test('skip and text size on a question', async ({ page }) => {
   await page.goto('./');
   await page.getByTestId('home-tab-library').click();
+  await page.getByTestId('start-subject').click();
   await page.getByTestId('subject-name').fill('Tools');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Tools"]')).toHaveClass(/on/);
@@ -16,6 +17,10 @@ test('skip, text size, and the question navigator', async ({ page }) => {
   await page.getByTestId('start-untimed').click();
 
   await expect(page.getByTestId('position')).toHaveText('Question 1 of 3');
+  await expect(page.getByTestId('open-navigator')).toHaveCount(0);
+  await expect(page.getByTestId('end-session')).toHaveCount(0);
+  await expect(page.getByTestId('pause')).toBeVisible();
+  await expect(page.getByTestId('see-results')).toHaveCount(0);
   const fill = page.getByTestId('progress').locator('span');
   await expect(fill).toHaveAttribute('style', /33\.3/);
   const choiceBox = await page.getByTestId('choice').first().boundingBox();
@@ -24,7 +29,6 @@ test('skip, text size, and the question navigator', async ({ page }) => {
   await expect(page.getByTestId('edit-card')).toHaveCount(0);
   await expect(page.getByTestId('skip-for-later')).toBeVisible();
   await expect(page.getByRole('button', { name: "I don't know", exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'End session', exact: true })).toBeVisible();
   await page.keyboard.press('e');
   await expect(page.getByTestId('card-editor')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Which river runs through Cairo?' })).toBeVisible();
@@ -34,22 +38,9 @@ test('skip, text size, and the question navigator', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Which river runs through Cairo?' })).toBeVisible();
   await expect(page.getByTestId('edit-card')).toHaveCount(0);
 
-  await page.getByTestId('open-navigator').click();
-  await expect(page.getByTestId('navigator')).toBeVisible();
-  await expect(page.getByTestId('nav-filter-flagged')).toHaveCount(0);
-  await expect(page.getByTestId('nav-jump')).toHaveCount(3);
-  await page.getByTestId('nav-filter-skipped').click();
-  await expect(page.getByTestId('nav-empty')).toBeVisible();
-  await page.getByTestId('open-navigator').click();
-
   await page.getByTestId('skip-for-later').click();
   await expect(page.getByTestId('position')).toHaveText('Question 2 of 3');
-  await page.getByTestId('open-navigator').click();
-  await page.getByTestId('nav-filter-skipped').click();
-  await expect(page.getByTestId('nav-jump')).toHaveCount(1);
-  await page.getByTestId('nav-jump').click();
-  await expect(page.getByTestId('position')).toHaveText('Question 1 of 3');
-  await expect(page.getByRole('heading', { name: 'Which river runs through Cairo?' })).toBeVisible();
+  await expect(page.getByTestId('navigator')).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Back' }).click();
   await expect(page.getByTestId('home-tab-library')).toBeVisible();
