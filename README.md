@@ -51,7 +51,7 @@ Scanned pages are not read. Study Buddy does not OCR.
 - A wrong answer in a drill or review comes back later in that sitting, and it is due again immediately. Correct answers move out on a 1 day, 3 day, 7 day, 16 day ladder, then grow by 2.2×. A skip does not.
 - “What to study next” ranks your own section, domain, and objective labels. Recent answers count more than old ones. Under about 70% (with at least four answers) is called out. A suggestion that belongs to one test starts a drill of that test only.
 
-“Watch the lesson” appears under the explanation after you answer, and only when the card has a link. It opens in a new tab. If `src/data/lesson-links.json` has a verified YouTube id for that PDF link, the button opens the video. Otherwise it opens the URL that was printed in the PDF. A start time is added only when you set one, or when the map includes `startSeconds` from a verified chapter. The app does not invent timestamps.
+“Watch the lesson” appears under the explanation after you answer, and only when the card has a link. It is the same underlined link on the answer and in the missed-question review. It opens in a new tab. If `src/data/lesson-links.json` has a verified YouTube id for that PDF link, the link opens the video. Otherwise it opens the URL that was printed in the PDF. A start time is added only when you set one, or when the map includes `startSeconds` from a verified chapter. The app does not invent timestamps.
 
 ## Persistence
 
@@ -98,7 +98,7 @@ Any other static HTTPS host works the same way: `npm run build` and upload `dist
 node scripts/resolve-lessons.mjs path/to/your.pdf
 ```
 
-The script reads `professormesser.link` URLs from that PDF, follows them, and keeps an id only when the lesson page embeds a YouTube video whose oEmbed author is Professor Messer. It stores the id and title, not book text. If a host blocks the fetch, the file stays empty and the watch button falls back to the PDF URL. You can edit a card’s link and optional start time in review.
+The script reads `professormesser.link` URLs from that PDF, follows them, and keeps an id only when the lesson page embeds a YouTube video whose oEmbed author is Professor Messer. It stores the id and title, not book text. If a host blocks the fetch, the file stays empty and the watch link falls back to the PDF URL. You can edit a card’s link and optional start time in review.
 
 ## Sample PDFs
 

@@ -69,6 +69,58 @@ test('a wrong choice shows the correct answer, the PDF explanation, and the less
   await expect(lesson).toHaveAttribute('target', '_blank');
   await expect(lesson).toHaveAttribute('rel', /noopener/);
   await expect(lesson).toHaveAttribute('href', /example\.com\/lessons\/nile/);
+  await expect(lesson).toHaveText(/Watch the lesson/);
+  const look = await lesson.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return {
+      tag: el.tagName,
+      color: style.color,
+      decoration: style.textDecorationLine,
+      cursor: style.cursor,
+    };
+  });
+  expect(look.tag).toBe('A');
+  expect(look.color).toBe('rgb(11, 79, 191)');
+  expect(look.decoration).toContain('underline');
+  expect(look.cursor).toBe('pointer');
+  await lesson.hover();
+  await expect(lesson).toHaveCSS('color', 'rgb(8, 57, 140)');
+  await lesson.evaluate((el) => (el as HTMLElement).focus({ focusVisible: true }));
+  await expect(lesson).toHaveCSS('outline-style', 'solid');
+  const ring = await lesson.evaluate((el) => parseFloat(getComputedStyle(el).outlineWidth));
+  expect(ring).toBeGreaterThanOrEqual(2);
+  await page.emulateMedia({ colorScheme: 'dark' });
+  const darkContrast = await lesson.evaluate((el) => {
+    const parse = (value: string) => value.match(/\d+/g)?.slice(0, 3).map(Number) ?? [0, 0, 0];
+    const lin = (channel: number) => {
+      const c = channel / 255;
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    };
+    const lum = (rgb: number[]) => 0.2126 * lin(rgb[0]) + 0.7152 * lin(rgb[1]) + 0.0722 * lin(rgb[2]);
+    const fg = parse(getComputedStyle(el).color);
+    const bg = parse(getComputedStyle(document.body).backgroundColor);
+    const hi = Math.max(lum(fg), lum(bg));
+    const lo = Math.min(lum(fg), lum(bg));
+    return (hi + 0.05) / (lo + 0.05);
+  });
+  expect(darkContrast).toBeGreaterThanOrEqual(4.5);
+  const pressed = await page.evaluate(() => {
+    for (const sheet of document.styleSheets) {
+      let rules: CSSRuleList;
+      try {
+        rules = sheet.cssRules;
+      } catch {
+        continue;
+      }
+      for (const rule of rules) {
+        if (rule instanceof CSSStyleRule && rule.selectorText === '.lesson-link:active') {
+          return rule.style.color;
+        }
+      }
+    }
+    return '';
+  });
+  expect(pressed).toBe('var(--link-pressed)');
 });
 
 test('choose two submits only after two taps, and a missing explanation is stated', async ({ page }) => {

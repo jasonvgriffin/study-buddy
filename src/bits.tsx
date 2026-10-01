@@ -11,7 +11,7 @@ export function WatchLesson({
 }) {
   return (
     <a
-      className="btn btn-ghost btn-block"
+      className="lesson-link"
       data-testid="watch-lesson"
       href={href}
       target="_blank"

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect } from 'react';
 import { ensureIosHapticSwitch, pressFeedback } from './lib/feedback';
 
-const PRESSABLE = 'button, a.btn, label.btn, .chip';
+const PRESSABLE = 'button, a.btn, a.lesson-link, label.btn, .chip';
 
 /** One listener for every button, plus the hidden switch iOS uses for a system tap. */
 export function PressFeedback() {
