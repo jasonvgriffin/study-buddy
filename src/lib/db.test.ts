@@ -221,7 +221,7 @@ describe('IndexedDB', () => {
     ).rejects.toThrow(/Could not save the pictures from this PDF/);
   });
 
-  it('keeps a flagged card after reopen and removes it from the test and the sitting', async () => {
+  it('loads a saved flagged field and imports a backup that still has one', async () => {
     const now = 1_700_000_000_000;
     await putSubject({ id: 'sub', name: 'Field notes', createdAt: now, updatedAt: now });
     const deck: Deck = {
@@ -283,8 +283,17 @@ describe('IndexedDB', () => {
     await putSession(session);
     await closeStudyDb();
     const again = await loadSnapshot();
+    expect(again.cards.find((card) => card.id === 'card-1')?.question).toBe('Which river runs through Cairo?');
     expect(again.cards.find((card) => card.id === 'card-1')?.reported).toBe(true);
-    expect(again.cards.find((card) => card.id === 'card-2')?.reported).toBeUndefined();
+    expect(again.sessions[0]?.flagged).toEqual(['card-1']);
+    expect(again.sessions[0]?.skipped).toEqual(['card-1']);
+    const backup = await exportBackup();
+    await resetStudyDb();
+    await importBackup(backup);
+    const imported = await loadSnapshot();
+    expect(imported.cards.find((card) => card.id === 'card-1')?.reported).toBe(true);
+    expect(imported.sessions[0]?.flagged).toEqual(['card-1']);
+    expect(imported.sessions[0]?.skipped).toEqual(['card-1']);
     await deleteCard('card-1');
     await closeStudyDb();
     const after = await loadSnapshot();

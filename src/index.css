@@ -13,6 +13,9 @@
   --good: #146c43;
   --bad: #9f1d1d;
   --warn: #7a4e0d;
+  --link: #0b4fbf;
+  --link-hover: #08398c;
+  --link-pressed: #062a66;
   --shadow: 0 1px 2px rgba(31, 41, 51, 0.06), 0 8px 24px rgba(31, 41, 51, 0.06);
   color-scheme: light;
   font-family: "Avenir Next", "Segoe UI", system-ui, sans-serif;
@@ -40,6 +43,30 @@ input[type='checkbox'] { width: 1.35rem; height: 1.35rem; accent-color: var(--mo
 input, textarea, select { font-size: max(16px, 1rem); }
 button { cursor: pointer; }
 a { color: inherit; }
+.lesson-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--link);
+  font-weight: 650;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+  cursor: pointer;
+  border-radius: 0.3rem;
+}
+.lesson-link:hover {
+  color: var(--link-hover);
+  text-decoration-thickness: 2px;
+}
+.lesson-link:active {
+  color: var(--link-pressed);
+  background: color-mix(in srgb, var(--link) 14%, transparent);
+}
+.lesson-link:focus-visible {
+  outline: 3px solid var(--link);
+  outline-offset: 3px;
+}
 
 .app-shell {
   min-height: 100dvh;

@@ -23,8 +23,9 @@ test('keyboard grading, missed review, domain scores, and the backup reminder', 
   await expect(page.getByTestId('result')).toHaveText('✗ Incorrect');
   await expect(page.getByTestId('choice').filter({ hasText: 'Amazon' })).toHaveClass(/wrong/);
   await expect(page.getByTestId('choice').filter({ hasText: 'Nile' })).toHaveClass(/correct/);
+  await expect(page.getByTestId('flag-card')).toHaveCount(0);
   await page.keyboard.press('f');
-  await expect(page.getByTestId('flag-card')).toHaveText('Flagged');
+  await expect(page.getByTestId('position')).toHaveText('Question 1 of 3');
   await page.keyboard.press('Enter');
 
   await expect(page.getByTestId('position')).toHaveText('Question 2 of 3');

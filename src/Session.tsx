@@ -1,5 +1,4 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { CardForm } from './CardForm';
 import { figuresForCard } from './lib/db';
 import { MISSING_EXPLANATION, formatDuration, formatPercent } from './lib/format';
 import { gradeFeedback } from './lib/feedback';
@@ -32,8 +31,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
   );
   const [zoom, setZoom] = useState<string | null>(null);
   const [navOpen, setNavOpen] = useState(false);
-  const [navFilter, setNavFilter] = useState<'all' | 'flagged' | 'skipped'>('all');
-  const [editing, setEditing] = useState(false);
+  const [navFilter, setNavFilter] = useState<'all' | 'skipped'>('all');
   const keyRef = useRef<((event: KeyboardEvent) => void) | null>(null);
   const presentation = useRef<{ id: string; seed: number }>({ id: '', seed: 1 });
 
@@ -152,7 +150,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
       const tag = target.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable) return;
     }
-    if (!card || editing || navOpen || showSkipReview || pendingRef.current) return;
+    if (!card || navOpen || showSkipReview || pendingRef.current) return;
     // A finished sitting is not "active", but Enter still has to leave the explanation.
     if (paused && !reveal) return;
     const key = event.key === ' ' ? ' ' : event.key.length === 1 ? event.key.toLowerCase() : event.key;
@@ -166,11 +164,6 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
         return;
       }
       submit([pick.label], gradeLabels(card.correctLabels, [pick.label]));
-      return;
-    }
-    if (key === 'f' && !pick) {
-      event.preventDefault();
-      void study.flagProblem(card, session.id);
       return;
     }
     if (key === 's' && !reveal) {
@@ -253,6 +246,22 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
         >
           {navOpen ? 'Close questions' : 'All questions'}
         </button>
+        {session.status !== 'finished' ? (
+          <button
+            className="btn btn-ghost btn-block"
+            type="button"
+            data-testid="end-session"
+            disabled={pending}
+            onClick={() => {
+              setReveal(null);
+              setNavOpen(false);
+              setPicked([]);
+              void study.endSession(session.id);
+            }}
+          >
+            End session
+          </button>
+        ) : null}
         {remaining != null ? <p style={{ margin: 0 }}>Time left {formatDuration(remaining)}</p> : null}
         {session.status === 'finished' && session.finishedReason === 'time' ? <p style={{ margin: 0 }}>Time is up.</p> : null}
         {session.status === 'finished' && !reveal ? (
@@ -276,7 +285,6 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
           <div className="row-scroll" role="tablist" aria-label="Question filters">
             {([
               ['all', 'All'],
-              ['flagged', 'Flagged'],
               ['skipped', 'Skipped'],
             ] as const).map(([id, label]) => (
               <button
@@ -297,14 +305,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
               seen.add(id);
               return true;
             });
-            const visible = rows.filter((id) => {
-              if (navFilter === 'skipped') return skippedIds.includes(id);
-              if (navFilter === 'flagged') {
-                const item = study.snap?.cards.find((entry) => entry.id === id);
-                return session.flagged.includes(id) || !!item?.reported;
-              }
-              return true;
-            });
+            const visible = rows.filter((id) => (navFilter === 'skipped' ? skippedIds.includes(id) : true));
             if (!visible.length) return <p data-testid="nav-empty">No questions in this filter.</p>;
             return visible.map((id) => {
               const item = study.snap?.cards.find((entry) => entry.id === id);
@@ -314,7 +315,6 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
               const marks = [
                 session.answers.some((answer) => answer.cardId === id) ? 'Answered' : 'Unanswered',
                 skippedIds.includes(id) ? 'Skipped' : '',
-                session.flagged.includes(id) || item?.reported ? 'Flagged' : '',
               ].filter(Boolean);
               return (
                 <button
@@ -325,7 +325,6 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
                   onClick={() => {
                     setReveal(null);
                     setNavOpen(false);
-                    setEditing(false);
                     void study.jumpToAny(session.id, id);
                   }}
                 >
@@ -344,8 +343,8 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
           <h2>Skipped questions</h2>
           <p data-testid="unanswered-count" style={{ margin: 0 }}>
             {skippedIds.length === 1
-              ? '1 unanswered question. Jump back to answer it, or finish and leave it unanswered.'
-              : `${skippedIds.length} unanswered questions. Jump back to answer one, or finish and leave them unanswered.`}
+              ? '1 unanswered question. Jump back to answer it, or end the session and leave it unanswered.'
+              : `${skippedIds.length} unanswered questions. Jump back to answer one, or end the session and leave them unanswered.`}
           </p>
           {skippedIds.map((id) => {
             const item = study.snap?.cards.find((entry) => entry.id === id);
@@ -378,12 +377,12 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
           ) : null}
           <button
             className="btn btn-primary btn-block"
-            data-testid="finish"
+            data-testid="end-session"
             type="button"
             disabled={paused || pending}
             onClick={() => void study.endSession(session.id)}
           >
-            Finish
+            End session
           </button>
         </section>
       ) : card ? (
@@ -393,7 +392,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
           style={{ padding: '1rem' }}
           onTouchStart={(event) => setTouchX(event.changedTouches[0]?.clientX ?? null)}
           onTouchEnd={(event) => {
-            if (touchX == null || editing || graded || pbq || reveal || paused || pending) return;
+            if (touchX == null || graded || pbq || reveal || paused || pending) return;
             const dx = (event.changedTouches[0]?.clientX ?? touchX) - touchX;
             if (dx > 70) submit([], true);
             if (dx < -70) submit([], false);
@@ -406,15 +405,13 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
             {card.objective ? ` · ${card.objective}` : ''}
           </p>
           <h2 className="question">{card.question}</h2>
-          {!editing ? (
-            <p className="kbd-hint muted" data-testid="kbd-hint" style={{ margin: 0 }}>
+          <p className="kbd-hint muted" data-testid="kbd-hint" style={{ margin: 0 }}>
               {shown.length
                 ? multi
-                  ? 'Keys: 1–9 or A–D toggle, Enter submits. S skips, F flags.'
-                  : 'Keys: 1–9 or A–D answer, Enter next. S skips, F flags.'
-                : 'Keys: S skips, F flags.'}
-            </p>
-          ) : null}
+                  ? 'Keys: 1–9 or A–D toggle, Enter submits. S skips.'
+                  : 'Keys: 1–9 or A–D answer, Enter next. S skips.'
+                : 'Keys: S skips.'}
+          </p>
           {figures.question.length ? (
             <div className="stack">
               {figures.question.map((src) => (
@@ -429,7 +426,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
               <img src={zoom} alt="Enlarged figure from your PDF" />
             </button>
           ) : null}
-          {!editing && shown.length ? (
+          {shown.length ? (
             <div className="stack">
               {shown.map((choice) => {
                 const on = (reveal ? reveal.chosen : picked).includes(choice.label);
@@ -473,7 +470,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
               })}
             </div>
           ) : null}
-          {!editing && pbq ? (
+          {pbq ? (
             <PbqForm
               key={card.id}
               task={pbq}
@@ -486,7 +483,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
               onZoom={setZoom}
             />
           ) : null}
-          {!editing && !reveal && multi ? (
+          {!reveal && multi ? (
             <div className="stack">
               <p className="muted" data-testid="choose-count" style={{ margin: 0 }}>
                 Choose {required}. {picked.length} of {required} selected.
@@ -502,7 +499,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
               </button>
             </div>
           ) : null}
-          {!editing && !reveal && !graded && !pbq ? (
+          {!reveal && !graded && !pbq ? (
             <div className="stack">
               <p className="muted" style={{ margin: 0 }}>
                 This item has no lettered key. Grade it yourself, or swipe right for correct and left for missed.
@@ -515,7 +512,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
               </button>
             </div>
           ) : null}
-          {editing ? null : reveal ? (
+          {reveal ? (
             <div className="stack">
               <p data-testid="result" className={reveal.correct ? 'result-correct' : 'result-wrong'} style={{ margin: 0 }}>
                 <span className="result-icon" aria-hidden="true">
@@ -588,35 +585,13 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
               </button>
               <button
                 className="btn btn-ghost btn-block"
-                data-testid="finish"
+                data-testid="i-dont-know"
                 type="button"
+                aria-label="I don't know"
                 disabled={paused || pending}
-                onClick={() => void study.endSession(session.id)}
+                onClick={() => submit([], false)}
               >
-                Finish
-              </button>
-            </div>
-          )}
-          {editing ? (
-            <CardForm
-              card={card}
-              onCancel={() => setEditing(false)}
-              onSave={(next) => {
-                void study.writeCard(next).then(() => setEditing(false));
-              }}
-            />
-          ) : (
-            <div className="stack">
-              <button
-                className="btn btn-ghost btn-block"
-                data-testid="flag-card"
-                type="button"
-                onClick={() => void study.flagProblem(card, session.id)}
-              >
-                {card.reported ? 'Flagged' : 'Flag'}
-              </button>
-              <button className="btn btn-ghost btn-block" data-testid="edit-card" type="button" onClick={() => setEditing(true)}>
-                Edit
+                I don't know
               </button>
             </div>
           )}

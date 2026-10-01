@@ -200,11 +200,9 @@ export function moveIndex(session: LiveSession, index: number, now: number): Liv
   return touch({ ...session, index: bounded }, now);
 }
 
-export function toggleFlag(session: LiveSession, cardId: string, now: number): LiveSession {
-  const flagged = session.flagged.includes(cardId)
-    ? session.flagged.filter((id) => id !== cardId)
-    : [...session.flagged, cardId];
-  return touch({ ...session, flagged }, now);
+/** Older saves may omit flagged or store something else. Keep string ids and ignore the rest. */
+export function storedFlagged(session: { flagged?: unknown }): string[] {
+  return Array.isArray(session.flagged) ? session.flagged.filter((id): id is string => typeof id === 'string') : [];
 }
 
 /** Older saves have no skip fields. Fill them in so a reload cannot crash. */
@@ -214,9 +212,11 @@ export function normalizeSession(session: LiveSession): LiveSession {
     skipReview?: unknown;
     returnToReview?: unknown;
     bookmarkIndex?: unknown;
+    flagged?: unknown;
   };
   return {
     ...session,
+    flagged: storedFlagged(raw),
     skipped: Array.isArray(raw.skipped) ? raw.skipped.filter((id): id is string => typeof id === 'string') : [],
     skipReview: raw.skipReview === true,
     returnToReview: raw.returnToReview === true,

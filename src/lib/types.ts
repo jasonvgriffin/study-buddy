@@ -111,7 +111,10 @@ export type Card = ParsedCard & {
   order: number;
   /** User-set start, or null to open at the beginning. Never inferred. */
   videoStartSec: number | null;
-  /** Learner marked this card as bad or broken (a bad parse, wrong key, or missing picture). */
+  /**
+   * Older saves marked a card as broken. The app no longer reads this.
+   * It stays on the record so a reload or backup import does not drop the card.
+   */
   reported?: boolean;
 };
 
@@ -153,6 +156,10 @@ export type LiveSession = {
   originalCount: number;
   index: number;
   answers: SessionAnswer[];
+  /**
+   * Older saves listed flagged card ids here. The app no longer reads this.
+   * It stays on the record so a reload or backup import does not reject the sitting.
+   */
   flagged: string[];
   /** Card ids left blank with Skip for later, in the order they were skipped. */
   skipped: string[];
@@ -160,7 +167,7 @@ export type LiveSession = {
   skipReview: boolean;
   /** True after jumping from that list, so the next step returns there. */
   returnToReview: boolean;
-  /** Question index to resume when Finish opened the review before the end. */
+  /** Question index to resume when End session opened the review before the end. */
   bookmarkIndex: number | null;
   accumulatedMs: number;
   runningSince: number | null;

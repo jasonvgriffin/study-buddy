@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import { normalizeSession } from './session';
+import { normalizeSession, storedFlagged } from './session';
 import type {
   BackupFile,
   Card,
@@ -143,7 +143,8 @@ export async function deleteCard(cardId: string): Promise<void> {
     await tx.objectStore('figures').delete(figure.id);
   }
   for (const session of sessions) {
-    if (!session.cardIds.includes(cardId) && !(session.skipped ?? []).includes(cardId) && !session.flagged.includes(cardId)) {
+    const flagged = storedFlagged(session);
+    if (!session.cardIds.includes(cardId) && !(session.skipped ?? []).includes(cardId) && !flagged.includes(cardId)) {
       continue;
     }
     const had = session.cardIds.includes(cardId);
@@ -154,7 +155,7 @@ export async function deleteCard(cardId: string): Promise<void> {
       originalCount: had ? Math.max(0, session.originalCount - 1) : session.originalCount,
       index: Math.min(session.index, Math.max(cardIds.length - 1, 0)),
       answers: session.answers.filter((item) => item.cardId !== cardId),
-      flagged: session.flagged.filter((id) => id !== cardId),
+      flagged: flagged.filter((id) => id !== cardId),
       skipped: (session.skipped ?? []).filter((id) => id !== cardId),
       updatedAt: Date.now(),
     });
