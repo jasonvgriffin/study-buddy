@@ -70,6 +70,11 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
 
   useEffect(() => {
     if (!card) return;
+    document.getElementById('study-question')?.scrollIntoView({ block: 'start' });
+  }, [card?.id]);
+
+  useEffect(() => {
+    if (!card) return;
     let alive = true;
     const urls: string[] = [];
     void figuresForCard(card.id).then((rows) => {
@@ -383,6 +388,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
         </section>
       ) : card ? (
         <article
+          id="study-question"
           className="card stack"
           style={{ padding: '1rem' }}
           onTouchStart={(event) => setTouchX(event.changedTouches[0]?.clientX ?? null)}
