@@ -5,7 +5,7 @@ import { dueCardIds } from './lib/queue';
 import { isUnclearedMiss, rollup } from './lib/scoring';
 import { activeSessionForDeck, resumeLabel } from './lib/session';
 import { navigate } from './nav';
-import { Screen } from './bits';
+import { ResetConfirm, Screen } from './bits';
 import { useStudy } from './store';
 import type { Card } from './lib/types';
 
@@ -25,6 +25,7 @@ export function DeckScreen({ deckId, cardId = null }: { deckId: string; cardId?:
   }, [cardId]);
   const [name, setName] = useState(deck?.name ?? '');
   const [figureCount, setFigureCount] = useState<number | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
   useEffect(() => {
     if (deck) setName(deck.name);
   }, [deck]);
@@ -77,7 +78,7 @@ export function DeckScreen({ deckId, cardId = null }: { deckId: string; cardId?:
           <button className="btn btn-primary" type="button" onClick={() => void study.resume(active.id)}>
             Resume
           </button>
-          <button className="btn btn-ghost" type="button" onClick={() => void study.discard(active.id)}>
+          <button className="btn btn-ghost" data-testid="discard" type="button" onClick={() => setConfirmReset(true)}>
             Discard and start over
           </button>
         </article>
@@ -168,6 +169,15 @@ export function DeckScreen({ deckId, cardId = null }: { deckId: string; cardId?:
       >
         Delete test
       </button>
+      {confirmReset ? (
+        <ResetConfirm
+          onConfirm={() => {
+            setConfirmReset(false);
+            void study.discard();
+          }}
+          onCancel={() => setConfirmReset(false)}
+        />
+      ) : null}
     </Screen>
   );
 }

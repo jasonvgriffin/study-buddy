@@ -40,7 +40,7 @@ function Shell() {
           </p>
         ) : null}
         {study.ready && route.name !== 'session' && route.name !== 'review' ? <BackupReminder /> : null}
-        {study.ready && route.name === 'home' ? <Home /> : null}
+        {study.ready && route.name === 'home' ? <Home key={study.dataEpoch} /> : null}
         {study.ready && route.name === 'stats' ? <Stats /> : null}
         {study.ready && route.name === 'settings' ? <Settings /> : null}
         {study.ready && route.name === 'review' ? <ReviewScreen draftId={route.draftId} /> : null}
@@ -50,6 +50,9 @@ function Shell() {
         <p className="muted" data-testid="build-version" style={{ fontSize: '0.75rem', textAlign: 'center', margin: '1.5rem 0 0' }}>
           Study Buddy build {__APP_VERSION__} · {__BUILD_TIME__.slice(0, 16).replace('T', ' ')} UTC
         </p>
+        <footer className="app-footer" data-testid="app-footer">
+          Built by Jason Griffin with GrokBot/cursor
+        </footer>
       </main>
       {showNav ? (
         <nav className="nav">

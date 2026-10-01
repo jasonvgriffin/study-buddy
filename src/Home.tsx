@@ -1,10 +1,12 @@
 import { useState } from 'react';
+import { DestructiveConfirm, ResetConfirm } from './bits';
 import { studyRecommendations } from './lib/areas';
 import { domainBreakdown } from './lib/domains';
 import { formatPercent } from './lib/format';
 import { dueCardIds } from './lib/queue';
 import { isUnclearedMiss } from './lib/scoring';
 import { resumeLabel, sessionMissedCardIds } from './lib/session';
+import { nextHomeTab } from './homeTab';
 import { navigate } from './nav';
 import type { StudySnapshot } from './lib/db';
 import { useStudy } from './store';
@@ -105,7 +107,7 @@ export function Home() {
             aria-selected={tab === id}
             aria-controls={tab === id ? 'home-panel' : undefined}
             aria-label={id === 'settings' ? 'Settings and backup' : label}
-            onClick={() => study.setHomeTab(id)}
+            onClick={() => study.setHomeTab(nextHomeTab(tab, id))}
           >
             <span>{label}</span>
             <span className="home-tab-note">{note}</span>
@@ -127,7 +129,7 @@ export function Home() {
               onPickDeck={setExamDeckId}
               onLibrary={() => study.setHomeTab('library')}
               onResume={(id) => void study.resume(id)}
-              onDiscard={(id) => void study.discard(id)}
+              onReset={() => void study.discard()}
               onUntimed={() => {
                 if (examDeck) void study.startExam(examDeck, false);
               }}
@@ -163,10 +165,6 @@ export function Home() {
               }}
               onSaveSubject={() => {
                 if (focused) void study.renameSubject(focused.id, rename || focused.name);
-              }}
-              onDeleteSubject={() => {
-                if (!focused) return;
-                if (window.confirm(`Delete ${focused.name} and every test inside it?`)) void study.removeSubject(focused.id);
               }}
             />
           ) : null}
@@ -242,7 +240,7 @@ function StudyPanel({
   onPickDeck,
   onLibrary,
   onResume,
-  onDiscard,
+  onReset,
   onUntimed,
   onTimed,
   onDrill,
@@ -259,19 +257,20 @@ function StudyPanel({
   onPickDeck: (id: string) => void;
   onLibrary: () => void;
   onResume: (id: string) => void;
-  onDiscard: (id: string) => void;
+  onReset: () => void;
   onUntimed: () => void;
   onTimed: () => void;
   onDrill: () => void;
   onReviewDue: () => void;
   onRecommendation: (item: ReturnType<typeof studyRecommendations>[number]) => void;
 }) {
+  const [confirmReset, setConfirmReset] = useState(false);
   const others = sessions.filter((session) => session.id !== primary?.id);
   return (
     <>
       <h2>Study</h2>
       {primary ? (
-        <button className="btn btn-ghost btn-block" data-testid="discard" type="button" onClick={() => onDiscard(primary.id)}>
+        <button className="btn btn-ghost btn-block" data-testid="discard" type="button" onClick={() => setConfirmReset(true)}>
           Discard and start over
         </button>
       ) : null}
@@ -281,7 +280,7 @@ function StudyPanel({
           <button className="btn btn-primary btn-block" data-testid="resume" type="button" onClick={() => onResume(session.id)}>
             Continue
           </button>
-          <button className="btn btn-ghost btn-block" data-testid="discard" type="button" onClick={() => onDiscard(session.id)}>
+          <button className="btn btn-ghost btn-block" data-testid="discard" type="button" onClick={() => setConfirmReset(true)}>
             Discard and start over
           </button>
         </article>
@@ -339,9 +338,22 @@ function StudyPanel({
           ))}
         </div>
       ) : null}
+      {confirmReset ? (
+        <ResetConfirm
+          onConfirm={() => {
+            setConfirmReset(false);
+            onReset();
+          }}
+          onCancel={() => setConfirmReset(false)}
+        />
+      ) : null}
     </>
   );
 }
+
+type LibraryConfirm =
+  | { kind: 'subject'; id: string; name: string }
+  | { kind: 'source'; sourceGroupId: string; fileName: string; subjectName: string };
 
 function LibraryPanel({
   snap,
@@ -356,7 +368,6 @@ function LibraryPanel({
   onRename,
   onAddSubject,
   onSaveSubject,
-  onDeleteSubject,
 }: {
   snap: StudySnapshot;
   decks: Deck[];
@@ -370,53 +381,159 @@ function LibraryPanel({
   onRename: (value: string) => void;
   onAddSubject: () => void;
   onSaveSubject: () => void;
-  onDeleteSubject: () => void;
 }) {
-  const groups = new Map<string, Deck[]>();
-  for (const deck of [...decks].sort((a, b) => a.name.localeCompare(b.name))) {
-    const list = groups.get(deck.sourceGroupId) ?? [];
-    list.push(deck);
-    groups.set(deck.sourceGroupId, list);
-  }
+  const study = useStudy();
+  const [pending, setPending] = useState<LibraryConfirm | null>(null);
+  const visibleSubjects = subjects.filter((subject) => inFocus(subject.id));
   const drafts = snap.drafts.filter((draft) => !draft.subjectId || inFocus(draft.subjectId));
 
   return (
     <>
       <h2>Library</h2>
-      {!decks.length ? (
+      {!subjects.length ? (
         <p className="muted" style={{ margin: 0 }}>
-          {subjects.length
-            ? 'No tests in this view yet. Upload a PDF and save the tests you want to keep.'
-            : 'Add a subject, then upload a PDF. Each file stays in the subject you pick.'}
+          Add a subject, then upload a PDF. Each file stays in the subject you pick.
         </p>
-      ) : (
-        [...groups.entries()].map(([groupId, list]) => (
-          <div key={groupId} className="stack">
-            <p className="muted" style={{ margin: 0 }}>
-              {list[0]?.sourceFileName}
-            </p>
-            {list.map((deck) => {
-              const count = cards.filter((card) => card.deckId === deck.id).length;
-              return (
+      ) : null}
+      {visibleSubjects.map((subject) => {
+        const subjectDecks = decks.filter((deck) => deck.subjectId === subject.id);
+        const groups = new Map<string, Deck[]>();
+        for (const deck of [...subjectDecks].sort((a, b) => a.name.localeCompare(b.name))) {
+          const list = groups.get(deck.sourceGroupId) ?? [];
+          list.push(deck);
+          groups.set(deck.sourceGroupId, list);
+        }
+        const subjectDrafts = drafts.filter((draft) => draft.subjectId === subject.id);
+        return (
+          <section key={subject.id} className="stack" data-testid="library-subject">
+            <h3>{subject.name}</h3>
+            <button
+              className="btn btn-clay btn-block"
+              data-testid="delete-subject"
+              type="button"
+              onClick={() => setPending({ kind: 'subject', id: subject.id, name: subject.name })}
+            >
+              Delete {subject.name}
+            </button>
+            {!subjectDecks.length && !subjectDrafts.length ? (
+              <p className="muted" style={{ margin: 0 }}>
+                No tests in this subject yet. Upload a PDF and save the tests you want to keep.
+              </p>
+            ) : null}
+            {subjectDrafts.map((draft) => (
+              <div
+                key={draft.id}
+                className="stack"
+                data-testid="source-file"
+                data-file-name={draft.fileName}
+                data-source-id={draft.id}
+              >
+                <p className="muted" style={{ margin: 0 }}>
+                  {draft.fileName}
+                </p>
                 <button
-                  key={deck.id}
-                  className="card"
-                  data-testid="deck-link"
-                  data-deck-name={deck.name}
+                  className="btn btn-clay btn-block"
+                  data-testid="delete-source"
+                  data-file-name={draft.fileName}
+                  data-source-id={draft.id}
                   type="button"
-                  style={{ padding: '0.95rem 1rem', textAlign: 'left' }}
-                  onClick={() => navigate(`/deck/${deck.id}`)}
+                  onClick={() =>
+                    setPending({
+                      kind: 'source',
+                      sourceGroupId: draft.id,
+                      fileName: draft.fileName,
+                      subjectName: subject.name,
+                    })
+                  }
                 >
-                  <strong>{deck.name}</strong>
-                  <span className="muted" style={{ display: 'block' }}>
-                    {count} cards
-                  </span>
+                  Delete PDF
                 </button>
-              );
-            })}
+                <button className="btn btn-ghost btn-block" type="button" onClick={() => navigate(`/review/${draft.id}`)}>
+                  {draft.fileName}: {draft.tests.length} test{draft.tests.length === 1 ? '' : 's'} waiting for review
+                </button>
+              </div>
+            ))}
+            {[...groups.entries()].map(([groupId, list]) => (
+              <div
+                key={groupId}
+                className="stack"
+                data-testid="source-file"
+                data-file-name={list[0]?.sourceFileName ?? ''}
+                data-source-id={groupId}
+              >
+                <p className="muted" style={{ margin: 0 }}>
+                  {list[0]?.sourceFileName}
+                </p>
+                <button
+                  className="btn btn-clay btn-block"
+                  data-testid="delete-source"
+                  data-file-name={list[0]?.sourceFileName ?? ''}
+                  data-source-id={groupId}
+                  type="button"
+                  onClick={() =>
+                    setPending({
+                      kind: 'source',
+                      sourceGroupId: groupId,
+                      fileName: list[0]?.sourceFileName ?? 'this PDF',
+                      subjectName: subject.name,
+                    })
+                  }
+                >
+                  Delete PDF
+                </button>
+                {list.map((deck) => {
+                  const count = cards.filter((card) => card.deckId === deck.id).length;
+                  return (
+                    <button
+                      key={deck.id}
+                      className="card"
+                      data-testid="deck-link"
+                      data-deck-name={deck.name}
+                      type="button"
+                      style={{ padding: '0.95rem 1rem', textAlign: 'left' }}
+                      onClick={() => navigate(`/deck/${deck.id}`)}
+                    >
+                      <strong>{deck.name}</strong>
+                      <span className="muted" style={{ display: 'block' }}>
+                        {count} cards
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </section>
+        );
+      })}
+      {drafts
+        .filter((draft) => !draft.subjectId)
+        .map((draft) => (
+          <div key={draft.id} className="stack" data-testid="source-file" data-file-name={draft.fileName} data-source-id={draft.id}>
+            <p className="muted" style={{ margin: 0 }}>
+              {draft.fileName}
+            </p>
+            <button
+              className="btn btn-clay btn-block"
+              data-testid="delete-source"
+              data-file-name={draft.fileName}
+              data-source-id={draft.id}
+              type="button"
+              onClick={() =>
+                setPending({
+                  kind: 'source',
+                  sourceGroupId: draft.id,
+                  fileName: draft.fileName,
+                  subjectName: 'this device',
+                })
+              }
+            >
+              Delete PDF
+            </button>
+            <button className="btn btn-ghost btn-block" type="button" onClick={() => navigate(`/review/${draft.id}`)}>
+              {draft.fileName}: {draft.tests.length} test{draft.tests.length === 1 ? '' : 's'} waiting for review
+            </button>
           </div>
-        ))
-      )}
+        ))}
       <form
         className="stack"
         onSubmit={(event) => {
@@ -453,21 +570,34 @@ function LibraryPanel({
           <button className="btn btn-ghost btn-block" type="submit">
             Save name
           </button>
-          <button className="btn btn-clay btn-block" type="button" onClick={onDeleteSubject}>
-            Delete subject
-          </button>
         </form>
       ) : null}
       <UploadBlock />
-      {drafts.length ? (
-        <div className="stack">
-          <h2>Waiting for review</h2>
-          {drafts.map((draft) => (
-            <button key={draft.id} className="btn btn-ghost btn-block" type="button" onClick={() => navigate(`/review/${draft.id}`)}>
-              {draft.fileName}: {draft.tests.length} test{draft.tests.length === 1 ? '' : 's'}
-            </button>
-          ))}
-        </div>
+      {pending?.kind === 'subject' ? (
+        <DestructiveConfirm
+          title={`Delete ${pending.name}?`}
+          body={`This permanently removes ${pending.name} and all of its questions, metrics, progress, test sessions, and source files.`}
+          confirmLabel={`Delete ${pending.name}`}
+          onConfirm={() => {
+            const id = pending.id;
+            setPending(null);
+            void study.removeSubject(id);
+          }}
+          onCancel={() => setPending(null)}
+        />
+      ) : null}
+      {pending?.kind === 'source' ? (
+        <DestructiveConfirm
+          title={`Delete ${pending.fileName}?`}
+          body={`This removes ${pending.fileName} from ${pending.subjectName}, including the tests, questions, progress, and saved sessions that came from that file.`}
+          confirmLabel="Delete PDF"
+          onConfirm={() => {
+            const sourceGroupId = pending.sourceGroupId;
+            setPending(null);
+            void study.removeSource(sourceGroupId);
+          }}
+          onCancel={() => setPending(null)}
+        />
       ) : null}
     </>
   );

@@ -35,7 +35,6 @@ test('a tab deep link opens that tab, and deck or End session returns do too', a
   await expect(page.locator('[data-subject-name="Rivers"]')).toHaveClass(/on/);
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
   await page.getByTestId('save-tests').click();
-  await page.getByTestId('home-tab-library').click();
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await expect(page.getByTestId('start-untimed')).toBeVisible();
   await page.reload();
@@ -52,4 +51,32 @@ test('a tab deep link opens that tab, and deck or End session returns do too', a
   await page.getByRole('button', { name: 'Home', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Study', exact: true })).toBeVisible();
   await expect(page.getByTestId('practice-exam')).toBeVisible();
+});
+
+test('tapping the open tab collapses it, and another tap shows only that tab', async ({ page }) => {
+  await page.goto('./');
+  for (const id of ['study', 'library', 'progress', 'settings'] as const) {
+    await page.getByTestId(`home-tab-${id}`).click();
+    await expect(page.locator('#home-panel')).toBeVisible();
+    await expect(page.getByTestId(`home-tab-${id}`)).toHaveAttribute('aria-selected', 'true');
+    await page.getByTestId(`home-tab-${id}`).click();
+    await expect(page.getByTestId('home-tab-hint')).toHaveText('Pick a tab to start');
+    await expect(page.locator('#home-panel')).toHaveCount(0);
+    await expect(page.getByTestId(`home-tab-${id}`)).toHaveAttribute('aria-selected', 'false');
+  }
+
+  await page.getByTestId('home-tab-study').click();
+  await page.getByTestId('home-tab-library').click();
+  await expect(page.getByRole('heading', { name: 'Library', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Study', exact: true })).toHaveCount(0);
+  await expect(page.getByTestId('home-tab-study')).toHaveAttribute('aria-selected', 'false');
+  await expect(page.getByTestId('home-tab-library')).toHaveAttribute('aria-selected', 'true');
+
+  await page.goto('./#/?tab=progress');
+  await expect(page.getByRole('heading', { name: 'Progress', exact: true })).toBeVisible();
+  await page.getByTestId('home-tab-progress').click();
+  await expect(page.getByTestId('home-tab-hint')).toBeVisible();
+  await expect(page).toHaveURL(/#\/$/);
+  await page.reload();
+  await expect(page.getByTestId('home-tab-hint')).toBeVisible();
 });
