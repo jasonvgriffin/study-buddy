@@ -137,6 +137,9 @@ test('Finish reveals the answer and lesson and counts the question missed', asyn
   await expect(page.getByTestId('edit-card')).toHaveCount(0);
   await expect(page.getByTestId('skip-for-later')).toBeVisible();
   await expect(page.getByTestId('finish')).toHaveText('Finish');
+  await expect(page.getByTestId('end-session')).toHaveText('End session');
+  const sessionHash = await page.evaluate(() => location.hash);
+  expect(sessionHash).toMatch(/^#\/session\//);
   await page.getByTestId('finish').click();
   await expect(page.getByTestId('result')).toHaveText('✗ Incorrect');
   await expect(page.getByTestId('choice').filter({ hasText: 'Nile' })).toHaveClass(/correct/);
@@ -144,18 +147,17 @@ test('Finish reveals the answer and lesson and counts the question missed', asyn
   const lesson = page.getByTestId('watch-lesson');
   await expect(lesson).toBeVisible();
   await expect(lesson).toHaveCSS('text-decoration-line', 'underline');
+  await expect(page.getByTestId('live-score')).toContainText('0 of 1 correct');
+  await expect(page).toHaveURL(/#\/session\//);
   await page.getByTestId('next').click();
 
   await expect(page.getByTestId('position')).toHaveText('Question 2 of 3');
-  await page.getByTestId('finish').click();
-  await expect(page.getByTestId('result')).toHaveText('✗ Incorrect');
-  await page.getByTestId('next').click();
-  await page.getByTestId('finish').click();
-  await expect(page.getByTestId('result')).toHaveText('✗ Incorrect');
-  await page.getByTestId('next').click();
-
+  await page.getByTestId('end-session').click();
+  await expect(page).toHaveURL(/#\/results\//);
+  await expect(page.getByTestId('score-counts')).toContainText('0 right, 1 wrong, 2 unanswered');
+  await expect(page.getByTestId('domain-scores')).toContainText('0 right, 1 wrong, 2 unanswered');
   await expect(page.getByTestId('missed-review')).toBeVisible();
-  await expect(page.getByTestId('missed-card')).toHaveCount(3);
+  await expect(page.getByTestId('missed-card')).toHaveCount(1);
   const cairo = page.getByTestId('missed-card').filter({ hasText: 'Cairo' });
   await expect(cairo.getByTestId('your-answer')).toContainText('You marked it missed.');
   await expect(cairo.getByTestId('watch-lesson')).toBeVisible();

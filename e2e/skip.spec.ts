@@ -53,6 +53,6 @@ test('skip for later comes back on a review list and a tap grades the question',
 
   await expect(page.getByTestId('skip-review')).toBeVisible();
   await expect(page.getByTestId('jump-skipped')).toHaveCount(2);
-  await page.getByTestId('finish').click();
+  await page.getByTestId('skip-review').getByTestId('end-session').click();
   await expect(page.getByTestId('score-counts')).toContainText('1 right, 0 wrong, 2 unanswered');
 });

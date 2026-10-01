@@ -246,6 +246,22 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
         >
           {navOpen ? 'Close questions' : 'All questions'}
         </button>
+        {session.status !== 'finished' ? (
+          <button
+            className="btn btn-ghost btn-block"
+            type="button"
+            data-testid="end-session"
+            disabled={pending}
+            onClick={() => {
+              setReveal(null);
+              setNavOpen(false);
+              setPicked([]);
+              void study.endSession(session.id);
+            }}
+          >
+            End session
+          </button>
+        ) : null}
         {remaining != null ? <p style={{ margin: 0 }}>Time left {formatDuration(remaining)}</p> : null}
         {session.status === 'finished' && session.finishedReason === 'time' ? <p style={{ margin: 0 }}>Time is up.</p> : null}
         {session.status === 'finished' && !reveal ? (
@@ -327,8 +343,8 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
           <h2>Skipped questions</h2>
           <p data-testid="unanswered-count" style={{ margin: 0 }}>
             {skippedIds.length === 1
-              ? '1 unanswered question. Jump back to answer it, or finish and leave it unanswered.'
-              : `${skippedIds.length} unanswered questions. Jump back to answer one, or finish and leave them unanswered.`}
+              ? '1 unanswered question. Jump back to answer it, or end the session and leave it unanswered.'
+              : `${skippedIds.length} unanswered questions. Jump back to answer one, or end the session and leave them unanswered.`}
           </p>
           {skippedIds.map((id) => {
             const item = study.snap?.cards.find((entry) => entry.id === id);
@@ -361,12 +377,12 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
           ) : null}
           <button
             className="btn btn-primary btn-block"
-            data-testid="finish"
+            data-testid="end-session"
             type="button"
             disabled={paused || pending}
             onClick={() => void study.endSession(session.id)}
           >
-            Finish
+            End session
           </button>
         </section>
       ) : card ? (
