@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CardForm } from './CardForm';
 import { figuresForCard } from './lib/db';
 import { MISSING_EXPLANATION, formatDuration, formatPercent } from './lib/format';
+import { gradeFeedback } from './lib/feedback';
 import { choiceGraded, gradeLabels } from './lib/parser';
 import { choiceForKey, presentChoices, readShuffle } from './lib/shuffle';
 import { PbqForm } from './PbqForm';
@@ -125,6 +126,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
 
   const submit = (chosen: string[], correct: boolean) => {
     if (!card || reveal || paused || pendingRef.current) return;
+    gradeFeedback(correct);
     pendingRef.current = true;
     setPending(true);
     void study.answer(session.id, card, chosen, correct)
@@ -430,7 +432,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
                   'choice',
                   !reveal && on ? 'picked' : '',
                   reveal && isCorrect ? 'correct' : '',
-                  reveal && on && !isCorrect ? 'wrong' : '',
+                  reveal && on && !isCorrect ? 'wrong shake' : '',
                 ]
                   .filter(Boolean)
                   .join(' ');
@@ -510,6 +512,9 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
           {editing ? null : reveal ? (
             <div className="stack">
               <p data-testid="result" className={reveal.correct ? 'result-correct' : 'result-wrong'} style={{ margin: 0 }}>
+                <span className="result-icon" aria-hidden="true">
+                  {reveal.correct ? '✓' : '✗'}
+                </span>{' '}
                 {reveal.correct ? 'Correct' : 'Incorrect'}
               </p>
               {!reveal.correct && !graded && !pbq && card.answer ? (

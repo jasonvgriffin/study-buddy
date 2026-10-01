@@ -17,7 +17,7 @@ test('keyboard grading, missed review, domain scores, and the backup reminder', 
   await expect(page.getByRole('heading', { name: 'Which river runs through Cairo?' })).toBeVisible();
   await expect(page.getByTestId('kbd-hint')).toBeHidden();
   await page.keyboard.press('b');
-  await expect(page.getByTestId('result')).toHaveText('Incorrect');
+  await expect(page.getByTestId('result')).toHaveText('✗ Incorrect');
   await expect(page.getByTestId('choice').filter({ hasText: 'Amazon' })).toHaveClass(/wrong/);
   await expect(page.getByTestId('choice').filter({ hasText: 'Nile' })).toHaveClass(/correct/);
   await page.keyboard.press('f');
@@ -34,12 +34,12 @@ test('keyboard grading, missed review, domain scores, and the backup reminder', 
   await page.keyboard.press('c');
   await expect(page.getByTestId('choose-count')).toContainText('2 of 2');
   await page.keyboard.press('Enter');
-  await expect(page.getByTestId('result')).toHaveText('Correct');
+  await expect(page.getByTestId('result')).toHaveText('✓ Correct');
   await page.keyboard.press('Enter');
 
   await expect(page.getByTestId('position')).toHaveText('Question 3 of 3');
   await page.keyboard.press('b');
-  await expect(page.getByTestId('result')).toHaveText('Incorrect');
+  await expect(page.getByTestId('result')).toHaveText('✗ Incorrect');
   await page.keyboard.press('Enter');
 
   await expect(page.getByTestId('missed-review')).toBeVisible();
@@ -84,6 +84,6 @@ test('keyboard grading, missed review, domain scores, and the backup reminder', 
   await expect(page.getByTestId('choice').nth(2)).toContainText('Danube');
   await expect(page.getByTestId('choice').nth(3)).toContainText('Rhine');
   await page.keyboard.press('1');
-  await expect(page.getByTestId('result')).toHaveText('Correct');
+  await expect(page.getByTestId('result')).toHaveText('✓ Correct');
   await expect(page.getByTestId('choice').nth(0)).toHaveClass(/correct/);
 });

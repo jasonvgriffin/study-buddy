@@ -23,7 +23,7 @@ test('tapping a choice grades it and shows the explanation underneath', async ({
   const box = await choice.boundingBox();
   expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
   await choice.click();
-  await expect(page.getByTestId('result')).toHaveText('Correct');
+  await expect(page.getByTestId('result')).toHaveText('✓ Correct');
   await expect(choice).toHaveClass(/correct/);
   await expect(page.getByTestId('explanation')).toContainText('Cairo sits on the Nile');
   await expect(page.getByTestId('why')).toHaveCount(0);
@@ -36,6 +36,15 @@ test('tapping a choice grades it and shows the explanation underneath', async ({
 });
 
 test('a wrong choice shows the correct answer, the PDF explanation, and the lesson', async ({ page }) => {
+  await page.addInitScript(() => {
+    const vibes: Array<number | number[]> = [];
+    (window as unknown as { __vibes: Array<number | number[]> }).__vibes = vibes;
+    const vibrate = (pattern: number | number[]) => {
+      vibes.push(pattern);
+      return true;
+    };
+    Object.defineProperty(navigator, 'vibrate', { configurable: true, writable: true, value: vibrate });
+  });
   await page.goto('./');
   await page.getByTestId('subject-name').fill('Rivers');
   await page.getByTestId('add-subject').click();
@@ -45,8 +54,12 @@ test('a wrong choice shows the correct answer, the PDF explanation, and the less
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await page.getByTestId('start-untimed').click();
   await page.getByTestId('choice').filter({ hasText: 'Amazon' }).click();
-  await expect(page.getByTestId('result')).toHaveText('Incorrect');
-  await expect(page.getByTestId('choice').filter({ hasText: 'Amazon' })).toHaveClass(/wrong/);
+  await expect(page.getByTestId('result')).toHaveText('✗ Incorrect');
+  const amazon = page.getByTestId('choice').filter({ hasText: 'Amazon' });
+  await expect(amazon).toHaveClass(/wrong/);
+  await expect(amazon).toHaveClass(/shake/);
+  const vibes = await page.evaluate(() => (window as unknown as { __vibes: unknown[] }).__vibes);
+  expect(vibes).toEqual(expect.arrayContaining([[60, 40, 60]]));
   await expect(page.getByTestId('choice').filter({ hasText: 'Nile' })).toHaveClass(/correct/);
   await expect(page.getByTestId('explanation')).toContainText('Cairo sits on the Nile');
   await expect(page.getByTestId('why')).toHaveCount(0);
@@ -79,14 +92,14 @@ test('choose two submits only after two taps, and a missing explanation is state
   await expect(page.getByTestId('choose-count')).toContainText('2 of 2');
   await expect(page.getByTestId('submit')).toBeEnabled();
   await page.getByTestId('submit').click();
-  await expect(page.getByTestId('result')).toHaveText('Correct');
+  await expect(page.getByTestId('result')).toHaveText('✓ Correct');
   await expect(page.getByTestId('explanation')).toContainText('both flow through Europe');
   await expect(page.getByRole('button', { name: /^A\. Danube/ })).toHaveClass(/correct/);
   await expect(page.getByRole('button', { name: /^C\. Rhine/ })).toHaveClass(/correct/);
   await page.getByTestId('next').click();
   await expect(page.getByTestId('explanation')).toHaveCount(0);
   await page.getByTestId('choice').filter({ hasText: 'Madrid' }).click();
-  await expect(page.getByTestId('result')).toHaveText('Incorrect');
+  await expect(page.getByTestId('result')).toHaveText('✗ Incorrect');
   await expect(page.getByTestId('explanation')).toHaveText('No explanation provided in your PDF.');
   await expect(page.getByRole('button', { name: /^A\. Lisbon/ })).toHaveClass(/correct/);
   await expect(page.getByRole('button', { name: /^B\. Madrid/ })).toHaveClass(/wrong/);
@@ -105,7 +118,7 @@ test('a question figure from the PDF is shown before the answer', async ({ page 
   await expect(page.getByTestId('result')).toHaveCount(0);
   await expect(page.getByTestId('explanation-figure')).toHaveCount(0);
   await page.getByTestId('choice').filter({ hasText: 'Red' }).click();
-  await expect(page.getByTestId('result')).toHaveText('Incorrect');
+  await expect(page.getByTestId('result')).toHaveText('✗ Incorrect');
   await expect(page.getByTestId('explanation')).toContainText('square in the figure is green');
   await expect(page.getByTestId('question-figure')).toBeVisible();
 });

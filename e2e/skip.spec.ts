@@ -45,7 +45,7 @@ test('skip for later comes back on a review list and a tap grades the question',
   await expect(page.getByTestId('position')).toHaveText('Question 1 of 3');
   await expect(page.getByText('Cairo sits on the Nile')).toHaveCount(0);
   await page.getByTestId('choice').filter({ hasText: 'Nile' }).click();
-  await expect(page.getByTestId('result')).toHaveText('Correct');
+  await expect(page.getByTestId('result')).toHaveText('✓ Correct');
   await expect(page.getByTestId('choice').filter({ hasText: 'Nile' })).toHaveClass(/correct/);
   await expect(page.getByTestId('explanation')).toContainText('Cairo sits on the Nile');
   await page.getByTestId('next').click();
