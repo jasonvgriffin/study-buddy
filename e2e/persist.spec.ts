@@ -1,4 +1,4 @@
-import { chromium, expect, test } from '@playwright/test';
+import { chromium, expect, firefox, test, webkit } from '@playwright/test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -6,12 +6,22 @@ import path from 'node:path';
 const sampleThree = path.resolve('public/samples/sample-three-tests.pdf');
 const sampleNotes = path.resolve('public/samples/sample-notes.pdf');
 
+function browserType() {
+  const name = test.info().project.use.browserName ?? 'chromium';
+  if (name === 'firefox') return firefox;
+  if (name === 'webkit') return webkit;
+  return chromium;
+}
+
 async function context(userData: string) {
-  return chromium.launchPersistentContext(userData, {
-    viewport: { width: 412, height: 915 },
-    hasTouch: true,
-    isMobile: true,
-    deviceScaleFactor: 2.625,
+  const use = test.info().project.use;
+  const name = use.browserName ?? 'chromium';
+  return browserType().launchPersistentContext(userData, {
+    baseURL: typeof use.baseURL === 'string' ? use.baseURL : undefined,
+    viewport: use.viewport ?? { width: 412, height: 915 },
+    hasTouch: use.hasTouch,
+    deviceScaleFactor: use.deviceScaleFactor,
+    ...(name === 'chromium' ? { isMobile: use.isMobile } : {}),
   });
 }
 
@@ -26,10 +36,11 @@ test('paused progress survives a full browser restart', async () => {
   await expect(page.getByTestId('pdf-file')).toBeEnabled();
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
   await page.getByTestId('save-tests').click();
+  await page.getByTestId('home-tab-library').click();
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await page.getByTestId('start-untimed').click();
   await page.getByTestId('choice').filter({ hasText: 'Nile' }).click();
-  await expect(page.getByTestId('result')).toHaveText('Correct');
+  await expect(page.getByTestId('result')).toHaveText('✓ Correct');
   await expect(page.getByTestId('explanation')).toContainText('Cairo sits on the Nile');
   await expect(page.getByText('No explanation provided in your PDF.')).toHaveCount(0);
   await expect(page.getByTestId('elapsed')).not.toHaveText('0:00', { timeout: 5000 });
@@ -54,6 +65,7 @@ test('paused progress survives a full browser restart', async () => {
   await expect(again.getByTestId('elapsed')).toHaveText(elapsed);
   if (where) await expect(again.getByTestId('position')).toHaveText(where[0]);
   await again.getByRole('button', { name: 'Back' }).click();
+  await again.getByTestId('home-tab-library').click();
   await again.locator('[data-deck-name="Practice Test 2"]').click();
   await expect(again.getByText('no answers yet')).toBeVisible();
   await expect(again.getByTestId('deck-resume')).toHaveCount(0);
@@ -72,6 +84,7 @@ test('two subjects keep their PDFs apart', async () => {
   await expect(page.getByTestId('pdf-file')).toBeEnabled();
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
   await page.getByTestId('save-tests').click();
+  await page.getByTestId('home-tab-library').click();
   await page.getByTestId('subject-name').fill('Soil');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Soil"]')).toHaveClass(/on/);
@@ -79,6 +92,7 @@ test('two subjects keep their PDFs apart', async () => {
   await page.getByTestId('pdf-file').setInputFiles(sampleNotes);
   await page.getByTestId('save-tests').click();
   await page.locator('[data-subject-name="Rivers"]').click();
+  await page.getByTestId('home-tab-library').click();
   await expect(page.locator('[data-deck-name="Practice Test 1"]')).toBeVisible();
   await expect(page.locator('[data-deck-name="sample-notes"]')).toHaveCount(0);
   await page.locator('[data-subject-name="Soil"]').click();

@@ -1,12 +1,17 @@
 import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
+
+function pointer(locator: Locator) {
+  return test.info().project.use.hasTouch ? locator.tap() : locator.click();
+}
 
 const pdfPath = path.resolve('uploads/messer-aplus-core1-practice-exams_5c83.pdf');
 const shots = process.env.E2E_SHOTS ?? path.resolve('test-results/shots');
 mkdirSync(shots, { recursive: true });
 
 async function openDeck(page: Page, name: string) {
+  await page.getByTestId('home-tab-library').click();
   await page.locator(`[data-deck-name="${name}"]`).click();
   await expect(page.getByTestId('start-untimed')).toBeVisible();
   await expect(page.getByTestId('figure-status')).toHaveAttribute('data-count', /^[1-9]/);
@@ -26,7 +31,7 @@ test.skip(!existsSync(pdfPath), 'real exam PDF is not in this workspace');
 
 async function tapSelect(page: Page, select: ReturnType<Page['locator']>, pick: number) {
   await select.scrollIntoViewIfNeeded();
-  await select.tap();
+  await pointer(select);
   const options = await select.locator('option').allTextContents();
   const value = options[Math.min(pick, options.length - 1)] ?? '';
   await select.selectOption({ label: value });
@@ -36,7 +41,7 @@ async function tapSelect(page: Page, select: ReturnType<Page['locator']>, pick: 
 
 async function tapType(page: Page, input: ReturnType<Page['locator']>, text: string) {
   await input.scrollIntoViewIfNeeded();
-  await input.tap();
+  await pointer(input);
   await expect(input).toBeFocused();
   await page.keyboard.type(text);
   await expect(input).toHaveValue(text);
@@ -51,13 +56,13 @@ async function answerAndGrade(page: Page, label: string, shot?: string) {
   const format = await page.getByTestId('pbq-form').getAttribute('data-format');
   const given: string[] = [];
   if (format === 'order') {
-    await page.getByTestId('pbq-down').first().tap();
+    await pointer(page.getByTestId('pbq-down').first());
   } else {
     // Use the type-instead fallback on the first list control.
     const toggle = page.getByTestId('pbq-type-toggle').first();
     const selects = page.getByTestId('pbq-select');
     if ((await selects.count()) > 0) {
-      await toggle.tap();
+      await pointer(toggle);
       const typed = page.getByTestId('pbq-item').first().getByTestId('pbq-text').first();
       await tapType(page, typed, 'typed guess');
       given.push('typed guess');
@@ -75,7 +80,7 @@ async function answerAndGrade(page: Page, label: string, shot?: string) {
   }
   const parts = format === 'order' ? items : await page.locator('[data-testid="pbq-select"], [data-testid="pbq-text"]').count();
   if (shot) await page.screenshot({ path: `${shots}/${shot}-before-submit.png`, fullPage: true });
-  await page.getByTestId('submit').tap();
+  await pointer(page.getByTestId('submit'));
   await expect(page.getByTestId('result')).toBeVisible();
   await expect(page.getByTestId('pbq-item-result'), label).toHaveCount(items);
   await expect(page.getByTestId('pbq-control-result'), label).toHaveCount(parts);
@@ -132,6 +137,7 @@ test('phone import: every PBQ takes taps and typing and grades every part', asyn
   await page.getByTestId('review-show-answer').first().click();
   await expect(page.getByTestId('review-answer')).toHaveCount(0);
   await page.getByTestId('save-tests').click();
+  await page.getByTestId('home-tab-library').click();
   await expect(page.locator('[data-deck-name="Practice Exam A"]')).toBeVisible();
 
   const plan: Record<string, { figure: 'items' | 'one' | 'none'; shot?: boolean }[]> = {
@@ -180,9 +186,9 @@ test('phone import: every PBQ takes taps and typing and grades every part', asyn
       if (label === 'A1') {
         await expect(page.getByTestId('pbq-form')).toHaveAttribute('data-format', 'match-two');
         await expect(page.getByTestId('pbq-select')).toHaveCount(12);
-        await page.getByTestId('pbq-item-figure').first().tap();
+        await pointer(page.getByTestId('pbq-item-figure').first());
         await expect(page.getByTestId('zoom-close')).toBeVisible();
-        await page.getByTestId('zoom-close').tap();
+        await pointer(page.getByTestId('zoom-close'));
         await expect(page.getByTestId('zoom-close')).toHaveCount(0);
       }
       const graded = await answerAndGrade(page, label, step.shot ? label.toLowerCase() : undefined);
@@ -191,7 +197,7 @@ test('phone import: every PBQ takes taps and typing and grades every part', asyn
         expect(graded.parts).toBe(12);
         expect(graded.notes).toBe(6);
       }
-      await page.getByTestId('next').tap();
+      await pointer(page.getByTestId('next'));
     }
   }
   console.log(summary.join(' '));

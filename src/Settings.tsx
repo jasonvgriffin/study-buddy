@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Screen } from './bits';
+import { readHaptics, readSounds, writeHaptics, writeSounds } from './lib/feedback';
 import { readShuffle, writeShuffle } from './lib/shuffle';
 import { TEXT_SIZE_LABELS, TEXT_SIZES, readTextSize, writeTextSize, type TextSize } from './lib/textSize';
 import { useStudy } from './store';
@@ -9,6 +10,8 @@ export function Settings() {
   const [error, setError] = useState<string | null>(null);
   const [textSize, setTextSize] = useState<TextSize>(() => readTextSize());
   const [shuffle, setShuffle] = useState(() => readShuffle());
+  const [haptics, setHaptics] = useState(() => readHaptics());
+  const [sounds, setSounds] = useState(() => readSounds());
   const persist = study.snap?.persist;
   const persistText =
     persist?.granted === true
@@ -59,6 +62,38 @@ export function Settings() {
           }}
         >
           {shuffle ? 'Shuffle answers: on' : 'Shuffle answers: off'}
+        </button>
+      </article>
+      <article className="card stack" style={{ padding: '1rem' }}>
+        <h2>Feedback</h2>
+        <p className="muted" style={{ margin: 0 }}>
+          Buttons press in and give a short tap on phones that can vibrate. A wrong answer shakes and uses a double tap. Sounds are optional tones.
+        </p>
+        <button
+          className={haptics ? 'btn btn-primary btn-block' : 'btn btn-ghost btn-block'}
+          type="button"
+          data-testid="haptics-toggle"
+          aria-pressed={haptics}
+          onClick={() => {
+            const next = !haptics;
+            writeHaptics(next);
+            setHaptics(next);
+          }}
+        >
+          {haptics ? 'Haptics: on' : 'Haptics: off'}
+        </button>
+        <button
+          className={sounds ? 'btn btn-primary btn-block' : 'btn btn-ghost btn-block'}
+          type="button"
+          data-testid="sounds-toggle"
+          aria-pressed={sounds}
+          onClick={() => {
+            const next = !sounds;
+            writeSounds(next);
+            setSounds(next);
+          }}
+        >
+          {sounds ? 'Sounds: on' : 'Sounds: off'}
         </button>
       </article>
       <article className="card stack" style={{ padding: '1rem' }}>

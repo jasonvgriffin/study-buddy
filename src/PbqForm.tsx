@@ -86,6 +86,9 @@ export function PbqForm({
               <h3 className="pbq-item-title">{task.grade === 'order' ? `${index + 1}. ${item.prompt}` : item.prompt}</h3>
               {result ? (
                 <span data-testid="pbq-item-result" className={result.correct ? 'result-correct' : 'result-wrong'}>
+                  <span className="result-icon" aria-hidden="true">
+                    {result.correct ? '✓' : '✗'}
+                  </span>{' '}
                   {result.correct ? 'Correct' : 'Incorrect'}
                 </span>
               ) : null}

@@ -1,4 +1,5 @@
 import { BackupReminder } from './BackupReminder';
+import { PressFeedback } from './PressFeedback';
 import { DeckScreen } from './Deck';
 import { FlaggedScreen } from './Flagged';
 import { Home } from './Home';
@@ -25,6 +26,7 @@ function Shell() {
 
   return (
     <div className="app-shell">
+      <PressFeedback />
       <main className="frame">
         {!study.ready && !study.bootError ? <p>Opening saved decks…</p> : null}
         {study.bootError ? <p role="alert">{study.bootError}</p> : null}

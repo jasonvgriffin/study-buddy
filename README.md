@@ -34,6 +34,7 @@ Scanned pages are not read. Study Buddy does not OCR.
 
 ## Study
 
+- Home leads with Continue, or Start studying when nothing is in progress. The rest is grouped: Study (practice exam, drill, review due), Library (decks, import, flagged cards), Progress (stats, domains, missed questions), and Settings and backup.
 - Untimed mode, or a 90-minute exam. The clock stores active time only. Pause, or leave the tab, and it stops. Hiding the page does not add the time you were away. Skip for later does not stop a timed exam.
 - Skip for later leaves the question unanswered and moves on. Skipped questions stay on that sitting through pause and refresh. At the end, or when you tap Finish, a review list lets you jump back to each one. Until you answer them they count as unanswered, not right or wrong, and they are not treated as a miss on the review ladder.
 - The header reads Question 12 of 90, with a bar for how far you are. All questions opens a list you can filter to flagged or skipped cards and jump to any question.
@@ -44,6 +45,7 @@ Scanned pages are not read. Study Buddy does not OCR.
 - At the end of a sitting, missed questions list your answer, the right answer, and the explanation, with a link that opens that card in the test.
 - Results and Stats break the score down by the domain and objective already stored on each card.
 - After you have answered a card, if you have not exported a backup in 7 days, a banner offers Export backup. Dismiss hides it for 7 days.
+- Buttons and answer choices press in: the color shifts and the control scales down briefly. Phones that support vibration (Android Chrome and Brave) also get a short tap. A wrong answer shakes the choice, shows Incorrect with an ✗, and uses a double vibration. A correct answer shows Correct with a ✓ and a single tap. Settings can turn haptics off (they start on) or turn sounds on (they start off). Sounds are short tones made in the browser, with no audio files. iOS has no vibration API, so it uses one system tap when the phone allows it, and the press animation either way.
 - Each multiple-choice option is a button. Tap one to grade it. The choice you picked turns green or red, and the correct choice is highlighted. On a choose-two or choose-N question, tap to toggle selections, then Submit once that many are selected. The explanation, or the line “No explanation provided in your PDF.”, shows under the answers with no extra tap, then Next. A card with no options still asks you to mark it yourself.
 - The running score is on screen the whole time. At the end you get the percent, right, wrong, and unanswered counts, active time, and a comparison with earlier finished attempts on that same test.
 - A wrong answer in a drill or review comes back later in that sitting, and it is due again immediately. Correct answers move out on a 1 day, 3 day, 7 day, 16 day ladder, then grow by 2.2×. A skip does not.
