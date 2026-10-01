@@ -7,6 +7,7 @@ const sampleFigure = path.resolve('public/samples/sample-figure.pdf');
 test('tapping a choice grades it and shows the explanation underneath', async ({ page }) => {
   await page.goto('./');
   await page.getByTestId('home-tab-library').click();
+  await page.getByTestId('start-subject').click();
   await page.getByTestId('subject-name').fill('Rivers');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Rivers"]')).toHaveClass(/on/);
@@ -48,6 +49,7 @@ test('a wrong choice shows the correct answer, the PDF explanation, and the less
   });
   await page.goto('./');
   await page.getByTestId('home-tab-library').click();
+  await page.getByTestId('start-subject').click();
   await page.getByTestId('subject-name').fill('Rivers');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Rivers"]')).toHaveClass(/on/);
@@ -126,6 +128,7 @@ test('a wrong choice shows the correct answer, the PDF explanation, and the less
 test("I don't know reveals the answer and lesson and counts the question missed", async ({ page }) => {
   await page.goto('./');
   await page.getByTestId('home-tab-library').click();
+  await page.getByTestId('start-subject').click();
   await page.getByTestId('subject-name').fill('Rivers');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Rivers"]')).toHaveClass(/on/);
@@ -138,7 +141,9 @@ test("I don't know reveals the answer and lesson and counts the question missed"
   await expect(page.getByTestId('skip-for-later')).toBeVisible();
   const giveUp = page.getByRole('button', { name: "I don't know", exact: true });
   await expect(giveUp).toHaveText("I don't know");
-  await expect(page.getByTestId('end-session')).toHaveText('End session');
+  await expect(page.getByTestId('end-session')).toHaveCount(0);
+  await expect(page.getByTestId('open-navigator')).toHaveCount(0);
+  await expect(page.getByTestId('pause')).toBeVisible();
   const sessionHash = await page.evaluate(() => location.hash);
   expect(sessionHash).toMatch(/^#\/session\//);
   await giveUp.click();
@@ -153,7 +158,9 @@ test("I don't know reveals the answer and lesson and counts the question missed"
   await page.getByTestId('next').click();
 
   await expect(page.getByTestId('position')).toHaveText('Question 2 of 3');
-  await page.getByTestId('end-session').click();
+  await page.getByTestId('skip-for-later').click();
+  await page.getByTestId('skip-for-later').click();
+  await page.getByTestId('skip-review').getByTestId('end-session').click();
   await expect(page).toHaveURL(/#\/results\//);
   await expect(page.getByTestId('score-counts')).toContainText('0 right, 1 wrong, 2 unanswered');
   await expect(page.getByTestId('domain-scores')).toContainText('0 right, 1 wrong, 2 unanswered');
@@ -167,6 +174,7 @@ test("I don't know reveals the answer and lesson and counts the question missed"
 test('choose two submits only after two taps, and a missing explanation is stated', async ({ page }) => {
   await page.goto('./');
   await page.getByTestId('home-tab-library').click();
+  await page.getByTestId('start-subject').click();
   await page.getByTestId('subject-name').fill('Rivers');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Rivers"]')).toHaveClass(/on/);
@@ -204,6 +212,7 @@ test('choose two submits only after two taps, and a missing explanation is state
 test('a question figure from the PDF is shown before the answer', async ({ page }) => {
   await page.goto('./');
   await page.getByTestId('home-tab-library').click();
+  await page.getByTestId('start-subject').click();
   await page.getByTestId('subject-name').fill('Color');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Color"]')).toHaveClass(/on/);

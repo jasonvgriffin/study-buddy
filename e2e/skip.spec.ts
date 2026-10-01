@@ -6,6 +6,7 @@ const sampleThree = path.resolve('public/samples/sample-three-tests.pdf');
 test('skip for later comes back on a review list and a tap grades the question', async ({ page }) => {
   await page.goto('./');
   await page.getByTestId('home-tab-library').click();
+  await page.getByTestId('start-subject').click();
   await page.getByTestId('subject-name').fill('Rivers');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Rivers"]')).toHaveClass(/on/);

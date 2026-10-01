@@ -30,8 +30,6 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
     () => ({ question: [], explanation: [], items: new Map() }),
   );
   const [zoom, setZoom] = useState<string | null>(null);
-  const [navOpen, setNavOpen] = useState(false);
-  const [navFilter, setNavFilter] = useState<'all' | 'skipped'>('all');
   const keyRef = useRef<((event: KeyboardEvent) => void) | null>(null);
   const presentation = useRef<{ id: string; seed: number }>({ id: '', seed: 1 });
 
@@ -150,7 +148,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
       const tag = target.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable) return;
     }
-    if (!card || navOpen || showSkipReview || pendingRef.current) return;
+    if (!card || showSkipReview || pendingRef.current) return;
     // A finished sitting is not "active", but Enter still has to leave the explanation.
     if (paused && !reveal) return;
     const key = event.key === ' ' ? ' ' : event.key.length === 1 ? event.key.toLowerCase() : event.key;
@@ -209,9 +207,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
           <strong data-testid="position">
             {showSkipReview
               ? 'Skipped questions'
-              : navOpen
-                ? 'Questions'
-                : `Question ${Math.min(positionIndex + 1, Math.max(total, 1))} of ${total}`}
+              : `Question ${Math.min(positionIndex + 1, Math.max(total, 1))} of ${total}`}
           </strong>
           <span data-testid="elapsed">{formatDuration(elapsed)}</span>
         </div>
@@ -238,30 +234,6 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
             }}
           />
         </div>
-        <button
-          className="btn btn-ghost btn-block"
-          type="button"
-          data-testid="open-navigator"
-          onClick={() => setNavOpen((open) => !open)}
-        >
-          {navOpen ? 'Close questions' : 'All questions'}
-        </button>
-        {session.status !== 'finished' ? (
-          <button
-            className="btn btn-ghost btn-block"
-            type="button"
-            data-testid="end-session"
-            disabled={pending}
-            onClick={() => {
-              setReveal(null);
-              setNavOpen(false);
-              setPicked([]);
-              void study.endSession(session.id);
-            }}
-          >
-            End session
-          </button>
-        ) : null}
         {remaining != null ? <p style={{ margin: 0 }}>Time left {formatDuration(remaining)}</p> : null}
         {session.status === 'finished' && session.finishedReason === 'time' ? <p style={{ margin: 0 }}>Time is up.</p> : null}
         {session.status === 'finished' && !reveal ? (
@@ -279,66 +251,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
           Pause
         </button>
       )}
-      {navOpen ? (
-        <section className="card stack" data-testid="navigator" style={{ padding: '1rem' }}>
-          <h2>Questions</h2>
-          <div className="row-scroll" role="tablist" aria-label="Question filters">
-            {([
-              ['all', 'All'],
-              ['skipped', 'Skipped'],
-            ] as const).map(([id, label]) => (
-              <button
-                key={id}
-                className={navFilter === id ? 'chip on' : 'chip'}
-                type="button"
-                data-testid={`nav-filter-${id}`}
-                onClick={() => setNavFilter(id)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          {(() => {
-            const seen = new Set<string>();
-            const rows = session.cardIds.filter((id) => {
-              if (seen.has(id)) return false;
-              seen.add(id);
-              return true;
-            });
-            const visible = rows.filter((id) => (navFilter === 'skipped' ? skippedIds.includes(id) : true));
-            if (!visible.length) return <p data-testid="nav-empty">No questions in this filter.</p>;
-            return visible.map((id) => {
-              const item = study.snap?.cards.find((entry) => entry.id === id);
-              const number = session.cardIds.indexOf(id) + 1;
-              const flat = (item?.question ?? 'Question').replace(/\s+/g, ' ').trim();
-              const short = flat.length > 140 ? `${flat.slice(0, 137)}…` : flat;
-              const marks = [
-                session.answers.some((answer) => answer.cardId === id) ? 'Answered' : 'Unanswered',
-                skippedIds.includes(id) ? 'Skipped' : '',
-              ].filter(Boolean);
-              return (
-                <button
-                  key={id}
-                  className="choice"
-                  type="button"
-                  data-testid="nav-jump"
-                  onClick={() => {
-                    setReveal(null);
-                    setNavOpen(false);
-                    void study.jumpToAny(session.id, id);
-                  }}
-                >
-                  <strong>Question {number}.</strong> {short}
-                  <span className="muted" style={{ display: 'block', marginTop: '0.3rem' }}>
-                    {marks.join(' · ')}
-                  </span>
-                </button>
-              );
-            });
-          })()}
-        </section>
-      ) : null}
-      {navOpen ? null : showSkipReview ? (
+      {showSkipReview ? (
         <section className="card stack" data-testid="skip-review" style={{ padding: '1rem' }}>
           <h2>Skipped questions</h2>
           <p data-testid="unanswered-count" style={{ margin: 0 }}>

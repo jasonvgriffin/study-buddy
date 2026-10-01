@@ -23,13 +23,14 @@ test('a fresh open shows the four tabs and remembers nothing on reload', async (
   await expect(page.getByTestId('home-tab-study')).toHaveAttribute('aria-selected', 'false');
 });
 
-test('a tab deep link opens that tab, and deck or End session returns do too', async ({ page }) => {
+test('a tab deep link opens that tab, and deck or a finished session returns do too', async ({ page }) => {
   await page.goto('./#/?tab=progress');
   await expect(page.getByRole('heading', { name: 'Progress', exact: true })).toBeVisible();
   await expect(page.getByTestId('home-tab-hint')).toHaveCount(0);
 
   await page.goto('./');
   await page.getByTestId('home-tab-library').click();
+  await page.getByTestId('start-subject').click();
   await page.getByTestId('subject-name').fill('Rivers');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Rivers"]')).toHaveClass(/on/);
@@ -44,9 +45,19 @@ test('a tab deep link opens that tab, and deck or End session returns do too', a
 
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await page.getByTestId('start-untimed').click();
-  await expect(page.getByTestId('end-session')).toBeVisible();
+  await expect(page.getByTestId('pause')).toBeVisible();
+  await expect(page.getByTestId('end-session')).toHaveCount(0);
+  await expect(page.getByTestId('open-navigator')).toHaveCount(0);
   await page.reload();
-  await page.getByTestId('end-session').click();
+  await page.getByTestId('resume').click();
+  await page.getByTestId('choice').first().click();
+  await page.getByTestId('next').click();
+  await page.getByTestId('choice').nth(0).click();
+  await page.getByTestId('choice').nth(1).click();
+  await page.getByTestId('submit').click();
+  await page.getByTestId('next').click();
+  await page.getByTestId('choice').first().click();
+  await page.getByTestId('next').click();
   await expect(page).toHaveURL(/#\/results\//);
   await page.getByRole('button', { name: 'Home', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Study', exact: true })).toBeVisible();

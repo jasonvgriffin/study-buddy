@@ -120,6 +120,7 @@ test('phone import: every PBQ takes taps and typing and grades every part', asyn
   await page.goto('./');
   await expect(page.getByTestId('build-version')).toBeVisible();
   await page.getByTestId('home-tab-library').click();
+  await page.getByTestId('start-subject').click();
   await page.getByTestId('subject-name').fill('Core 1');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Core 1"]')).toHaveClass(/on/);
