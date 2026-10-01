@@ -7,6 +7,8 @@ import type {
   Deck,
   ImportDraft,
   LiveSession,
+  BackupMeta,
+  MetaRecord,
   PersistMeta,
   Review,
   StoredFigure,
@@ -24,7 +26,7 @@ interface StudySchema extends DBSchema {
   sessions: { key: string; value: LiveSession };
   memories: { key: string; value: CardMemory };
   drafts: { key: string; value: ImportDraft };
-  meta: { key: string; value: PersistMeta };
+  meta: { key: string; value: MetaRecord };
   figures: { key: string; value: StoredFigure };
 }
 
@@ -37,6 +39,7 @@ export type StudySnapshot = {
   memories: CardMemory[];
   drafts: ImportDraft[];
   persist: PersistMeta | null;
+  backup: BackupMeta | null;
 };
 
 let cached: Promise<IDBPDatabase<StudySchema>> | null = null;
@@ -81,7 +84,7 @@ export async function resetStudyDb(): Promise<void> {
 
 export async function loadSnapshot(): Promise<StudySnapshot> {
   const db = await openStudyDb();
-  const [subjects, decks, cards, reviews, sessions, memories, drafts, persist] = await Promise.all([
+  const [subjects, decks, cards, reviews, sessions, memories, drafts, persistRow, backupRow] = await Promise.all([
     db.getAll('subjects'),
     db.getAll('decks'),
     db.getAll('cards'),
@@ -90,6 +93,7 @@ export async function loadSnapshot(): Promise<StudySnapshot> {
     db.getAll('memories'),
     db.getAll('drafts'),
     db.get('meta', 'persist'),
+    db.get('meta', 'backup'),
   ]);
   return {
     subjects,
@@ -99,7 +103,8 @@ export async function loadSnapshot(): Promise<StudySnapshot> {
     sessions: sessions.map((session) => normalizeSession(session)),
     memories,
     drafts,
-    persist: persist ?? null,
+    persist: persistRow?.key === 'persist' ? persistRow : null,
+    backup: backupRow?.key === 'backup' ? backupRow : null,
   };
 }
 
@@ -357,6 +362,11 @@ function base64ToBlob(base64: string): Blob {
 }
 
 export async function savePersistMeta(meta: PersistMeta): Promise<void> {
+  const db = await openStudyDb();
+  await db.put('meta', meta);
+}
+
+export async function saveBackupMeta(meta: BackupMeta): Promise<void> {
   const db = await openStudyDb();
   await db.put('meta', meta);
 }

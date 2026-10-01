@@ -1,3 +1,4 @@
+import { domainBreakdown } from './lib/domains';
 import { accuracyByDay, rollup, studyStreak, weakestMemories } from './lib/scoring';
 import { elapsedMs } from './lib/session';
 import { formatDuration, formatPercent } from './lib/format';
@@ -24,6 +25,10 @@ export function Stats() {
   const weakest = weakestMemories(memories, 5);
   const activeMs = sessions.reduce((sum, session) => sum + elapsedMs(session, Date.now()), 0);
   const cardById = new Map(snap.cards.map((card) => [card.id, card]));
+  const domains = domainBreakdown(
+    snap.cards.filter((card) => inFocus(card.subjectId)),
+    reviews.map((review) => ({ cardId: review.cardId, correct: review.correct })),
+  );
 
   return (
     <Screen
@@ -55,6 +60,23 @@ export function Stats() {
               <span style={{ width: `${Math.round((day.accuracy ?? 0) * 100)}%` }} />
             </div>
           </div>
+        ))}
+      </section>
+      <section className="stack" data-testid="domain-stats">
+        <h2>By domain</h2>
+        {!domains.length ? <p className="muted">Answer a few cards and the domains from your PDF show up here.</p> : null}
+        {domains.map((domain) => (
+          <article key={domain.key} className="card stack" data-testid="domain-score" style={{ padding: '0.85rem' }}>
+            <strong>{domain.name}</strong>
+            <p style={{ margin: '0.25rem 0 0' }}>
+              {formatPercent(domain.correct + domain.incorrect ? domain.correct / (domain.correct + domain.incorrect) : null)} · {domain.correct} right, {domain.incorrect} wrong
+            </p>
+            {domain.objectives.map((objective) => (
+              <p key={objective.key} className="muted" data-testid="objective-score" style={{ margin: '0.25rem 0 0' }}>
+                {objective.label}: {objective.correct} right, {objective.incorrect} wrong
+              </p>
+            ))}
+          </article>
         ))}
       </section>
       <section className="stack">

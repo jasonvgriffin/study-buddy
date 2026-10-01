@@ -28,7 +28,7 @@ test('paused progress survives a full browser restart', async () => {
   await page.getByTestId('save-tests').click();
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await page.getByTestId('start-untimed').click();
-  await page.getByTestId('choice').first().click();
+  await page.getByTestId('choice').filter({ hasText: 'Nile' }).click();
   await expect(page.getByTestId('result')).toHaveText('Correct');
   await expect(page.getByTestId('explanation')).toContainText('Cairo sits on the Nile');
   await expect(page.getByText('No explanation provided in your PDF.')).toHaveCount(0);
