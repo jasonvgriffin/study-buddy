@@ -111,7 +111,9 @@ a { color: inherit; }
   border-radius: 1rem;
   border: 2px solid var(--line);
   background: var(--card);
-  padding: 0.75rem 0.9rem;
+  padding: 0.85rem 0.9rem;
+  font-size: 1.05rem;
+  line-height: 1.35;
 }
 .choice.picked { border-color: var(--ink); }
 .choice.correct { border-color: var(--good); background: color-mix(in srgb, var(--good) 14%, var(--card)); }

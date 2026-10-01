@@ -34,12 +34,14 @@ Scanned pages are not read. Study Buddy does not OCR.
 
 ## Study
 
-- Untimed mode, or a 90-minute exam. The clock stores active time only. Pause, or leave the tab, and it stops. Hiding the page does not add the time you were away.
-- The running score is on screen the whole time. At the end you get the percent, right and wrong counts, active time, and a comparison with earlier finished attempts on that same test.
-- A wrong answer in a drill or review comes back later in that sitting, and it is due again immediately. Correct answers move out on a 1 day, 3 day, 7 day, 16 day ladder, then grow by 2.2×.
+- Untimed mode, or a 90-minute exam. The clock stores active time only. Pause, or leave the tab, and it stops. Hiding the page does not add the time you were away. Skip for later does not stop a timed exam.
+- Skip for later leaves the question unanswered and moves on. Skipped questions stay on that sitting through pause and refresh. At the end, or when you tap Finish, a review list lets you jump back to each one. Until you answer them they count as unanswered, not right or wrong, and they are not treated as a miss on the review ladder.
+- Each multiple-choice option is a button. Tap one to grade it. The choice you picked turns green or red, and the correct choice is highlighted. On a choose-two or choose-N question, tap to toggle selections, then Submit once that many are selected. The explanation, or the line “No explanation provided in your PDF.”, shows under the answers with no extra tap, then Next. A card with no options still asks you to mark it yourself.
+- The running score is on screen the whole time. At the end you get the percent, right, wrong, and unanswered counts, active time, and a comparison with earlier finished attempts on that same test.
+- A wrong answer in a drill or review comes back later in that sitting, and it is due again immediately. Correct answers move out on a 1 day, 3 day, 7 day, 16 day ladder, then grow by 2.2×. A skip does not.
 - “What to study next” ranks your own section, domain, and objective labels. Recent answers count more than old ones. Under about 70% (with at least four answers) is called out. A suggestion that belongs to one test starts a drill of that test only.
 
-“Watch the lesson” appears after you answer, and only when the card has a link. It opens in a new tab. If `src/data/lesson-links.json` has a verified YouTube id for that PDF link, the button opens the video. Otherwise it opens the URL that was printed in the PDF. A start time is added only when you set one, or when the map includes `startSeconds` from a verified chapter. The app does not invent timestamps.
+“Watch the lesson” appears under the explanation after you answer, and only when the card has a link. It opens in a new tab. If `src/data/lesson-links.json` has a verified YouTube id for that PDF link, the button opens the video. Otherwise it opens the URL that was printed in the PDF. A start time is added only when you set one, or when the map includes `startSeconds` from a verified chapter. The app does not invent timestamps.
 
 ## Persistence
 

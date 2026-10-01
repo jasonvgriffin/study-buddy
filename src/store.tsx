@@ -45,12 +45,18 @@ import {
 import {
   activeSessionForDeck,
   answerSession,
+  continueAfterReview,
   createDrillSession,
   createExamSession,
   createReviewSession,
+  finishSession,
+  jumpToSkipped,
   noteHidden,
+  openSkipReview,
   rehydrateSession,
   resumeSession,
+  skipQuestion,
+  skippedUnanswered,
   toggleFlag,
 } from './lib/session';
 import type {
@@ -108,6 +114,10 @@ type StudyApi = {
   resume: (sessionId: string) => Promise<void>;
   discard: (sessionId: string) => Promise<void>;
   flag: (sessionId: string, cardId: string) => Promise<void>;
+  skip: (sessionId: string, cardId: string) => Promise<void>;
+  jumpTo: (sessionId: string, cardId: string) => Promise<void>;
+  continueSession: (sessionId: string) => Promise<void>;
+  endSession: (sessionId: string) => Promise<void>;
   persistSession: (sessionId: string) => Promise<void>;
   syncTimer: (sessionId: string) => Promise<void>;
   downloadBackup: () => Promise<void>;
@@ -749,6 +759,64 @@ export function StudyProvider({ children }: { children: ReactNode }) {
     }));
   }
 
+  async function writeSession(sessionId: string, next: LiveSession) {
+    await putSession(next);
+    patch((state) => ({
+      ...state,
+      sessions: state.sessions.map((item) => (item.id === sessionId ? next : item)),
+    }));
+    if (next.status === 'finished') navigate(`/results/${sessionId}`);
+  }
+
+  function liveOrResumed(sessionId: string): LiveSession | null {
+    const found = snapRef.current?.sessions.find((item) => item.id === sessionId);
+    if (!found || found.status === 'finished') return found ?? null;
+    return found.status === 'paused' ? resumeSession(found, Date.now()) : found;
+  }
+
+  async function skip(sessionId: string, cardId: string) {
+    const session = liveOrResumed(sessionId);
+    if (!session || session.status === 'finished') {
+      if (session?.status === 'finished') await writeSession(sessionId, session);
+      return;
+    }
+    const next = skipQuestion(session, cardId, Date.now());
+    await writeSession(sessionId, next);
+  }
+
+  async function jumpTo(sessionId: string, cardId: string) {
+    const session = liveOrResumed(sessionId);
+    if (!session || session.status === 'finished') {
+      if (session?.status === 'finished') await writeSession(sessionId, session);
+      return;
+    }
+    await writeSession(sessionId, jumpToSkipped(session, cardId, Date.now()));
+  }
+
+  async function continueSession(sessionId: string) {
+    const session = liveOrResumed(sessionId);
+    if (!session || session.status === 'finished') {
+      if (session?.status === 'finished') await writeSession(sessionId, session);
+      return;
+    }
+    await writeSession(sessionId, continueAfterReview(session, Date.now()));
+  }
+
+  async function endSession(sessionId: string) {
+    const session = liveOrResumed(sessionId);
+    if (!session) return;
+    if (session.status === 'finished') {
+      await writeSession(sessionId, session);
+      return;
+    }
+    const now = Date.now();
+    const next =
+      session.skipReview || skippedUnanswered(session).length === 0
+        ? finishSession(session, now)
+        : openSkipReview(session, now);
+    await writeSession(sessionId, next);
+  }
+
   async function persistSession(sessionId: string) {
     const session = snapRef.current?.sessions.find((item) => item.id === sessionId);
     if (!session) return;
@@ -826,6 +894,10 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       resume,
       discard,
       flag,
+      skip,
+      jumpTo,
+      continueSession,
+      endSession,
       persistSession,
       syncTimer,
       downloadBackup,

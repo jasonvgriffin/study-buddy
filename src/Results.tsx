@@ -16,7 +16,6 @@ export function ResultsScreen({ sessionId }: { sessionId: string }) {
     );
   }
   const score = liveScore(session);
-  const wrong = session.answers.filter((answer) => !answer.correct).length;
   const missed = sessionMissedCardIds(session);
   const previous = (study.snap?.sessions ?? [])
     .filter(
@@ -36,8 +35,9 @@ export function ResultsScreen({ sessionId }: { sessionId: string }) {
     <Screen title={session.deckName} lede="Results for this sitting" onBack={() => navigate('/')}>
       <article className="card stack" style={{ padding: '1rem' }}>
         <h2>{formatPercent(score.percent)}</h2>
-        <p style={{ margin: 0 }}>
-          {score.correct} right, {wrong} wrong. {formatDuration(elapsedMs(session, session.updatedAt))} of active time.
+        <p data-testid="score-counts" style={{ margin: 0 }}>
+          {score.correct} right, {score.incorrect} wrong, {score.unanswered} unanswered.{' '}
+          {formatDuration(elapsedMs(session, session.updatedAt))} of active time.
         </p>
         {session.finishedReason === 'time' ? <p style={{ margin: 0 }}>The 90 minutes ran out.</p> : null}
         <p style={{ margin: 0 }}>

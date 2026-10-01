@@ -30,7 +30,7 @@ test('paused progress survives a full browser restart', async ({ baseURL }) => {
   await page.getByTestId('start-untimed').click();
   await page.getByTestId('choice').first().click();
   await expect(page.getByTestId('result')).toHaveText('Correct');
-  await expect(page.getByTestId('explanation')).toHaveCount(0);
+  await expect(page.getByTestId('explanation')).toContainText('Cairo sits on the Nile');
   await expect(page.getByText('No explanation provided in your PDF.')).toHaveCount(0);
   await expect(page.getByTestId('elapsed')).not.toHaveText('0:00', { timeout: 5000 });
   await page.evaluate(() => {

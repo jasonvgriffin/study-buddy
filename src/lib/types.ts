@@ -152,6 +152,14 @@ export type LiveSession = {
   index: number;
   answers: SessionAnswer[];
   flagged: string[];
+  /** Card ids left blank with Skip for later, in the order they were skipped. */
+  skipped: string[];
+  /** True while the skipped-question review list is what the learner should see. */
+  skipReview: boolean;
+  /** True after jumping from that list, so the next step returns there. */
+  returnToReview: boolean;
+  /** Question index to resume when Finish opened the review before the end. */
+  bookmarkIndex: number | null;
   accumulatedMs: number;
   runningSince: number | null;
   status: SessionStatus;
