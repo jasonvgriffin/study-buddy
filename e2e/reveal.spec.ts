@@ -5,7 +5,7 @@ const sampleThree = path.resolve('public/samples/sample-three-tests.pdf');
 const sampleFigure = path.resolve('public/samples/sample-figure.pdf');
 
 test('tapping a choice grades it and shows the explanation underneath', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('./');
   await page.getByTestId('subject-name').fill('Rivers');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Rivers"]')).toHaveClass(/on/);
@@ -32,11 +32,11 @@ test('tapping a choice grades it and shows the explanation underneath', async ({
   await expect(lesson).toHaveAttribute('href', /example\.com\/lessons\/nile/);
   await expect(page.getByTestId('next')).toBeVisible();
   await page.waitForTimeout(600);
-  await expect(page.getByTestId('position')).toHaveText(/question 1 of/);
+  await expect(page.getByTestId('position')).toHaveText(/Question 1 of/);
 });
 
 test('a wrong choice shows the correct answer, the PDF explanation, and the lesson', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('./');
   await page.getByTestId('subject-name').fill('Rivers');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Rivers"]')).toHaveClass(/on/);
@@ -57,7 +57,7 @@ test('a wrong choice shows the correct answer, the PDF explanation, and the less
 });
 
 test('choose two submits only after two taps, and a missing explanation is stated', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('./');
   await page.getByTestId('subject-name').fill('Rivers');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Rivers"]')).toHaveClass(/on/);
@@ -93,7 +93,7 @@ test('choose two submits only after two taps, and a missing explanation is state
 });
 
 test('a question figure from the PDF is shown before the answer', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('./');
   await page.getByTestId('subject-name').fill('Color');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Color"]')).toHaveClass(/on/);

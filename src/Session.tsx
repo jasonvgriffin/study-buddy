@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { CardForm } from './CardForm';
 import { figuresForCard } from './lib/db';
 import { MISSING_EXPLANATION, formatDuration, formatPercent } from './lib/format';
 import { choiceGraded, gradeLabels } from './lib/parser';
@@ -28,6 +29,9 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
     () => ({ question: [], explanation: [], items: new Map() }),
   );
   const [zoom, setZoom] = useState<string | null>(null);
+  const [navOpen, setNavOpen] = useState(false);
+  const [navFilter, setNavFilter] = useState<'all' | 'flagged' | 'skipped'>('all');
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     if (!session || session.status !== 'active') return;
@@ -136,7 +140,9 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
           <strong data-testid="position">
             {showSkipReview
               ? 'Skipped questions'
-              : `question ${Math.min(positionIndex + 1, Math.max(total, 1))} of ${total}`}
+              : navOpen
+                ? 'Questions'
+                : `Question ${Math.min(positionIndex + 1, Math.max(total, 1))} of ${total}`}
           </strong>
           <span data-testid="elapsed">{formatDuration(elapsed)}</span>
         </div>
@@ -149,9 +155,28 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
                 skippedIds.length ? ` · ${skippedIds.length} skipped` : ''
               }`}
         </p>
-        <div className="bar" aria-hidden="true">
-          <span style={{ width: `${total ? Math.min(100, (score.answered / total) * 100) : 0}%` }} />
+        <div className="bar" data-testid="progress" aria-hidden="true">
+          <span
+            style={{
+              width: `${
+                total
+                  ? Math.min(
+                      100,
+                      ((showSkipReview ? score.answered : Math.min(positionIndex + 1, total)) / total) * 100,
+                    )
+                  : 0
+              }%`,
+            }}
+          />
         </div>
+        <button
+          className="btn btn-ghost btn-block"
+          type="button"
+          data-testid="open-navigator"
+          onClick={() => setNavOpen((open) => !open)}
+        >
+          {navOpen ? 'Close questions' : 'All questions'}
+        </button>
         {remaining != null ? <p style={{ margin: 0 }}>Time left {formatDuration(remaining)}</p> : null}
         {session.status === 'finished' && session.finishedReason === 'time' ? <p style={{ margin: 0 }}>Time is up.</p> : null}
         {session.status === 'finished' && !reveal ? (
@@ -169,7 +194,76 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
           Pause
         </button>
       )}
-      {showSkipReview ? (
+      {navOpen ? (
+        <section className="card stack" data-testid="navigator" style={{ padding: '1rem' }}>
+          <h2>Questions</h2>
+          <div className="row-scroll" role="tablist" aria-label="Question filters">
+            {([
+              ['all', 'All'],
+              ['flagged', 'Flagged'],
+              ['skipped', 'Skipped'],
+            ] as const).map(([id, label]) => (
+              <button
+                key={id}
+                className={navFilter === id ? 'chip on' : 'chip'}
+                type="button"
+                data-testid={`nav-filter-${id}`}
+                onClick={() => setNavFilter(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {(() => {
+            const seen = new Set<string>();
+            const rows = session.cardIds.filter((id) => {
+              if (seen.has(id)) return false;
+              seen.add(id);
+              return true;
+            });
+            const visible = rows.filter((id) => {
+              if (navFilter === 'skipped') return skippedIds.includes(id);
+              if (navFilter === 'flagged') {
+                const item = study.snap?.cards.find((entry) => entry.id === id);
+                return session.flagged.includes(id) || !!item?.reported;
+              }
+              return true;
+            });
+            if (!visible.length) return <p data-testid="nav-empty">No questions in this filter.</p>;
+            return visible.map((id) => {
+              const item = study.snap?.cards.find((entry) => entry.id === id);
+              const number = session.cardIds.indexOf(id) + 1;
+              const flat = (item?.question ?? 'Question').replace(/\s+/g, ' ').trim();
+              const short = flat.length > 140 ? `${flat.slice(0, 137)}…` : flat;
+              const marks = [
+                session.answers.some((answer) => answer.cardId === id) ? 'Answered' : 'Unanswered',
+                skippedIds.includes(id) ? 'Skipped' : '',
+                session.flagged.includes(id) || item?.reported ? 'Flagged' : '',
+              ].filter(Boolean);
+              return (
+                <button
+                  key={id}
+                  className="choice"
+                  type="button"
+                  data-testid="nav-jump"
+                  onClick={() => {
+                    setReveal(null);
+                    setNavOpen(false);
+                    setEditing(false);
+                    void study.jumpToAny(session.id, id);
+                  }}
+                >
+                  <strong>Question {number}.</strong> {short}
+                  <span className="muted" style={{ display: 'block', marginTop: '0.3rem' }}>
+                    {marks.join(' · ')}
+                  </span>
+                </button>
+              );
+            });
+          })()}
+        </section>
+      ) : null}
+      {navOpen ? null : showSkipReview ? (
         <section className="card stack" data-testid="skip-review" style={{ padding: '1rem' }}>
           <h2>Skipped questions</h2>
           <p data-testid="unanswered-count" style={{ margin: 0 }}>
@@ -222,7 +316,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
           style={{ padding: '1rem' }}
           onTouchStart={(event) => setTouchX(event.changedTouches[0]?.clientX ?? null)}
           onTouchEnd={(event) => {
-            if (touchX == null || graded || pbq || reveal || paused || pending) return;
+            if (touchX == null || editing || graded || pbq || reveal || paused || pending) return;
             const dx = (event.changedTouches[0]?.clientX ?? touchX) - touchX;
             if (dx > 70) submit([], true);
             if (dx < -70) submit([], false);
@@ -249,7 +343,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
               <img src={zoom} alt="Enlarged figure from your PDF" />
             </button>
           ) : null}
-          {card.choices.length ? (
+          {!editing && card.choices.length ? (
             <div className="stack">
               {card.choices.map((choice) => {
                 const on = (reveal ? reveal.chosen : picked).includes(choice.label);
@@ -293,7 +387,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
               })}
             </div>
           ) : null}
-          {pbq ? (
+          {!editing && pbq ? (
             <PbqForm
               key={card.id}
               task={pbq}
@@ -306,7 +400,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
               onZoom={setZoom}
             />
           ) : null}
-          {!reveal && multi ? (
+          {!editing && !reveal && multi ? (
             <div className="stack">
               <p className="muted" data-testid="choose-count" style={{ margin: 0 }}>
                 Choose {required}. {picked.length} of {required} selected.
@@ -322,7 +416,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
               </button>
             </div>
           ) : null}
-          {!reveal && !graded && !pbq ? (
+          {!editing && !reveal && !graded && !pbq ? (
             <div className="stack">
               <p className="muted" style={{ margin: 0 }}>
                 This item has no lettered key. Grade it yourself, or swipe right for correct and left for missed.
@@ -335,7 +429,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
               </button>
             </div>
           ) : null}
-          {reveal ? (
+          {editing ? null : reveal ? (
             <div className="stack">
               <p data-testid="result" className={reveal.correct ? 'result-correct' : 'result-wrong'} style={{ margin: 0 }}>
                 {reveal.correct ? 'Correct' : 'Incorrect'}
@@ -414,13 +508,29 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
               </button>
             </div>
           )}
-          <button
-            className="btn btn-ghost"
-            type="button"
-            onClick={() => void study.flag(session.id, card.id)}
-          >
-            {session.flagged.includes(card.id) ? 'Flagged' : 'Flag'}
-          </button>
+          {editing ? (
+            <CardForm
+              card={card}
+              onCancel={() => setEditing(false)}
+              onSave={(next) => {
+                void study.writeCard(next).then(() => setEditing(false));
+              }}
+            />
+          ) : (
+            <div className="stack">
+              <button
+                className="btn btn-ghost btn-block"
+                data-testid="flag-card"
+                type="button"
+                onClick={() => void study.flagProblem(card, session.id)}
+              >
+                {card.reported ? 'Flagged' : 'Flag'}
+              </button>
+              <button className="btn btn-ghost btn-block" data-testid="edit-card" type="button" onClick={() => setEditing(true)}>
+                Edit
+              </button>
+            </div>
+          )}
         </article>
       ) : (
         <p>No card is left in this session.</p>

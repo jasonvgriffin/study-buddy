@@ -111,7 +111,7 @@ async function saveFigure(page: Page, name: string, kind: 'items' | 'one') {
 
 test('phone import: every PBQ takes taps and typing and grades every part', async ({ page }) => {
   test.setTimeout(420_000);
-  await page.goto('/');
+  await page.goto('./');
   await expect(page.getByTestId('build-version')).toBeVisible();
   await page.getByTestId('subject-name').fill('Core 1');
   await page.getByTestId('add-subject').click();
@@ -165,7 +165,7 @@ test('phone import: every PBQ takes taps and typing and grades every part', asyn
     for (let index = 0; index < steps.length; index += 1) {
       const step = steps[index]!;
       const label = `${deck.slice(-1)}${index + 1}`;
-      await expect(page.getByTestId('position')).toHaveText(new RegExp(`question ${index + 1} of 90`));
+      await expect(page.getByTestId('position')).toHaveText(new RegExp(`Question ${index + 1} of 90`));
       if (step.figure === 'items') {
         const count = await saveFigure(page, label.toLowerCase(), 'items');
         expect(count, label).toBe(await page.getByTestId('pbq-item').count());
@@ -197,7 +197,7 @@ test('phone import: every PBQ takes taps and typing and grades every part', asyn
   console.log(summary.join(' '));
   expect(summary).toHaveLength(15);
 
-  await expect(page.getByTestId('position')).toHaveText(/question 6 of 90/);
+  await expect(page.getByTestId('position')).toHaveText(/Question 6 of 90/);
   await expect(page.getByTestId('choice').first()).toBeVisible();
   await expectQuiet(page);
 });

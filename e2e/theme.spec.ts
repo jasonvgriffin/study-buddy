@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 test.use({ colorScheme: 'dark' });
 
 test('dark mode preference still shows the light palette', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('./');
   await expect(page.getByRole('heading', { name: 'Study Buddy' })).toBeVisible();
   const read = () =>
     page.evaluate(() => {

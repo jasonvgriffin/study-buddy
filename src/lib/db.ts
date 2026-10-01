@@ -121,6 +121,43 @@ export async function putDeckBundle(deck: Deck, cards: Card[]): Promise<void> {
   await tx.done;
 }
 
+export async function deleteCard(cardId: string): Promise<void> {
+  const db = await openStudyDb();
+  const [reviews, sessions, figures] = await Promise.all([
+    db.getAll('reviews'),
+    db.getAll('sessions'),
+    db.getAll('figures'),
+  ]);
+  const tx = db.transaction(['cards', 'reviews', 'sessions', 'memories', 'figures'], 'readwrite');
+  await tx.objectStore('cards').delete(cardId);
+  await tx.objectStore('memories').delete(cardId);
+  for (const review of reviews.filter((item) => item.cardId === cardId)) {
+    await tx.objectStore('reviews').delete(review.id);
+  }
+  for (const figure of figures.filter((item) => item.cardId === cardId)) {
+    await tx.objectStore('figures').delete(figure.id);
+  }
+  for (const session of sessions) {
+    if (!session.cardIds.includes(cardId) && !(session.skipped ?? []).includes(cardId) && !session.flagged.includes(cardId)) {
+      continue;
+    }
+    const had = session.cardIds.includes(cardId);
+    const cardIds = session.cardIds.filter((id) => id !== cardId);
+    const next = normalizeSession({
+      ...session,
+      cardIds,
+      originalCount: had ? Math.max(0, session.originalCount - 1) : session.originalCount,
+      index: Math.min(session.index, Math.max(cardIds.length - 1, 0)),
+      answers: session.answers.filter((item) => item.cardId !== cardId),
+      flagged: session.flagged.filter((id) => id !== cardId),
+      skipped: (session.skipped ?? []).filter((id) => id !== cardId),
+      updatedAt: Date.now(),
+    });
+    await tx.objectStore('sessions').put(next);
+  }
+  await tx.done;
+}
+
 export async function putCard(card: Card): Promise<void> {
   const db = await openStudyDb();
   await db.put('cards', card);

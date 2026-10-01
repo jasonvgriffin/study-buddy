@@ -35,6 +35,9 @@ export function isChromeLine(line: string): boolean {
   if (/^answer\s*page:?/i.test(t)) return true;
   if (/^answer:\s*\d{1,4}$/i.test(t)) return true;
   if (/^page:\s*\d{1,4}$/i.test(t)) return true;
+  if (/^page\s+\d{1,4}(\s+of\s+\d{1,4})?$/i.test(t)) return true;
+  if (/^\d{1,4}\s+of\s+\d{1,4}$/i.test(t)) return true;
+  if (/^[-–—]\s*\d{1,4}\s*[-–—]$/.test(t)) return true;
   return false;
 }
 
@@ -191,15 +194,57 @@ function stripChromeNoise(text: string): string {
       .replace(/\bAnswer\s*Page:\s*\d{1,4}\b/gi, ' ')
       .replace(/\bThe Details:\s*\d{1,4}\b/gi, ' ')
       .replace(/\bAnswer:\s*\d{1,4}\b/gi, ' ')
+      .replace(/\bPage\s+\d{1,4}(?:\s+of\s+\d{1,4})?\b/gi, ' ')
       .replace(/\s+Quick\s*$/gi, ' '),
   );
+}
+
+/** A line that is only a page number or a "Page N" marker. */
+export function isPageNumberLine(line: string): boolean {
+  const t = clean(line);
+  if (!t) return false;
+  if (/^\d{1,4}$/.test(t)) return true;
+  if (/^page\s+\d{1,4}(\s+of\s+\d{1,4})?$/i.test(t)) return true;
+  if (/^\d{1,4}\s+of\s+\d{1,4}$/i.test(t)) return true;
+  if (/^[-–—]\s*\d{1,4}\s*[-–—]$/.test(t)) return true;
+  return false;
+}
+
+/** Join a wrapped line. A hyphen at the end of a word is a line-break, not a dash. */
+export function joinWrap(left: string, right: string): string {
+  const base = left.replace(/\s+$/, '');
+  const next = right.replace(/^\s+/, '');
+  if (/[A-Za-z]-$/.test(base) && /^[a-z(]/.test(next)) {
+    return clean(`${base.slice(0, -1)}${next}`);
+  }
+  return clean(`${base} ${next}`);
+}
+
+function joinLines(lines: string[]): string {
+  let text = '';
+  for (const line of lines) {
+    const piece = clean(line);
+    if (!piece) continue;
+    text = text ? joinWrap(text, piece) : piece;
+  }
+  return text;
+}
+
+/** Two questions glued into one string: "...? 2. Next question ..." */
+export function peelEmbeddedQuestion(text: string): { head: string; label: string; rest: string } | null {
+  const match = clean(text).match(/^(.*\?)\s+([A-Za-z]?\d{1,3})\.\s+(\S[\s\S]{8,})$/);
+  if (!match) return null;
+  const head = match[1].trim();
+  const rest = match[3].trim();
+  if (head.length < 8 || !rest.includes('?')) return null;
+  return { head, label: normLabel(match[2]), rest };
 }
 
 function paragraphs(lines: string[]): string {
   const parts: string[] = [];
   let buf: string[] = [];
   const flush = () => {
-    const text = clean(buf.join(' '));
+    const text = joinLines(buf);
     if (text) parts.push(text);
     buf = [];
   };
@@ -276,7 +321,119 @@ function findCard(cards: WorkCard[], label: string): WorkCard | undefined {
 
 type DetailZone = 'skip' | 'answer' | 'incorrect' | 'explain' | 'meta';
 
+function edgeTexts(page: TextPage): string[] {
+  const lines = page.lines.map((line) => clean(line)).filter(Boolean);
+  return [...lines.slice(0, 2), ...lines.slice(-2)];
+}
+
+/** Drop running headers, footers, and page numbers that sit on the edge of a page. */
+export function scrubPages(pages: TextPage[]): TextPage[] {
+  const counts = new Map<string, number>();
+  for (const page of pages) {
+    for (const line of new Set(edgeTexts(page))) {
+      if (line.length < 6 || line.length > 90) continue;
+      if (questionStart(line) || choiceStart(line) || promptStart(line) || testHeading(line)) continue;
+      counts.set(line, (counts.get(line) ?? 0) + 1);
+    }
+  }
+  const repeated = new Set([...counts.entries()].filter(([, count]) => count >= 2).map(([line]) => line));
+  return pages.map((page) => {
+    const nonempty: number[] = [];
+    page.lines.forEach((raw, index) => {
+      if (clean(raw)) nonempty.push(index);
+    });
+    const drop = new Set<number>();
+    const consider = (index: number | undefined) => {
+      if (index == null) return;
+      const text = clean(page.lines[index] ?? '');
+      if (!text) return;
+      if (isPageNumberLine(text) || isChromeLine(text) || repeated.has(text)) drop.add(index);
+    };
+    consider(nonempty[0]);
+    consider(nonempty[1]);
+    if (nonempty.length > 2) consider(nonempty[nonempty.length - 1]);
+    if (nonempty.length > 3) consider(nonempty[nonempty.length - 2]);
+    if (!drop.size) return page;
+    return { ...page, lines: page.lines.filter((_, index) => !drop.has(index)), pieces: page.pieces };
+  });
+}
+
+function richness(card: ParsedCard): number {
+  return (
+    (card.explanation ? 4 : 0) +
+    card.correctLabels.length * 2 +
+    card.choices.length +
+    (card.answer ? 1 : 0) +
+    (card.pbq ? 3 : 0)
+  );
+}
+
+/** Keep one copy of the same question text. Prefer the copy that has an answer or explanation. */
+export function dedupeQuestions(cards: ParsedCard[]): ParsedCard[] {
+  const indexByKey = new Map<string, number>();
+  const out: ParsedCard[] = [];
+  for (const card of cards) {
+    const key = clean(card.question).toLowerCase();
+    if (!key) continue;
+    const previous = indexByKey.get(key);
+    if (previous == null) {
+      indexByKey.set(key, out.length);
+      out.push(card);
+      continue;
+    }
+    if (richness(card) > richness(out[previous])) {
+      out[previous] = { ...card, sourceLabel: out[previous].sourceLabel };
+    }
+  }
+  return out;
+}
+
+function spawnQuestion(from: ParsedCard, label: string, question: string): ParsedCard {
+  return {
+    sourceLabel: label,
+    question,
+    choices: [],
+    correctLabels: [],
+    answer: '',
+    explanation: null,
+    section: from.section,
+    domainNumber: from.domainNumber,
+    domainName: from.domainName,
+    objective: from.objective,
+    objectiveTitle: from.objectiveTitle,
+    examCode: from.examCode,
+    lessonUrl: null,
+    pbq: null,
+  };
+}
+
+/** Split a card whose stem contains a second question, then drop duplicate wording. */
+export function tidyQuestions(cards: ParsedCard[]): ParsedCard[] {
+  const split: ParsedCard[] = [];
+  for (const card of cards) {
+    const peeled = peelEmbeddedQuestion(card.question);
+    if (!peeled) {
+      const last = card.choices[card.choices.length - 1];
+      const fromChoice = last ? peelEmbeddedQuestion(last.text) : null;
+      if (fromChoice && card.choices.length) {
+        const choices = card.choices.map((choice, index) =>
+          index === card.choices.length - 1 ? { ...choice, text: fromChoice.head } : choice,
+        );
+        split.push({ ...card, choices });
+        split.push(spawnQuestion(card, fromChoice.label, fromChoice.rest));
+        continue;
+      }
+      split.push(card);
+      continue;
+    }
+    split.push({ ...card, question: peeled.head });
+    split.push(spawnQuestion(card, peeled.label, peeled.rest));
+  }
+  return dedupeQuestions(split);
+}
+
 export function parseDocument(pages: TextPage[]): ParsedDocument {
+  pages = scrubPages(pages);
   const tests: { name: string; cards: WorkCard[] }[] = [];
   const domains = new Map<number, ParsedDomain>();
   let mode: Mode = 'seek';
@@ -291,6 +448,7 @@ export function parseDocument(pages: TextPage[]): ParsedDocument {
   let zone: DetailZone = 'skip';
   let detailOption: string | null = null;
   let implicitN = 0;
+  let pendingLabel: string | null = null;
 
   const ensureTest = (name: string) => {
     const existing = tests.find((item) => item.name.toLowerCase() === name.toLowerCase());
@@ -339,7 +497,7 @@ export function parseDocument(pages: TextPage[]): ParsedDocument {
 
   const appendStem = (text: string) => {
     if (!card) return;
-    card.question = clean(`${card.question} ${text}`);
+    card.question = card.question ? joinWrap(card.question, text) : clean(text);
   };
 
   const appendChoice = (text: string) => {
@@ -348,7 +506,7 @@ export function parseDocument(pages: TextPage[]): ParsedDocument {
       return;
     }
     const last = card.choices[card.choices.length - 1];
-    last.text = clean(`${last.text} ${text}`);
+    last.text = last.text ? joinWrap(last.text, text) : clean(text);
   };
 
   for (const page of pages) {
@@ -542,6 +700,35 @@ export function parseDocument(pages: TextPage[]): ParsedDocument {
         capture = 'inline-answer';
         continue;
       }
+      const loneNumber = line.match(/^([A-Za-z]?\d{1,3})[.)]$/);
+      if (loneNumber) {
+        pendingLabel = normLabel(loneNumber[1]);
+        continue;
+      }
+      if (pendingLabel) {
+        const label = pendingLabel;
+        pendingLabel = null;
+        const asQuestion = questionStart(line);
+        if (asQuestion) {
+          startCard(asQuestion.label, asQuestion.rest);
+          continue;
+        }
+        const asChoice = choiceStart(line);
+        if (asChoice) {
+          startCard(label, '');
+          card?.choices.push({ label: asChoice.label, text: asChoice.text, explanation: null });
+          capture = 'choice';
+          continue;
+        }
+        startCard(label, line);
+        continue;
+      }
+      const loneChoice = line.match(/^([A-Ha-h])[.)]$/);
+      if (loneChoice && card) {
+        card.choices.push({ label: loneChoice[1].toUpperCase(), text: '', explanation: null });
+        capture = 'choice';
+        continue;
+      }
       const inlineExplanation = line.match(/^explanation\s*:\s*(.*)$/i);
       if (inlineExplanation && card) {
         if (inlineExplanation[1]) card.explanationLines.push(inlineExplanation[1]);
@@ -584,7 +771,7 @@ export function parseDocument(pages: TextPage[]): ParsedDocument {
         continue;
       }
       if (capture === 'inline-answer') {
-        card.answer = clean(`${card.answer} ${line}`);
+        card.answer = joinWrap(card.answer, line);
         card.answerLines = [card.answer];
         continue;
       }
@@ -598,13 +785,15 @@ export function parseDocument(pages: TextPage[]): ParsedDocument {
   const parsedTests: ParsedTest[] = tests
     .map((item) => ({
       name: item.name,
-      cards: item.cards.map((card) => {
-        if (card.domainNumber != null && !card.domainName) {
-          const domain = domains.get(card.domainNumber);
-          if (domain) card.domainName = domain.name;
-        }
-        return finalize(card);
-      }).filter((entry) => entry.question),
+      cards: tidyQuestions(
+        item.cards.map((card) => {
+          if (card.domainNumber != null && !card.domainName) {
+            const domain = domains.get(card.domainNumber);
+            if (domain) card.domainName = domain.name;
+          }
+          return finalize(card);
+        }).filter((entry) => entry.question),
+      ),
     }))
     .filter((item) => item.cards.length > 0);
 

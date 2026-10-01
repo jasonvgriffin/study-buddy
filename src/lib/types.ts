@@ -111,6 +111,8 @@ export type Card = ParsedCard & {
   order: number;
   /** User-set start, or null to open at the beginning. Never inferred. */
   videoStartSec: number | null;
+  /** Learner marked this card as bad or broken (a bad parse, wrong key, or missing picture). */
+  reported?: boolean;
 };
 
 export type Review = {

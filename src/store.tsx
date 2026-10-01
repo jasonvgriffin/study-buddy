@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import {
+  deleteCard,
   deleteDeck,
   deleteDraft,
   deleteSessionAndReviews,
@@ -50,6 +51,7 @@ import {
   createExamSession,
   createReviewSession,
   finishSession,
+  jumpToQuestion,
   jumpToSkipped,
   noteHidden,
   openSkipReview,
@@ -114,6 +116,9 @@ type StudyApi = {
   resume: (sessionId: string) => Promise<void>;
   discard: (sessionId: string) => Promise<void>;
   flag: (sessionId: string, cardId: string) => Promise<void>;
+  flagProblem: (card: Card, sessionId?: string | null) => Promise<void>;
+  removeCard: (cardId: string) => Promise<void>;
+  jumpToAny: (sessionId: string, cardId: string) => Promise<void>;
   skip: (sessionId: string, cardId: string) => Promise<void>;
   jumpTo: (sessionId: string, cardId: string) => Promise<void>;
   continueSession: (sessionId: string) => Promise<void>;
@@ -759,6 +764,65 @@ export function StudyProvider({ children }: { children: ReactNode }) {
     }));
   }
 
+  async function flagProblem(card: Card, sessionId?: string | null) {
+    const reported = !card.reported;
+    const nextCard: Card = { ...card, reported };
+    await putCard(nextCard);
+    const now = Date.now();
+    const sessions = snapRef.current?.sessions ?? [];
+    const updates: LiveSession[] = [];
+    for (const session of sessions) {
+      const inSession = sessionId ? session.id === sessionId : session.cardIds.includes(card.id);
+      if (!inSession) continue;
+      const flagged = reported
+        ? session.flagged.includes(card.id)
+          ? session.flagged
+          : [...session.flagged, card.id]
+        : session.flagged.filter((id) => id !== card.id);
+      if (flagged === session.flagged) continue;
+      const next = { ...session, flagged, updatedAt: now };
+      updates.push(next);
+    }
+    for (const session of updates) await putSession(session);
+    patch((state) => ({
+      ...state,
+      cards: state.cards.map((item) => (item.id === card.id ? nextCard : item)),
+      sessions: state.sessions.map((item) => updates.find((next) => next.id === item.id) ?? item),
+    }));
+  }
+
+  async function removeCard(cardId: string) {
+    await deleteCard(cardId);
+    patch((state) => ({
+      ...state,
+      cards: state.cards.filter((card) => card.id !== cardId),
+      reviews: state.reviews.filter((review) => review.cardId !== cardId),
+      memories: state.memories.filter((memory) => memory.cardId !== cardId),
+      sessions: state.sessions.map((session) => {
+        if (!session.cardIds.includes(cardId)) return session;
+        const cardIds = session.cardIds.filter((id) => id !== cardId);
+        return {
+          ...session,
+          cardIds,
+          originalCount: Math.max(0, session.originalCount - 1),
+          index: Math.min(session.index, Math.max(cardIds.length - 1, 0)),
+          answers: session.answers.filter((item) => item.cardId !== cardId),
+          flagged: session.flagged.filter((id) => id !== cardId),
+          skipped: session.skipped.filter((id) => id !== cardId),
+        };
+      }),
+    }));
+  }
+
+  async function jumpToAny(sessionId: string, cardId: string) {
+    const session = liveOrResumed(sessionId);
+    if (!session || session.status === 'finished') {
+      if (session?.status === 'finished') await writeSession(sessionId, session);
+      return;
+    }
+    await writeSession(sessionId, jumpToQuestion(session, cardId, Date.now()));
+  }
+
   async function writeSession(sessionId: string, next: LiveSession) {
     await putSession(next);
     patch((state) => ({
@@ -894,6 +958,9 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       resume,
       discard,
       flag,
+      flagProblem,
+      removeCard,
+      jumpToAny,
       skip,
       jumpTo,
       continueSession,
