@@ -11,7 +11,8 @@ const shots = process.env.E2E_SHOTS ?? path.resolve('test-results/shots');
 mkdirSync(shots, { recursive: true });
 
 async function openDeck(page: Page, name: string) {
-  await page.getByTestId('home-tab-library').click();
+  const libraryOpen = await page.getByRole('heading', { name: 'Library', exact: true }).isVisible();
+  if (!libraryOpen) await page.getByTestId('home-tab-library').click();
   await page.locator(`[data-deck-name="${name}"]`).click();
   await expect(page.getByTestId('start-untimed')).toBeVisible();
   await expect(page.getByTestId('figure-status')).toHaveAttribute('data-count', /^[1-9]/);
@@ -138,7 +139,6 @@ test('phone import: every PBQ takes taps and typing and grades every part', asyn
   await page.getByTestId('review-show-answer').first().click();
   await expect(page.getByTestId('review-answer')).toHaveCount(0);
   await page.getByTestId('save-tests').click();
-  await page.getByTestId('home-tab-library').click();
   await expect(page.locator('[data-deck-name="Practice Exam A"]')).toBeVisible();
 
   const plan: Record<string, { figure: 'items' | 'one' | 'none'; shot?: boolean }[]> = {

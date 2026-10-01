@@ -4,6 +4,7 @@ import {
   closeStudyDb,
   deleteCard,
   deleteDraft,
+  deleteSourceGroup,
   deleteSubject,
   exportBackup,
   figuresForCard,
@@ -11,13 +12,16 @@ import {
   openStudyDb,
   loadSnapshot,
   putDeckBundle,
+  putDraft,
   putFigures,
   saveBackupMeta,
+  savePersistMeta,
   putReviewBundle,
   putSession,
   putSubject,
   relinkDraftFigures,
   resetStudyDb,
+  wipeStudyDatabase,
 } from './db';
 import { emptyMemory } from './scoring';
 import { createExamSession, pauseSession, skipQuestion } from './session';
@@ -316,5 +320,250 @@ describe('IndexedDB', () => {
     const dismissed = await loadSnapshot();
     expect(dismissed.backup?.reminderDismissedAt).toBe(80);
     expect(dismissed.persist).toBeNull();
+  });
+
+  it('deletes one uploaded PDF and leaves the other file in the same subject', async () => {
+    const now = 20;
+    await putSubject({ id: 'a', name: 'A+', createdAt: now, updatedAt: now });
+    const kept: Deck = {
+      id: 'deck-keep',
+      subjectId: 'a',
+      name: 'Notes',
+      sourceFileName: 'notes.pdf',
+      sourceGroupId: 'file-notes',
+      domains: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    const dropped: Deck = {
+      id: 'deck-drop',
+      subjectId: 'a',
+      name: 'Practice Test 1',
+      sourceFileName: 'core.pdf',
+      sourceGroupId: 'file-core',
+      domains: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    const keptCard: Card = {
+      id: 'card-keep',
+      deckId: 'deck-keep',
+      subjectId: 'a',
+      order: 0,
+      sourceLabel: '1',
+      question: 'Keep me',
+      choices: [],
+      correctLabels: [],
+      answer: 'Yes',
+      explanation: null,
+      section: null,
+      domainNumber: null,
+      domainName: null,
+      objective: null,
+      objectiveTitle: null,
+      examCode: null,
+      lessonUrl: null,
+      videoStartSec: null,
+    };
+    const droppedCard: Card = { ...keptCard, id: 'card-drop', deckId: 'deck-drop', question: 'Drop me' };
+    await putDeckBundle(kept, [keptCard]);
+    await putDeckBundle(dropped, [droppedCard]);
+    const session = createExamSession({ id: 'deck-drop', subjectId: 'a', name: 'Practice Test 1' }, [droppedCard], 'untimed', now);
+    await putSession(session);
+    await putReviewBundle(
+      {
+        id: 'rev-drop',
+        cardId: 'card-drop',
+        deckId: 'deck-drop',
+        subjectId: 'a',
+        sessionId: session.id,
+        correct: false,
+        chosenLabels: [],
+        at: now,
+      },
+      { ...emptyMemory('card-drop', 'deck-drop', 'a'), attempts: 1, incorrect: 1, lastResult: 'incorrect', streak: 0 },
+      session,
+    );
+    await putFigures([
+      {
+        id: 'fig-drop',
+        draftId: null,
+        cardId: 'card-drop',
+        captureId: 'cap-drop',
+        role: 'question',
+        png: new Blob([Uint8Array.from([1])], { type: 'image/png' }),
+      },
+    ]);
+    await putDraft({
+      id: 'file-core',
+      subjectId: 'a',
+      fileName: 'core.pdf',
+      tests: [],
+      domains: [],
+      updatedAt: now,
+    });
+    await putDraft({
+      id: 'draft-other',
+      subjectId: 'a',
+      fileName: 'later.pdf',
+      tests: [],
+      domains: [],
+      updatedAt: now,
+    });
+    await deleteSourceGroup('file-core');
+    const snapshot = await loadSnapshot();
+    expect(snapshot.subjects.map((subject) => subject.id)).toEqual(['a']);
+    expect(snapshot.decks.map((deck) => deck.id)).toEqual(['deck-keep']);
+    expect(snapshot.cards.map((card) => card.id)).toEqual(['card-keep']);
+    expect(snapshot.reviews).toEqual([]);
+    expect(snapshot.sessions).toEqual([]);
+    expect(snapshot.memories).toEqual([]);
+    expect(snapshot.drafts.map((draft) => draft.id)).toEqual(['draft-other']);
+    expect(await figuresForCard('card-drop')).toEqual([]);
+  });
+
+  it('deletes a subject together with its questions, metrics, sessions, and files', async () => {
+    const now = 30;
+    await putSubject({ id: 'a', name: 'A+', createdAt: now, updatedAt: now });
+    await putSubject({ id: 'b', name: 'Network+', createdAt: now, updatedAt: now });
+    const deck: Deck = {
+      id: 'deck-a',
+      subjectId: 'a',
+      name: 'Practice Test 1',
+      sourceFileName: 'core.pdf',
+      sourceGroupId: 'file-a',
+      domains: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    const other: Deck = { ...deck, id: 'deck-b', subjectId: 'b', name: 'Network notes', sourceGroupId: 'file-b' };
+    const card: Card = {
+      id: 'card-a',
+      deckId: 'deck-a',
+      subjectId: 'a',
+      order: 0,
+      sourceLabel: '1',
+      question: 'Which cable?',
+      choices: [],
+      correctLabels: [],
+      answer: 'Cat 6',
+      explanation: null,
+      section: null,
+      domainNumber: 1,
+      domainName: 'Hardware',
+      objective: '1.1',
+      objectiveTitle: 'Cables',
+      examCode: null,
+      lessonUrl: null,
+      videoStartSec: null,
+    };
+    const otherCard: Card = { ...card, id: 'card-b', deckId: 'deck-b', subjectId: 'b', question: 'Which protocol?' };
+    await putDeckBundle(deck, [card]);
+    await putDeckBundle(other, [otherCard]);
+    const session = createExamSession({ id: 'deck-a', subjectId: 'a', name: 'Practice Test 1' }, [card], 'untimed', now);
+    await putReviewBundle(
+      {
+        id: 'rev-a',
+        cardId: 'card-a',
+        deckId: 'deck-a',
+        subjectId: 'a',
+        sessionId: session.id,
+        correct: true,
+        chosenLabels: ['A'],
+        at: now,
+      },
+      { ...emptyMemory('card-a', 'deck-a', 'a'), attempts: 4, correct: 2, incorrect: 2, streak: 2, bestStreak: 3 },
+      session,
+    );
+    await putDraft({
+      id: 'draft-a',
+      subjectId: 'a',
+      fileName: 'core.pdf',
+      tests: [],
+      domains: [],
+      updatedAt: now,
+    });
+    await putFigures([
+      {
+        id: 'fig-a',
+        draftId: 'draft-a',
+        cardId: null,
+        captureId: 'cap-a',
+        role: 'question',
+        png: new Blob([Uint8Array.from([2])], { type: 'image/png' }),
+      },
+    ]);
+    await deleteSubject('a');
+    const snapshot = await loadSnapshot();
+    expect(snapshot.subjects.map((subject) => subject.name)).toEqual(['Network+']);
+    expect(snapshot.decks.map((item) => item.id)).toEqual(['deck-b']);
+    expect(snapshot.cards.map((item) => item.id)).toEqual(['card-b']);
+    expect(snapshot.reviews).toEqual([]);
+    expect(snapshot.sessions).toEqual([]);
+    expect(snapshot.memories).toEqual([]);
+    expect(snapshot.drafts).toEqual([]);
+    const db = await openStudyDb();
+    expect(await db.getAll('figures')).toEqual([]);
+  });
+
+  it('wipes every study store, including backup meta, back to an empty database', async () => {
+    const now = 40;
+    await putSubject({ id: 'a', name: 'A+', createdAt: now, updatedAt: now });
+    await putDeckBundle(
+      {
+        id: 'deck-a',
+        subjectId: 'a',
+        name: 'Practice Test 1',
+        sourceFileName: 'core.pdf',
+        sourceGroupId: 'file-a',
+        domains: [],
+        createdAt: now,
+        updatedAt: now,
+      },
+      [
+        {
+          id: 'card-a',
+          deckId: 'deck-a',
+          subjectId: 'a',
+          order: 0,
+          sourceLabel: '1',
+          question: 'Which cable?',
+          choices: [],
+          correctLabels: [],
+          answer: 'Cat 6',
+          explanation: null,
+          section: null,
+          domainNumber: null,
+          domainName: null,
+          objective: null,
+          objectiveTitle: null,
+          examCode: null,
+          lessonUrl: null,
+          videoStartSec: null,
+        },
+      ],
+    );
+    const session = createExamSession({ id: 'deck-a', subjectId: 'a', name: 'Practice Test 1' }, [], 'untimed', now);
+    await putSession({ ...session, cardIds: ['card-a'], originalCount: 1 });
+    await saveBackupMeta({ key: 'backup', exportedAt: now, reminderDismissedAt: now });
+    await savePersistMeta({ key: 'persist', granted: true, at: now });
+    await putDraft({ id: 'draft-a', subjectId: 'a', fileName: 'core.pdf', tests: [], domains: [], updatedAt: now });
+    const fresh = await wipeStudyDatabase();
+    expect(fresh.subjects).toEqual([]);
+    expect(fresh.decks).toEqual([]);
+    expect(fresh.cards).toEqual([]);
+    expect(fresh.reviews).toEqual([]);
+    expect(fresh.sessions).toEqual([]);
+    expect(fresh.memories).toEqual([]);
+    expect(fresh.drafts).toEqual([]);
+    expect(fresh.backup).toBeNull();
+    expect(fresh.persist).toBeNull();
+    await closeStudyDb();
+    const again = await loadSnapshot();
+    expect(again.subjects).toEqual([]);
+    expect(again.sessions).toEqual([]);
+    const db = await openStudyDb();
+    expect(await db.getAll('figures')).toEqual([]);
+    expect(await db.getAll('meta')).toEqual([]);
   });
 });

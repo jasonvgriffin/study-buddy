@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseHomeTab, resolveHomeTab, tabForRoute } from './homeTab';
+import { nextHomeTab, parseHomeTab, resolveHomeTab, tabForRoute } from './homeTab';
 import type { Route } from './nav';
 
 const deck: Route = { name: 'deck', deckId: 'deck-1', cardId: 'card-1' };
@@ -52,6 +52,17 @@ describe('home tab', () => {
     expect(
       resolveHomeTab({ current: 'progress', requested: null, arriving: true, from: deck }),
     ).toBe('progress');
+  });
+
+  it('collapses the open tab and shows only the tab that was tapped', () => {
+    expect(nextHomeTab(null, 'study')).toBe('study');
+    expect(nextHomeTab('study', 'study')).toBeNull();
+    expect(nextHomeTab('library', 'library')).toBeNull();
+    expect(nextHomeTab('progress', 'progress')).toBeNull();
+    expect(nextHomeTab('settings', 'settings')).toBeNull();
+    expect(nextHomeTab('study', 'library')).toBe('library');
+    expect(nextHomeTab('library', 'progress')).toBe('progress');
+    expect(nextHomeTab('settings', 'study')).toBe('study');
   });
 
   it('lets a home deep link replace the tab already picked', () => {

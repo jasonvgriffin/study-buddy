@@ -39,6 +39,11 @@ export function tabForRoute(route: Route): HomeTab {
  * Coming back from another screen keeps a tab already picked this session,
  * and otherwise opens the tab that matches that screen.
  */
+/** Tapping the open tab collapses it. Tapping another tab shows only that one. */
+export function nextHomeTab(current: HomeTab | null, tapped: HomeTab): HomeTab | null {
+  return current === tapped ? null : tapped;
+}
+
 export function resolveHomeTab(input: {
   current: HomeTab | null;
   requested: HomeTab | null;

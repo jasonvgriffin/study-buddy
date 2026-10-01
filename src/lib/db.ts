@@ -82,6 +82,12 @@ export async function resetStudyDb(): Promise<void> {
   });
 }
 
+/** Delete the study database and open a new empty one. Device preferences in localStorage are not stored here. */
+export async function wipeStudyDatabase(): Promise<StudySnapshot> {
+  await resetStudyDb();
+  return loadSnapshot();
+}
+
 export async function loadSnapshot(): Promise<StudySnapshot> {
   const db = await openStudyDb();
   const [subjects, decks, cards, reviews, sessions, memories, drafts, persistRow, backupRow] = await Promise.all([
@@ -362,6 +368,49 @@ export async function deleteDeck(deckId: string): Promise<void> {
   }
   for (const memory of memories.filter((item) => item.deckId === deckId)) {
     await tx.objectStore('memories').delete(memory.cardId);
+  }
+  await tx.done;
+}
+
+/** Remove one uploaded file: every test saved from it, plus a draft that has not been saved yet. */
+export async function deleteSourceGroup(sourceGroupId: string): Promise<void> {
+  const db = await openStudyDb();
+  const [decks, cards, reviews, sessions, memories, drafts, figures] = await Promise.all([
+    db.getAll('decks'),
+    db.getAll('cards'),
+    db.getAll('reviews'),
+    db.getAll('sessions'),
+    db.getAll('memories'),
+    db.getAll('drafts'),
+    db.getAll('figures'),
+  ]);
+  const deckIds = new Set(decks.filter((deck) => deck.sourceGroupId === sourceGroupId).map((deck) => deck.id));
+  const cardIds = new Set(cards.filter((card) => deckIds.has(card.deckId)).map((card) => card.id));
+  const draftIds = new Set(drafts.filter((draft) => draft.id === sourceGroupId).map((draft) => draft.id));
+  const tx = db.transaction(
+    ['decks', 'cards', 'reviews', 'sessions', 'memories', 'drafts', 'figures'],
+    'readwrite',
+  );
+  for (const deckId of deckIds) await tx.objectStore('decks').delete(deckId);
+  for (const card of cards) {
+    if (deckIds.has(card.deckId)) await tx.objectStore('cards').delete(card.id);
+  }
+  for (const review of reviews) {
+    if (deckIds.has(review.deckId) || cardIds.has(review.cardId)) await tx.objectStore('reviews').delete(review.id);
+  }
+  for (const session of sessions) {
+    if (deckIds.has(session.deckId)) await tx.objectStore('sessions').delete(session.id);
+  }
+  for (const memory of memories) {
+    if (deckIds.has(memory.deckId) || cardIds.has(memory.cardId)) {
+      await tx.objectStore('memories').delete(memory.cardId);
+    }
+  }
+  for (const draftId of draftIds) await tx.objectStore('drafts').delete(draftId);
+  for (const figure of figures) {
+    const onCard = figure.cardId != null && cardIds.has(figure.cardId);
+    const onDraft = figure.draftId != null && (draftIds.has(figure.draftId) || figure.draftId === sourceGroupId);
+    if (onCard || onDraft) await tx.objectStore('figures').delete(figure.id);
   }
   await tx.done;
 }

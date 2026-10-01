@@ -12,7 +12,7 @@ import {
   deleteCard,
   deleteDeck,
   deleteDraft,
-  deleteSessionAndReviews,
+  deleteSourceGroup,
   deleteSubject,
   exportBackup,
   importBackup,
@@ -27,8 +27,8 @@ import {
   putSession,
   putSubject,
   saveBackupMeta,
-  replaceMemories,
   requestPersistentStorage,
+  wipeStudyDatabase,
   type StudySnapshot,
 } from './lib/db';
 import { newId } from './lib/format';
@@ -42,7 +42,6 @@ import {
   applyReview,
   emptyMemory,
   isUnclearedMiss,
-  memoryFromReviews,
   orderForDrill,
 } from './lib/scoring';
 import {
@@ -86,13 +85,15 @@ type StudyApi = {
   route: Route;
   focus: string | 'all';
   homeTab: HomeTab | null;
-  setHomeTab: (tab: HomeTab) => void;
+  setHomeTab: (tab: HomeTab | null) => void;
+  dataEpoch: number;
   snap: StudySnapshot | null;
   setFocus: (id: string | 'all') => void;
   setMessage: (message: string | null) => void;
   addSubject: (name: string) => Promise<string>;
   renameSubject: (id: string, name: string) => Promise<void>;
   removeSubject: (id: string) => Promise<void>;
+  removeSource: (sourceGroupId: string) => Promise<void>;
   importPdf: (file: File) => Promise<void>;
   loadSample: (which: 'three' | 'notes') => Promise<void>;
   saveDraftTests: (draft: ImportDraft, options?: { replaceDeckIds?: string[] }) => Promise<void>;
@@ -120,7 +121,7 @@ type StudyApi = {
   ) => Promise<{ finished: boolean }>;
   pause: (sessionId: string) => Promise<void>;
   resume: (sessionId: string) => Promise<void>;
-  discard: (sessionId: string) => Promise<void>;
+  discard: () => Promise<void>;
   removeCard: (cardId: string) => Promise<void>;
   jumpToAny: (sessionId: string, cardId: string) => Promise<void>;
   skip: (sessionId: string, cardId: string) => Promise<void>;
@@ -157,16 +158,21 @@ export function StudyProvider({ children }: { children: ReactNode }) {
     parseRoute(location.hash).name === 'home' ? parseHomeTab(location.hash) : null,
   );
   const [focus, setFocus] = useState<string | 'all'>('all');
+  const [dataEpoch, setDataEpoch] = useState(0);
   const routeRef = useRef(route);
   const homeTabRef = useRef(homeTab);
   const focusRef = useRef(focus);
+  const forceBlankHome = useRef(false);
   const draftWrites = useRef(Promise.resolve());
   routeRef.current = route;
   focusRef.current = focus;
 
-  const setHomeTab = useCallback((tab: HomeTab) => {
+  const setHomeTab = useCallback((tab: HomeTab | null) => {
     homeTabRef.current = tab;
     setHomeTabState(tab);
+    if (tab === null && parseRoute(location.hash).name === 'home' && parseHomeTab(location.hash)) {
+      navigate('/');
+    }
   }, []);
 
   const replaceSnap = (next: StudySnapshot) => {
@@ -228,13 +234,19 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       const prev = routeRef.current;
       const next = parseRoute(location.hash);
       if (next.name === 'home') {
-        const resolved = resolveHomeTab({
-          current: homeTabRef.current,
-          requested: parseHomeTab(location.hash),
-          arriving: prev.name !== 'home',
-          from: prev,
-        });
-        if (resolved && resolved !== homeTabRef.current) setHomeTab(resolved);
+        if (forceBlankHome.current) {
+          forceBlankHome.current = false;
+          homeTabRef.current = null;
+          setHomeTabState(null);
+        } else {
+          const resolved = resolveHomeTab({
+            current: homeTabRef.current,
+            requested: parseHomeTab(location.hash),
+            arriving: prev.name !== 'home',
+            from: prev,
+          });
+          if (resolved && resolved !== homeTabRef.current) setHomeTab(resolved);
+        }
       }
       pauseIfLeaving(prev, next);
       routeRef.current = next;
@@ -316,6 +328,11 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       drafts: state.drafts.filter((draft) => draft.subjectId !== id),
     }));
     setFocus((current) => (current === id ? 'all' : current));
+  }
+
+  async function removeSource(sourceGroupId: string) {
+    await deleteSourceGroup(sourceGroupId);
+    replaceSnap(await loadSnapshot());
   }
 
   function selectedSubjectId(): string | null {
@@ -760,20 +777,17 @@ export function StudyProvider({ children }: { children: ReactNode }) {
     else if (here.name !== 'session' || here.sessionId !== sessionId) navigate(`/session/${sessionId}`);
   }
 
-  async function discard(sessionId: string) {
-    const removed = await deleteSessionAndReviews(sessionId);
-    const loaded = await loadSnapshot();
-    const affected = new Set(removed.map((review) => review.cardId));
-    const rebuilt: CardMemory[] = [];
-    for (const cardId of affected) {
-      const card = loaded.cards.find((item) => item.id === cardId);
-      if (!card) continue;
-      const reviews = loaded.reviews.filter((review) => review.cardId === cardId);
-      rebuilt.push(memoryFromReviews(card.id, card.deckId, card.subjectId, reviews));
-    }
-    if (rebuilt.length) await replaceMemories(rebuilt);
-    const fresh = await loadSnapshot();
+  async function discard() {
+    const fresh = await wipeStudyDatabase();
     replaceSnap(fresh);
+    focusRef.current = 'all';
+    setFocus('all');
+    setMessage(null);
+    setBusy(null);
+    setDataEpoch((epoch) => epoch + 1);
+    forceBlankHome.current = true;
+    homeTabRef.current = null;
+    setHomeTabState(null);
     navigate('/');
   }
 
@@ -943,12 +957,14 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       focus,
       homeTab,
       setHomeTab,
+      dataEpoch,
       snap,
       setFocus,
       setMessage,
       addSubject,
       renameSubject,
       removeSubject,
+      removeSource,
       importPdf,
       loadSample,
       saveDraftTests,
@@ -978,7 +994,7 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       restoreBackup,
       askPersist,
     }),
-    [ready, bootError, busy, message, route, focus, homeTab, setHomeTab, snap],
+    [ready, bootError, busy, message, route, focus, homeTab, setHomeTab, dataEpoch, snap],
   );
 
   return <StudyContext.Provider value={api}>{children}</StudyContext.Provider>;

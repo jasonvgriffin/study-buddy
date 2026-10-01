@@ -11,7 +11,6 @@ test('skip, text size, and the question navigator', async ({ page }) => {
   await expect(page.locator('[data-subject-name="Tools"]')).toHaveClass(/on/);
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
   await page.getByTestId('save-tests').click();
-  await page.getByTestId('home-tab-library').click();
   await expect(page.getByTestId('flagged-link')).toHaveCount(0);
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await page.getByTestId('start-untimed').click();
@@ -53,7 +52,10 @@ test('skip, text size, and the question navigator', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Which river runs through Cairo?' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Back' }).click();
-  await page.getByTestId('home-tab-library').click();
+  await expect(page.getByTestId('home-tab-library')).toBeVisible();
+  if ((await page.getByTestId('home-tab-library').getAttribute('aria-selected')) !== 'true') {
+    await page.getByTestId('home-tab-library').click();
+  }
   await expect(page.getByTestId('flagged-link')).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Settings', exact: true }).click();

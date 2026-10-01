@@ -167,6 +167,26 @@ a { color: inherit; }
   text-align: center;
   font-size: 0.95rem;
 }
+.app-footer {
+  margin: 1.5rem 0 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+.confirm-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(31, 41, 51, 0.55);
+}
+.confirm-dialog {
+  width: min(28rem, 100%);
+  padding: 1.1rem;
+}
 .choice {
   width: 100%;
   min-height: 56px;

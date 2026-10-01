@@ -28,6 +28,54 @@ export function WatchLesson({
   );
 }
 
+export function DestructiveConfirm({
+  title,
+  body,
+  confirmLabel,
+  onConfirm,
+  onCancel,
+}: {
+  title: string;
+  body: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="confirm-layer">
+      <div
+        className="card stack confirm-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-title"
+        data-testid="confirm-dialog"
+      >
+        <h2 id="confirm-title">{title}</h2>
+        <p style={{ margin: 0 }}>{body}</p>
+        <button className="btn btn-clay btn-block" data-testid="confirm-destructive" type="button" onClick={onConfirm}>
+          {confirmLabel}
+        </button>
+        <button className="btn btn-ghost btn-block" data-testid="confirm-cancel" type="button" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Shown before Discard and start over erases the device. Nothing is removed until confirm. */
+export function ResetConfirm({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <DestructiveConfirm
+      title="Discard and start over?"
+      body="This clears every subject, uploaded PDF, test, saved session, score, streak, and study recommendation on this device."
+      confirmLabel="Discard everything"
+      onConfirm={onConfirm}
+      onCancel={onCancel}
+    />
+  );
+}
+
 export function Screen({
   title,
   lede,
