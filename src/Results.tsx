@@ -99,7 +99,7 @@ export function ResultsScreen({ sessionId }: { sessionId: string }) {
                   {card.question}
                 </h3>
                 <p data-testid="your-answer" style={{ margin: 0 }}>
-                  Your answer: {yours || 'You marked it missed.'}
+                  Your answer: {yours || "You chose I don't know"}
                 </p>
                 <p data-testid="right-answer" style={{ margin: 0 }}>
                   Right answer: {right}
