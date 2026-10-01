@@ -160,7 +160,7 @@ test("I don't know reveals the answer and lesson and counts the question missed"
   await expect(page.getByTestId('missed-review')).toBeVisible();
   await expect(page.getByTestId('missed-card')).toHaveCount(1);
   const cairo = page.getByTestId('missed-card').filter({ hasText: 'Cairo' });
-  await expect(cairo.getByTestId('your-answer')).toContainText('You marked it missed.');
+  await expect(cairo.getByTestId('your-answer')).toContainText("You chose I don't know");
   await expect(cairo.getByTestId('watch-lesson')).toBeVisible();
 });
 
