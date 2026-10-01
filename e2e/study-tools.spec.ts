@@ -3,7 +3,7 @@ import path from 'node:path';
 
 const sampleThree = path.resolve('public/samples/sample-three-tests.pdf');
 
-test('edit, text size, and the question navigator', async ({ page }) => {
+test('skip, text size, and the question navigator', async ({ page }) => {
   await page.goto('./');
   await page.getByTestId('subject-name').fill('Tools');
   await page.getByTestId('add-subject').click();
@@ -21,18 +21,17 @@ test('edit, text size, and the question navigator', async ({ page }) => {
   const choiceBox = await page.getByTestId('choice').first().boundingBox();
   expect(choiceBox?.height ?? 0).toBeGreaterThanOrEqual(56);
   await expect(page.getByTestId('flag-card')).toHaveCount(0);
-
-  await page.getByTestId('edit-card').click();
-  await page.getByTestId('edit-question').fill('Edited river question?');
-  await page.getByTestId('edit-explanation').fill('Edited explanation.');
-  await page.getByTestId('save-card').click();
-  await expect(page.getByRole('heading', { name: 'Edited river question?' })).toBeVisible();
-  await expect(page.getByTestId('explanation')).toHaveCount(0);
+  await expect(page.getByTestId('edit-card')).toHaveCount(0);
+  await expect(page.getByTestId('skip-for-later')).toBeVisible();
+  await expect(page.getByTestId('finish')).toBeVisible();
+  await page.keyboard.press('e');
+  await expect(page.getByTestId('card-editor')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Which river runs through Cairo?' })).toBeVisible();
 
   await page.reload();
   await page.getByTestId('resume').click();
-  await expect(page.getByRole('heading', { name: 'Edited river question?' })).toBeVisible();
-  await expect(page.getByTestId('flag-card')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Which river runs through Cairo?' })).toBeVisible();
+  await expect(page.getByTestId('edit-card')).toHaveCount(0);
 
   await page.getByTestId('open-navigator').click();
   await expect(page.getByTestId('navigator')).toBeVisible();
@@ -49,7 +48,7 @@ test('edit, text size, and the question navigator', async ({ page }) => {
   await expect(page.getByTestId('nav-jump')).toHaveCount(1);
   await page.getByTestId('nav-jump').click();
   await expect(page.getByTestId('position')).toHaveText('Question 1 of 3');
-  await expect(page.getByRole('heading', { name: 'Edited river question?' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Which river runs through Cairo?' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Back' }).click();
   await page.getByTestId('home-tab-library').click();

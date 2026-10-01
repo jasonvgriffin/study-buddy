@@ -123,6 +123,44 @@ test('a wrong choice shows the correct answer, the PDF explanation, and the less
   expect(pressed).toBe('var(--link-pressed)');
 });
 
+test('Finish reveals the answer and lesson and counts the question missed', async ({ page }) => {
+  await page.goto('./');
+  await page.getByTestId('subject-name').fill('Rivers');
+  await page.getByTestId('add-subject').click();
+  await expect(page.locator('[data-subject-name="Rivers"]')).toHaveClass(/on/);
+  await page.getByTestId('pdf-file').setInputFiles(sampleThree);
+  await page.getByTestId('save-tests').click();
+  await page.getByTestId('home-tab-library').click();
+  await page.locator('[data-deck-name="Practice Test 1"]').click();
+  await page.getByTestId('start-untimed').click();
+
+  await expect(page.getByTestId('edit-card')).toHaveCount(0);
+  await expect(page.getByTestId('skip-for-later')).toBeVisible();
+  await expect(page.getByTestId('finish')).toHaveText('Finish');
+  await page.getByTestId('finish').click();
+  await expect(page.getByTestId('result')).toHaveText('✗ Incorrect');
+  await expect(page.getByTestId('choice').filter({ hasText: 'Nile' })).toHaveClass(/correct/);
+  await expect(page.getByTestId('explanation')).toContainText('Cairo sits on the Nile');
+  const lesson = page.getByTestId('watch-lesson');
+  await expect(lesson).toBeVisible();
+  await expect(lesson).toHaveCSS('text-decoration-line', 'underline');
+  await page.getByTestId('next').click();
+
+  await expect(page.getByTestId('position')).toHaveText('Question 2 of 3');
+  await page.getByTestId('finish').click();
+  await expect(page.getByTestId('result')).toHaveText('✗ Incorrect');
+  await page.getByTestId('next').click();
+  await page.getByTestId('finish').click();
+  await expect(page.getByTestId('result')).toHaveText('✗ Incorrect');
+  await page.getByTestId('next').click();
+
+  await expect(page.getByTestId('missed-review')).toBeVisible();
+  await expect(page.getByTestId('missed-card')).toHaveCount(3);
+  const cairo = page.getByTestId('missed-card').filter({ hasText: 'Cairo' });
+  await expect(cairo.getByTestId('your-answer')).toContainText('You marked it missed.');
+  await expect(cairo.getByTestId('watch-lesson')).toBeVisible();
+});
+
 test('choose two submits only after two taps, and a missing explanation is stated', async ({ page }) => {
   await page.goto('./');
   await page.getByTestId('subject-name').fill('Rivers');
