@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { DemandPanel, DestructiveConfirm, DrillReplacePrompt, ResetConfirm, Spinner } from './bits';
 import { ExamSimPanel } from './ExamSim';
+import { hasKnownWeights } from './lib/examSim';
 import { deckLabel, sessionDeckLabel } from './lib/deckLabel';
 import { resumeButtonLabel } from './lib/resumeButton';
 import { feedbackMailHref } from './lib/feedbackMail';
@@ -515,6 +516,7 @@ function StudyPanel({
 }) {
   const [confirmReset, setConfirmReset] = useState(false);
   const [simOpen, setSimOpen] = useState(false);
+  const simKnown = simSubject ? hasKnownWeights(simSubject.name, simDecks) : false;
   const [drillDeckName, setDrillDeckName] = useState<string | null>(null);
   const examLabel = examDeck ? deckLabel(examDeck, catalog) : null;
   const promptName = drillDeckName && drillDeckName === examLabel ? drillDeckName : null;
@@ -560,15 +562,17 @@ function StudyPanel({
           <button className="btn btn-primary btn-block" data-testid="start-timed-home" type="button" onClick={onTimed}>
             90-minute exam
           </button>
-          <button
-            className="btn btn-primary btn-block"
-            data-testid="exam-sim"
-            type="button"
-            onClick={() => setSimOpen(true)}
-          >
-            Exam simulation
-          </button>
-          {simOpen && simSubject ? (
+          {simKnown ? (
+            <button
+              className="btn btn-primary btn-block"
+              data-testid="exam-sim"
+              type="button"
+              onClick={() => setSimOpen(true)}
+            >
+              Exam simulation
+            </button>
+          ) : null}
+          {simOpen && simSubject && simKnown ? (
             <ExamSimPanel
               key={simSubject.id}
               subjectName={simSubject.name}

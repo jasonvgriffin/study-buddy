@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allocateCounts, initialWeightRows, officialRows, sampleExam, sampleNotes } from './examSim';
+import { allocateCounts, hasKnownWeights, initialWeightRows, officialRows, sampleExam, sampleNotes } from './examSim';
 
 function randomFrom(seed: number): () => number {
   let state = seed;
@@ -65,5 +65,11 @@ describe('sampleExam', () => {
     const text = sampleNotes(result).join(' ');
     expect(text).toContain('This subject has 2 questions, so the sitting uses 2 instead of 90.');
     expect(text).toContain('filled from the other questions');
+  });
+
+  it('knows the weights only for a known cert or a PDF with domain percents', () => {
+    expect(hasKnownWeights('Rivers', [{ name: 'Practice Test 1', domains: [] }])).toBe(false);
+    expect(hasKnownWeights('Security+ SY0-701', [])).toBe(true);
+    expect(hasKnownWeights('Rivers', [{ domains: [{ number: 1, name: 'Waterways', weight: 0.4 }] }])).toBe(true);
   });
 });
