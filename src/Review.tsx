@@ -34,7 +34,7 @@ export function ReviewScreen({ draftId }: { draftId: string }) {
         (deck) => deck.subjectId === draft.subjectId && deck.sourceFileName === draft.fileName,
       );
   const save = () =>
-    void study.saveDraftTests(draft, { replaceDeckIds: replaceOld ? earlierDecks.map((deck) => deck.id) : [] });
+    void study.saveDraftTests(draft, { replaceDeckIds: replaceOld || organizing ? earlierDecks.map((deck) => deck.id) : [] });
   const shiftTest = (direction: -1 | 1) => {
     const moved = moveTest(draft.tests, draft.videoStarts, testIndex, direction);
     commit({ ...draft, tests: moved.tests, videoStarts: moved.videoStarts });
@@ -56,7 +56,7 @@ export function ReviewScreen({ draftId }: { draftId: string }) {
           ? 'Optional. Rename, merge, split, or reorder, then save if you want those changes. Answers stay hidden unless you tap Show answer.'
           : 'This is the import check, not the quiz. Answers stay hidden here unless you tap Show answer. Save the tests, then open one and tap Start to study.'}
       </p>
-      {earlierDecks.length ? (
+      {earlierDecks.length && !organizing ? (
         <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <input
             type="checkbox"
