@@ -120,7 +120,8 @@ test('today recap follows the subject chip and stays quiet for a subject with no
   await expect(page.getByTestId('today-recap')).toHaveCount(0);
   await expect(page.getByTestId('study-hero')).not.toContainText('Nothing yet today');
   await expect(page.getByTestId('study-hero')).not.toContainText('3 answered');
-  await expect(page.getByTestId('start-studying')).toHaveText('Start studying');
+  // The fresh Weather import still owns the card, so its one Start studying button is the import's.
+  await expect(page.getByTestId('study-hero').getByRole('button', { name: 'Start studying', exact: true })).toHaveCount(1);
 
   await page.locator('[data-subject-name="Rivers"]').click();
   await expect(page.getByTestId('study-hero').getByTestId('today-subjects')).toContainText('Rivers');

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type Ref } from 'react';
 import { DemandPanel, DestructiveConfirm, DrillReplacePrompt, ResetConfirm, Spinner } from './bits';
 import { deckLabel, sessionDeckLabel } from './lib/deckLabel';
 import { resumeButtonLabel } from './lib/resumeButton';
@@ -23,6 +23,7 @@ export function Home() {
   const [name, setName] = useState('');
   const [rename, setRename] = useState<string | null>(null);
   const [examDeckId, setExamDeckId] = useState<string | null>(() => readExamDeckId());
+  const [startPick, setStartPick] = useState<{ id: string; offer: string | null } | null>(null);
   const [naming, setNaming] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
   const [backupError, setBackupError] = useState<string | null>(null);
@@ -32,7 +33,7 @@ export function Home() {
     if (!offerId) return;
     const root = document.querySelector('[data-testid="start-offer"]');
     if (!(root instanceof HTMLElement)) return;
-    root.scrollIntoView({ block: 'start' });
+    (root.closest<HTMLElement>('.start-offer') ?? root).scrollIntoView({ block: 'start' });
     root.querySelector<HTMLButtonElement>('[data-testid="start-saved"]')?.focus({ preventScroll: true });
   }, [offerId, offerNote]);
   if (!snap) return null;
@@ -47,9 +48,18 @@ export function Home() {
   const primary = sessions[0] ?? null;
   const focused = subjects.find((subject) => subject.id === study.focus) ?? null;
   const examDeck = resolveDeckPick(decks, snap.sessions, inFocus, examDeckId);
-  const recentDeck = resolveDeckPick(decks, snap.sessions, inFocus, null);
   const offerDeck = study.startOffer
     ? decks.find((deck) => deck.id === study.startOffer?.deckId) ?? null
+    : null;
+  // One Start studying card: the picked exam wins, then a fresh import's first test, then the latest sitting, then A.
+  const explicitStart = startPick && startPick.offer === (offerDeck?.id ?? null) ? startPick.id : null;
+  const startDeck = resolveDeckPick(decks, snap.sessions, inFocus, explicitStart ?? offerDeck?.id ?? null);
+  const startChoices = decks.map((deck) => ({ id: deck.id, label: deckLabel(deck, snap.decks) }));
+  const startOffer = offerDeck
+    ? {
+        added: study.startOffer?.added ?? null,
+        onOrganize: () => void study.openOrganize(offerDeck.sourceGroupId),
+      }
     : null;
   const nameFor = (session: LiveSession) => sessionDeckLabel(session, snap.decks);
   const recap = todayRecap({
@@ -119,12 +129,14 @@ export function Home() {
         />
       ) : null}
 
-      {offerDeck ? (
-        <StartOffer
-          label={deckLabel(offerDeck, snap.decks)}
-          added={study.startOffer?.added ?? null}
-          onStart={() => void study.startExam(offerDeck, false)}
-          onOrganize={() => void study.openOrganize(offerDeck.sourceGroupId)}
+      {startOffer && sessions.length > 0 && startDeck ? (
+        <StartCard
+          choices={startChoices}
+          deck={startDeck}
+          offer={startOffer}
+          recap={null}
+          onPick={(id) => setStartPick({ id, offer: offerDeck?.id ?? null })}
+          onStart={() => void study.startExam(startDeck, false)}
         />
       ) : null}
 
@@ -134,8 +146,10 @@ export function Home() {
         now={now}
         recap={recap}
         arrival={study.homeArrival}
-        startDeck={recentDeck}
-        startLabel={recentDeck ? deckLabel(recentDeck, snap.decks) : null}
+        startDeck={startDeck}
+        startChoices={startChoices}
+        offer={startOffer}
+        onPickStart={(id) => setStartPick({ id, offer: offerDeck?.id ?? null })}
         emptyDetail={focused ? `Import a PDF into ${focused.name}.` : 'Name a subject, then import its PDF.'}
         emptyAction={focused ? 'Import a PDF' : 'Start a new subject'}
         busy={!!study.busy}
@@ -151,7 +165,7 @@ export function Home() {
           void study.resume(session.id);
         }}
         onStart={() => {
-          if (recentDeck) void study.startExam(recentDeck, false);
+          if (startDeck) void study.startExam(startDeck, false);
           else {
             study.setHomeTab('library');
             if (!focused) {
@@ -280,7 +294,9 @@ function StudyHero({
   recap,
   arrival,
   startDeck,
-  startLabel,
+  startChoices,
+  offer,
+  onPickStart,
   emptyDetail,
   emptyAction,
   onResume,
@@ -294,7 +310,9 @@ function StudyHero({
   recap: TodayRecap;
   arrival: { from: string; at: number } | null;
   startDeck: Deck | null;
-  startLabel: string | null;
+  startChoices: StartChoice[];
+  offer: StartOfferInfo | null;
+  onPickStart: (id: string) => void;
   emptyDetail: string;
   emptyAction: string;
   onResume: (session: LiveSession) => void;
@@ -337,19 +355,27 @@ function StudyHero({
       </article>
     );
   }
-  const ready = !!startDeck;
+  if (startDeck) {
+    return (
+      <StartCard
+        cardRef={ref}
+        testId="study-hero"
+        choices={startChoices}
+        deck={startDeck}
+        offer={offer}
+        recap={recap}
+        onPick={onPickStart}
+        onStart={onStart}
+      />
+    );
+  }
   return (
-    <article
-      ref={ref}
-      className={ready ? 'card stack home-hero home-hero-ready' : 'card stack home-hero'}
-      style={{ padding: '1rem' }}
-      data-testid="study-hero"
-    >
+    <article ref={ref} className="card stack home-hero" style={{ padding: '1rem' }} data-testid="study-hero">
       <p className="muted" style={{ margin: 0 }}>
         Start studying
       </p>
-      <p style={{ margin: 0 }}>{startLabel ?? emptyDetail}</p>
-      {!ready && onPickPdf ? (
+      <p style={{ margin: 0 }}>{emptyDetail}</p>
+      {onPickPdf ? (
         <label
           className={busy ? 'btn btn-primary btn-block is-disabled' : 'btn btn-primary btn-block'}
           data-testid="start-studying"
@@ -370,13 +396,8 @@ function StudyHero({
           />
         </label>
       ) : (
-        <button
-          className={ready ? 'btn btn-primary btn-block btn-start' : 'btn btn-primary btn-block'}
-          data-testid="start-studying"
-          type="button"
-          onClick={onStart}
-        >
-          {startDeck ? 'Start studying' : emptyAction}
+        <button className="btn btn-primary btn-block" data-testid="start-studying" type="button" onClick={onStart}>
+          {emptyAction}
         </button>
       )}
       {recap.answered > 0 ? <TodayDetails recap={recap} /> : null}
@@ -397,37 +418,101 @@ function ResumeLine({ session, now, name }: { session: LiveSession; now: number;
   );
 }
 
-function StartOffer({
-  label,
-  added,
+type StartChoice = { id: string; label: string };
+type StartOfferInfo = { added: string | null; onOrganize: () => void };
+
+/**
+ * The one Start studying card on Home. After an import it also carries the "Added N questions" note and
+ * Rename tests. The exam picker lists every test in view so a PDF with several exams can start any of them.
+ */
+function StartCard({
+  cardRef,
+  testId,
+  choices,
+  deck,
+  offer,
+  recap,
+  onPick,
   onStart,
-  onOrganize,
 }: {
-  label: string;
-  added: string | null;
+  cardRef?: Ref<HTMLElement>;
+  testId?: string;
+  choices: StartChoice[];
+  deck: Deck;
+  offer: StartOfferInfo | null;
+  recap: TodayRecap | null;
+  onPick: (id: string) => void;
   onStart: () => void;
-  onOrganize: () => void;
 }) {
-  return (
-    <section className="card stack start-offer" data-testid="start-offer" aria-label="Start studying" style={{ padding: '1rem' }}>
-      {added ? (
+  const label = choices.find((choice) => choice.id === deck.id)?.label ?? deck.name;
+  const body = (
+    <>
+      {offer?.added ? (
         <p className="muted" data-testid="import-added" style={{ margin: 0 }}>
-          {added}
+          {offer.added}
         </p>
       ) : null}
-      <p data-testid="start-offer-cue" style={{ margin: 0 }}>
-        You're all set — tap Start studying to begin
-      </p>
-      <p className="muted" data-testid="start-offer-test" style={{ margin: 0 }}>
-        {label}
-      </p>
-      <button className="btn btn-primary btn-block btn-start" data-testid="start-saved" type="button" onClick={onStart}>
+      {offer ? (
+        <p data-testid="start-offer-cue" style={{ margin: 0 }}>
+          You're all set — tap Start studying to begin
+        </p>
+      ) : (
+        <p className="muted" style={{ margin: 0 }}>
+          Start studying
+        </p>
+      )}
+      <label className="stack start-pick" style={{ gap: '0.35rem' }}>
+        <span className="start-pick-label">Choose an exam</span>
+        <span className="test-picker">
+          <span
+            className="test-picker-value"
+            data-testid={offer ? 'start-offer-test' : 'start-deck-label'}
+            aria-hidden="true"
+          >
+            {label}
+          </span>
+          <select className="field" data-testid="start-deck" value={deck.id} onChange={(event) => onPick(event.target.value)}>
+            {choices.map((choice) => (
+              <option key={choice.id} value={choice.id}>
+                {choice.label}
+              </option>
+            ))}
+          </select>
+        </span>
+      </label>
+      <button
+        className="btn btn-primary btn-block btn-start"
+        data-testid={offer ? 'start-saved' : 'start-studying'}
+        data-deck-id={deck.id}
+        type="button"
+        onClick={onStart}
+      >
         Start studying
       </button>
-      <button className="text-link" data-testid="organize-tests" type="button" onClick={onOrganize}>
-        Rename tests
-      </button>
-    </section>
+      {offer ? (
+        <button className="text-link" data-testid="organize-tests" type="button" onClick={offer.onOrganize}>
+          Rename tests
+        </button>
+      ) : null}
+    </>
+  );
+  return (
+    <article
+      ref={cardRef}
+      className={offer ? 'card stack home-hero home-hero-ready start-offer' : 'card stack home-hero home-hero-ready'}
+      style={{ padding: '1rem' }}
+      data-testid={testId}
+      aria-label="Start studying"
+    >
+      {offer ? (
+        <div className="stack" data-testid="start-offer">
+          {body}
+        </div>
+      ) : (
+        body
+      )}
+      {recap && recap.answered > 0 ? <TodayDetails recap={recap} /> : null}
+    </article>
   );
 }
 
