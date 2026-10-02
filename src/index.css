@@ -261,7 +261,8 @@ button.by-test:focus-visible {
   line-height: 1.2;
   text-align: center;
 }
-.home-tab.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.home-tab { background: var(--moss); color: var(--moss-ink); border-color: var(--moss); }
+.home-tab.on { background: var(--moss); color: var(--moss-ink); border-color: var(--ink); box-shadow: 0 0 0 2px var(--ink); }
 .home-tab-note { font-size: 0.8rem; font-weight: 550; opacity: 0.8; }
 .home-hero { scroll-margin-top: 0.75rem; min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
 .home-hero .btn { min-height: 64px; font-size: 1.15rem; }
