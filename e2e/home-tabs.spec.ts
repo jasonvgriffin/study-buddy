@@ -45,7 +45,12 @@ test('a tab deep link opens that tab, and deck or a finished session returns do 
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Rivers"]')).toHaveClass(/on/);
   await expect(page.getByTestId('rename-subject-form')).toHaveCount(0);
-  await page.getByTestId('rename-subject-toggle').click();
+  const renameToggle = page.getByTestId('rename-subject-toggle');
+  await expect(renameToggle).toHaveClass(/btn-primary/);
+  await expect(renameToggle).not.toHaveClass(/btn-ghost/);
+  const startBg = await page.getByTestId('start-subject').evaluate((el) => getComputedStyle(el).backgroundColor);
+  await expect(renameToggle).toHaveCSS('background-color', startBg);
+  await renameToggle.click();
   await expect(page.getByLabel('Subject name')).toHaveValue('Rivers');
   await page.getByTestId('rename-subject-toggle').click();
   await expect(page.getByTestId('rename-subject-form')).toHaveCount(0);
