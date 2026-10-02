@@ -44,6 +44,11 @@ test('a tab deep link opens that tab, and deck or a finished session returns do 
   await page.getByTestId('subject-name').fill('Rivers');
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Rivers"]')).toHaveClass(/on/);
+  await expect(page.getByTestId('rename-subject-form')).toHaveCount(0);
+  await page.getByTestId('rename-subject-toggle').click();
+  await expect(page.getByLabel('Subject name')).toHaveValue('Rivers');
+  await page.getByTestId('rename-subject-toggle').click();
+  await expect(page.getByTestId('rename-subject-form')).toHaveCount(0);
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
   await expect(page.getByTestId('start-saved')).toBeVisible();
   await page.locator('[data-deck-name="Practice Test 1"]').click();
