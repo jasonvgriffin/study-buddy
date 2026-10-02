@@ -68,7 +68,7 @@ test('discard and start over clears every saved study record', async ({ page }) 
 
   await page.getByTestId('discard').first().click();
   await page.getByTestId('confirm-destructive').click();
-  await expect(page.getByTestId('home-tab-hint')).toHaveText('Pick a tab to start');
+  await expect(page.getByTestId('home-tab-hint')).toHaveCount(0);
   await expect(page.locator('#home-panel')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'What to study next' })).toHaveCount(0);
   await expect(page.locator('[data-subject-name="A+"]')).toHaveCount(0);
@@ -102,7 +102,7 @@ test('discard and start over clears every saved study record', async ({ page }) 
   await expect(page.locator('html')).toHaveAttribute('data-text-size', 'large');
 
   await page.reload();
-  await expect(page.getByTestId('home-tab-hint')).toHaveText('Pick a tab to start');
+  await expect(page.getByTestId('home-tab-hint')).toHaveCount(0);
   await expect(page.locator('#home-panel')).toHaveCount(0);
   await expect(page.locator('[data-subject-name="A+"]')).toHaveCount(0);
   await expect(page.locator('html')).toHaveAttribute('data-text-size', 'large');

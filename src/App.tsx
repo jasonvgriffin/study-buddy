@@ -87,11 +87,11 @@ function Shell() {
         {study.ready && route.name === 'deck' ? <DeckScreen deckId={route.deckId} cardId={route.cardId} /> : null}
         {study.ready && route.name === 'session' ? <SessionScreen sessionId={route.sessionId} /> : null}
         {study.ready && route.name === 'results' ? <ResultsScreen sessionId={route.sessionId} /> : null}
-        <p className="muted" data-testid="build-version" style={{ fontSize: '0.75rem', textAlign: 'center', margin: '1.5rem 0 0' }}>
-          Study Buddy build {__APP_VERSION__} · {__BUILD_TIME__.slice(0, 16).replace('T', ' ')} UTC
-        </p>
-        <footer className="app-footer" data-testid="app-footer">
-          Built by Jason Griffin with the help of AI agents
+        <footer className="app-footer">
+          <span data-testid="app-footer">Built by Jason Griffin with the help of AI agents</span>
+          <span data-testid="build-version" style={{ display: 'block', fontSize: '0.75rem', marginTop: '0.35rem' }}>
+            Study Buddy build {__APP_VERSION__} · {__BUILD_TIME__.slice(0, 16).replace('T', ' ')} UTC
+          </span>
         </footer>
       </main>
       {showNav ? (
