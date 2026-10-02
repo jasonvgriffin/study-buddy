@@ -161,6 +161,33 @@ a { color: inherit; }
 .home-tab.on { background: var(--ink); color: #fff; border-color: var(--ink); }
 .home-tab-note { font-size: 0.8rem; font-weight: 550; opacity: 0.8; }
 .home-hero .btn { min-height: 64px; font-size: 1.15rem; }
+.home-hero-ready { border-color: var(--moss); }
+.btn-start {
+  min-height: 72px;
+  font-size: 1.28rem;
+  font-weight: 750;
+}
+.start-offer {
+  scroll-margin-top: 0.75rem;
+  border-color: var(--moss);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--moss) 28%, transparent), var(--shadow);
+}
+.today-card {
+  padding: 0.8rem 1rem;
+  scroll-margin-top: 0.75rem;
+}
+.today-card.stack { gap: 0.35rem; }
+.today-card h2 { font-size: 1.05rem; }
+.today-subjects,
+.today-tests {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.today-subject { font-weight: 650; }
 .home-panel { padding: 1rem; }
 .home-tab-hint {
   margin: 0.15rem 0 0;
@@ -395,10 +422,14 @@ button:disabled,
 }
 .demand-panel { scroll-margin-top: 0.75rem; }
 .feedback-note {
-  margin: 0;
+  margin: 1.35rem 0 0;
   color: var(--muted);
   font-size: 0.92rem;
   line-height: 1.35;
+}
+.feedback-note strong {
+  color: var(--ink);
+  font-weight: 750;
 }
 .feedback-note a {
   color: var(--link);

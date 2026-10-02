@@ -70,6 +70,7 @@ import type {
   CardMemory,
   Deck,
   ImportDraft,
+  AnswerResult,
   LiveSession,
   Review,
   StoredFigure,
@@ -111,7 +112,12 @@ type StudyApi = {
     card: Card,
     chosenLabels: string[],
     correct: boolean,
+    result?: AnswerResult,
   ) => Promise<{ finished: boolean }>;
+  /** Set after tests are saved, until the learner starts a session. */
+  startOffer: { deckId: string; subjectId: string } | null;
+  /** Previous screen when Home was just opened. Null on a fresh load. */
+  homeArrival: { from: Route['name']; at: number } | null;
   pause: (sessionId: string) => Promise<void>;
   resume: (sessionId: string) => Promise<void>;
   discard: () => Promise<void>;
@@ -164,6 +170,8 @@ export function StudyProvider({ children }: { children: ReactNode }) {
   );
   const [focus, setFocus] = useState<string | 'all'>('all');
   const [dataEpoch, setDataEpoch] = useState(0);
+  const [startOffer, setStartOffer] = useState<{ deckId: string; subjectId: string } | null>(null);
+  const [homeArrival, setHomeArrival] = useState<{ from: Route['name']; at: number } | null>(null);
   const routeRef = useRef(route);
   const homeTabRef = useRef(homeTab);
   const focusRef = useRef(focus);
@@ -238,6 +246,9 @@ export function StudyProvider({ children }: { children: ReactNode }) {
     const onHash = () => {
       const prev = routeRef.current;
       const next = parseRoute(location.hash);
+      if (next.name === 'home' && prev.name !== 'home') {
+        setHomeArrival({ from: prev.name, at: Date.now() });
+      }
       if (next.name === 'home') {
         if (forceBlankHome.current) {
           forceBlankHome.current = false;
@@ -496,9 +507,11 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       const now = Date.now();
       const stem = draft.fileName.replace(/\.pdf$/i, '');
       const captureToCard = new Map<string, string>();
+      let offerDeckId: string | null = null;
       for (let testIndex = 0; testIndex < draft.tests.length; testIndex += 1) {
         const test = draft.tests[testIndex];
         const deckId = newId();
+        if (!offerDeckId) offerDeckId = deckId;
         const name = test.name === 'Imported test' && draft.tests.length === 1 ? stem : test.name;
         const deck: Deck = {
           id: deckId,
@@ -532,6 +545,7 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       const loaded = await loadSnapshot();
       replaceSnap(loaded);
       setFocus(subjectId);
+      if (offerDeckId) setStartOffer({ deckId: offerDeckId, subjectId });
       navigate('/');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Could not save those tests.', 'error');
@@ -579,6 +593,7 @@ export function StudyProvider({ children }: { children: ReactNode }) {
 
   async function openSession(session: LiveSession) {
     await putSession(session);
+    setStartOffer(null);
     patch((state) => ({ ...state, sessions: [...state.sessions, session] }));
     navigate(`/session/${session.id}`);
   }
@@ -648,11 +663,19 @@ export function StudyProvider({ children }: { children: ReactNode }) {
     await openSession(session);
   }
 
-  async function answer(sessionId: string, card: Card, chosenLabels: string[], correct: boolean) {
+  async function answer(
+    sessionId: string,
+    card: Card,
+    chosenLabels: string[],
+    correct: boolean,
+    result?: AnswerResult,
+  ) {
     const state = snapRef.current;
     const found = state?.sessions.find((session) => session.id === sessionId);
     if (!state || !found) return { finished: false };
     const now = Date.now();
+    const resolved: AnswerResult = result ?? (correct ? 'correct' : 'incorrect');
+    const gradedCorrect = resolved === 'correct';
     const session = found.status === 'paused' ? resumeSession(found, now) : found;
     const review: Review = {
       id: newId(),
@@ -660,19 +683,21 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       deckId: card.deckId,
       subjectId: card.subjectId,
       sessionId,
-      correct,
+      correct: gradedCorrect,
       chosenLabels,
       at: now,
+      result: resolved,
     };
     const prior =
       state.memories.find((memory) => memory.cardId === card.id) ??
       emptyMemory(card.id, card.deckId, card.subjectId);
-    const memory = applyReview(prior, correct, now);
+    const memory = applyReview(prior, gradedCorrect, now);
     const { session: next, finished } = answerSession(session, {
       cardId: card.id,
-      correct,
+      correct: gradedCorrect,
       chosenLabels,
       at: now,
+      result: resolved,
     });
     await putReviewBundle(review, memory, next);
     patch((current) => ({
@@ -712,6 +737,7 @@ export function StudyProvider({ children }: { children: ReactNode }) {
     forceBlankHome.current = true;
     homeTabRef.current = null;
     setHomeTabState(null);
+    setStartOffer(null);
     navigate('/');
   }
 
@@ -875,6 +901,8 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       setHomeTab,
       dataEpoch,
       snap,
+      startOffer,
+      homeArrival,
       setFocus,
       setMessage,
       addSubject,
@@ -907,7 +935,7 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       restoreBackup,
       askPersist,
     }),
-    [ready, bootError, busy, message, messageTone, route, focus, homeTab, setHomeTab, dataEpoch, snap],
+    [ready, bootError, busy, message, messageTone, route, focus, homeTab, setHomeTab, dataEpoch, snap, startOffer, homeArrival],
   );
 
   return <StudyContext.Provider value={api}>{children}</StudyContext.Provider>;

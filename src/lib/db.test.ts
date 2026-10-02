@@ -566,4 +566,93 @@ describe('IndexedDB', () => {
     expect(await db.getAll('figures')).toEqual([]);
     expect(await db.getAll('meta')).toEqual([]);
   });
+
+  it('keeps older reviews and an I-don\'t-know result after reopen and backup import', async () => {
+    const now = 1_700_000_000_000;
+    await putSubject({ id: 'sub', name: 'Field notes', createdAt: now, updatedAt: now });
+    const cards: Card[] = [
+      {
+        id: 'card-1',
+        deckId: 'deck-1',
+        subjectId: 'sub',
+        order: 0,
+        sourceLabel: '1',
+        question: 'Which river runs through Cairo?',
+        choices: [],
+        correctLabels: ['A'],
+        answer: 'Nile',
+        explanation: null,
+        section: null,
+        domainNumber: null,
+        domainName: null,
+        objective: null,
+        objectiveTitle: null,
+        examCode: null,
+        lessonUrl: null,
+        videoStartSec: null,
+      },
+    ];
+    await putDeckBundle(
+      {
+        id: 'deck-1',
+        subjectId: 'sub',
+        name: 'Practice Test 1',
+        sourceFileName: 'rivers.pdf',
+        sourceGroupId: 'file-1',
+        domains: [],
+        createdAt: now,
+        updatedAt: now,
+      },
+      cards,
+    );
+    const session = createExamSession(
+      { id: 'deck-1', subjectId: 'sub', name: 'Practice Test 1' },
+      cards,
+      'untimed',
+      now,
+    );
+    const legacy: Review = {
+      id: 'rev-legacy',
+      cardId: 'card-1',
+      deckId: 'deck-1',
+      subjectId: 'sub',
+      sessionId: session.id,
+      correct: false,
+      chosenLabels: ['B'],
+      at: now,
+    };
+    const unknown: Review = {
+      id: 'rev-unknown',
+      cardId: 'card-1',
+      deckId: 'deck-1',
+      subjectId: 'sub',
+      sessionId: session.id,
+      correct: false,
+      chosenLabels: [],
+      at: now + 1_000,
+      result: 'unknown',
+    };
+    const memory = emptyMemory('card-1', 'deck-1', 'sub');
+    await putReviewBundle(legacy, memory, session);
+    await putReviewBundle(unknown, { ...memory, attempts: 2, incorrect: 2 }, session);
+    await closeStudyDb();
+    const again = await loadSnapshot();
+    expect(again.decks.map((deck) => deck.name)).toEqual(['Practice Test 1']);
+    expect(again.cards).toHaveLength(1);
+    const legacyRow = again.reviews.find((review) => review.id === 'rev-legacy');
+    const unknownRow = again.reviews.find((review) => review.id === 'rev-unknown');
+    expect(legacyRow?.result).toBeUndefined();
+    expect(legacyRow?.correct).toBe(false);
+    expect(unknownRow?.result).toBe('unknown');
+    const backup = await exportBackup();
+    await resetStudyDb();
+    await importBackup(backup);
+    const imported = await loadSnapshot();
+    expect(imported.subjects.map((subject) => subject.name)).toEqual(['Field notes']);
+    expect(imported.decks).toHaveLength(1);
+    expect(imported.cards).toHaveLength(1);
+    expect(imported.reviews.find((review) => review.id === 'rev-legacy')?.result).toBeUndefined();
+    expect(imported.reviews.find((review) => review.id === 'rev-unknown')?.result).toBe('unknown');
+    expect(imported.sessions).toHaveLength(1);
+  });
 });
