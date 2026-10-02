@@ -24,4 +24,15 @@ test('Settings explains where the answer buzz works; Home does not', async ({ pa
     "Heads up: the little buzz when you answer doesn't work on iPhone in any browser. On Android it depends on the browser: Chrome buzzes, Firefox doesn't. The colors and animations always show.",
   );
   await expect(note).toHaveClass(/muted/);
+
+  // The note uses exactly the same typography as the card's description right above it.
+  const fonts = await note.evaluate((el) => {
+    const desc = el.previousElementSibling as HTMLElement;
+    const read = (node: Element) => {
+      const style = getComputedStyle(node);
+      return { tag: node.tagName, className: node.className, fontSize: style.fontSize, fontFamily: style.fontFamily, lineHeight: style.lineHeight };
+    };
+    return { desc: read(desc), note: read(el) };
+  });
+  expect(fonts.note).toEqual(fonts.desc);
 });
