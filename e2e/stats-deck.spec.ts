@@ -9,7 +9,7 @@ test('stats leads with each test and opens that test’s own numbers', async ({ 
   await page.goto('./');
   await page.getByTestId('home-tab-library').click();
   await page.getByTestId('start-subject').click();
-  await page.getByTestId('subject-name').fill('Stats');
+  await page.getByTestId('subject-name').fill('Exams');
   await page.getByTestId('add-subject').click();
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
   await expect(page.getByTestId('start-saved')).toBeVisible();
@@ -22,10 +22,10 @@ test('stats leads with each test and opens that test’s own numbers', async ({ 
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('position')).toHaveText('Question 2 of 3');
   await page.getByRole('button', { name: 'Back', exact: true }).click();
-
-  const second = page.locator('[data-deck-name="Practice Test 2"]');
-  if (!(await second.isVisible())) await page.getByTestId('home-tab-library').click();
-  await second.click();
+  await expect(page.getByTestId('resume-card')).toBeVisible();
+  const library = page.getByTestId('home-tab-library');
+  if ((await library.getAttribute('aria-selected')) !== 'true') await library.click();
+  await page.locator('[data-deck-name="Practice Test 2"]').click();
   await page.getByTestId('start-untimed').click();
   await expect(page.getByTestId('position')).toHaveText('Question 1 of 2');
   await page.keyboard.press('a');
@@ -34,7 +34,7 @@ test('stats leads with each test and opens that test’s own numbers', async ({ 
   await expect(page.getByTestId('position')).toHaveText('Question 2 of 2');
   await page.getByRole('button', { name: 'Back', exact: true }).click();
 
-  await page.getByRole('button', { name: 'Stats', exact: true }).click();
+  await page.getByRole('navigation').getByRole('button', { name: 'Stats', exact: true }).click();
   await expect(page.getByRole('heading', { level: 2 }).first()).toHaveText('By test');
   const byTestBeforeAccuracy = await page.evaluate(() => {
     const tests = document.querySelector('[data-testid="by-test"]');
