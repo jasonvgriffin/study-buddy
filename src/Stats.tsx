@@ -1,6 +1,7 @@
 import { domainBreakdown } from './lib/domains';
 import { accuracyByDay, rollup, studyStreak, weakestMemories } from './lib/scoring';
 import { elapsedMs } from './lib/session';
+import { deckLabel } from './lib/deckLabel';
 import { compareTestNames, formatDuration, formatPercent } from './lib/format';
 import { Screen } from './bits';
 import { useStudy } from './store';
@@ -82,19 +83,22 @@ export function Stats() {
       <section className="stack" data-testid="by-test">
         <h2>By test</h2>
         {!decks.length ? <p className="muted">No tests in this view.</p> : null}
-        {[...decks].sort((a, b) => compareTestNames(a.name, b.name)).map((deck) => {
-          const stats = rollup(memories.filter((memory) => memory.deckId === deck.id));
-          return (
-            <article key={deck.id} className="card" style={{ padding: '0.85rem' }}>
-              <strong>{deck.name}</strong>
-              <p className="muted" style={{ margin: '0.25rem 0 0' }}>
-                {stats.attempts
-                  ? `${formatPercent(stats.accuracy)} over ${stats.attempts} answers`
-                  : 'No answers yet'}
-              </p>
-            </article>
-          );
-        })}
+        {[...decks]
+          .map((deck) => ({ deck, label: deckLabel(deck, snap.decks) }))
+          .sort((a, b) => compareTestNames(a.label, b.label))
+          .map(({ deck, label }) => {
+            const stats = rollup(memories.filter((memory) => memory.deckId === deck.id));
+            return (
+              <article key={deck.id} className="card" style={{ padding: '0.85rem' }}>
+                <strong>{label}</strong>
+                <p className="muted" style={{ margin: '0.25rem 0 0' }}>
+                  {stats.attempts
+                    ? `${formatPercent(stats.accuracy)} over ${stats.attempts} answers`
+                    : 'No answers yet'}
+                </p>
+              </article>
+            );
+          })}
       </section>
       <section className="stack">
         <h2>Weakest cards</h2>

@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react';
 import { figureCountForCards } from './lib/db';
 import { dueCardIds } from './lib/queue';
 import { isUnclearedMiss, rollup } from './lib/scoring';
-import { activeSessionForDeck, resumeLabel } from './lib/session';
+import { deckLabel } from './lib/deckLabel';
+import { activeSessionForDeck, resumeLabelParts } from './lib/session';
 import { navigate } from './nav';
 import { DemandPanel, DrillReplacePrompt, ResetConfirm, Screen } from './bits';
 import { useStudy } from './store';
@@ -56,6 +57,7 @@ export function DeckScreen({ deckId, cardId = null }: { deckId: string; cardId?:
       </Screen>
     );
   }
+  const label = deckLabel(deck, snap.decks);
   const cards = snap.cards.filter((card) => card.deckId === deck.id).sort((a, b) => a.order - b.order);
   const memories = snap.memories.filter((memory) => memory.deckId === deck.id);
   const stats = rollup(memories);
@@ -65,12 +67,13 @@ export function DeckScreen({ deckId, cardId = null }: { deckId: string; cardId?:
   }).length;
   const due = dueCardIds(cards, snap.memories, Date.now(), { deckId: deck.id }).length;
   const active = activeSessionForDeck(snap.sessions, deck.id);
+  const resumeParts = active ? resumeLabelParts(active, Date.now()) : null;
   const domains = [...new Set(cards.map((card) => card.domainNumber).filter((n): n is number => n != null))];
 
   const editingCard = cards.find((card) => card.id === editing) ?? null;
 
   return (
-    <Screen title={deck.name} lede={deck.sourceFileName} onBack={() => navigate('/')}>
+    <Screen title={label} lede={deck.sourceFileName} onBack={() => navigate('/')}>
       {editingCard ? (
         <DemandPanel
           key={editingCard.id}
@@ -93,7 +96,11 @@ export function DeckScreen({ deckId, cardId = null }: { deckId: string; cardId?:
       </p>
       {active ? (
         <article className="card stack" style={{ padding: '0.9rem' }} data-testid="deck-resume">
-          <p style={{ margin: 0 }}>{resumeLabel(active, Date.now())}</p>
+          <p style={{ margin: 0 }}>
+            {resumeParts?.lead}
+            {label}
+            {resumeParts?.rest}
+          </p>
           <button className="btn btn-primary" type="button" onClick={() => void study.resume(active.id)}>
             Resume
           </button>
@@ -125,7 +132,7 @@ export function DeckScreen({ deckId, cardId = null }: { deckId: string; cardId?:
       </button>
       {drillPrompt ? (
         <DrillReplacePrompt
-          deckName={deck.name}
+          deckName={label}
           onStart={() => {
             setDrillPrompt(false);
             void study.startMissedDrill(deck, null, { replaceOpen: true });
@@ -199,7 +206,7 @@ export function DeckScreen({ deckId, cardId = null }: { deckId: string; cardId?:
         className="btn btn-clay btn-block"
         type="button"
         onClick={() => {
-          if (window.confirm(`Delete ${deck.name}? Answers for this test are removed too.`)) {
+          if (window.confirm(`Delete ${label}? Answers for this test are removed too.`)) {
             void study.removeDeck(deck.id);
           }
         }}
