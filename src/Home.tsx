@@ -930,10 +930,10 @@ function SettingsPanel({
       <button className="btn btn-primary btn-block" type="button" onClick={() => navigate('/settings')}>
         Open settings
       </button>
-      <button className="btn btn-ghost btn-block" type="button" onClick={onExport}>
+      <button className="btn btn-primary btn-block" type="button" onClick={onExport}>
         Export backup
       </button>
-      <label className="btn btn-ghost btn-block">
+      <label className="btn btn-primary btn-block">
         Import backup
         <input
           hidden
