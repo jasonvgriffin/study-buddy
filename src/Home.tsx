@@ -548,11 +548,11 @@ function StudyPanel({
           <button className="btn btn-primary btn-block" data-testid="practice-exam" type="button" onClick={onUntimed}>
             Practice exam
           </button>
-          <button className="btn btn-ghost btn-block" data-testid="start-timed-home" type="button" onClick={onTimed}>
+          <button className="btn btn-primary btn-block" data-testid="start-timed-home" type="button" onClick={onTimed}>
             90-minute exam
           </button>
           <button
-            className="btn btn-ghost btn-block"
+            className="btn btn-primary btn-block"
             data-testid="drill-home"
             type="button"
             onClick={() => {
@@ -573,7 +573,7 @@ function StudyPanel({
               onCancel={() => setDrillDeckName(null)}
             />
           ) : null}
-          <button className="btn btn-ghost btn-block" data-testid="review-due-home" type="button" onClick={onReviewDue}>
+          <button className="btn btn-primary btn-block" data-testid="review-due-home" type="button" onClick={onReviewDue}>
             Recommended Cards{dueCount ? ` (${dueCount})` : ''}
           </button>
         </>
