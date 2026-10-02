@@ -67,6 +67,7 @@ test('paused progress survives a full browser restart', async () => {
   if (where) await expect(again.getByTestId('position')).toHaveText(where[0]);
   await again.getByRole('button', { name: 'Back' }).click();
   await again.getByTestId('home-tab-library').click();
+  await again.getByTestId('subject-picker').selectOption({ label: 'Rivers' });
   await again.locator('[data-deck-name="Practice Test 2"]').click();
   await expect(again.getByText('no answers yet')).toBeVisible();
   await expect(again.getByTestId('deck-resume')).toHaveCount(0);

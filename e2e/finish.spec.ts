@@ -93,6 +93,7 @@ test('keyboard grading, missed review, domain scores, and the backup reminder', 
 
   await page.getByRole('button', { name: 'Home', exact: true }).click();
   await page.getByTestId('home-tab-library').click();
+  await page.getByTestId('subject-picker').selectOption({ label: 'Finish' });
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await page.getByTestId('start-untimed').click();
   await expect(page.getByTestId('choice').nth(0)).toContainText('Nile');
