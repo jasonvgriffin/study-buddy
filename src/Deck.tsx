@@ -153,7 +153,7 @@ export function DeckScreen({ deckId, cardId = null }: { deckId: string; cardId?:
           })
         }
       >
-        Review due cards{due ? ` (${due})` : ''}
+        Recommended Questions{due ? ` (${due})` : ''}
       </button>
       {domains.length ? (
         <div className="row-scroll">

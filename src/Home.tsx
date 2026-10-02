@@ -218,7 +218,7 @@ export function Home() {
                 if (examDeck) void study.startMissedDrill(examDeck, null, { replaceOpen: true });
               }}
               onReviewDue={() => {
-                void study.startDueReview(study.focus === 'all' ? 'Due for review' : 'Due in this subject', {
+                void study.startDueReview('Recommended Questions', {
                   subjectId: study.focus === 'all' ? null : study.focus,
                   scopeKey: `review:home:${study.focus}`,
                 });
@@ -540,7 +540,7 @@ function StudyPanel({
             />
           ) : null}
           <button className="btn btn-ghost btn-block" data-testid="review-due-home" type="button" onClick={onReviewDue}>
-            Review due cards{dueCount ? ` (${dueCount})` : ''}
+            Recommended Questions{dueCount ? ` (${dueCount})` : ''}
           </button>
         </>
       )}
