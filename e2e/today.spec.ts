@@ -28,7 +28,8 @@ test('home keeps today on the primary card and stays quiet when the day is empty
   await page.getByRole('button', { name: 'Back' }).click();
   const resume = page.getByTestId('resume-card');
   await expect(resume).toBeVisible();
-  await expect(resume.getByTestId('hero-kicker')).toHaveText('Continue');
+  await expect(resume.getByTestId('hero-kicker')).toHaveCount(0);
+  await expect(resume.getByTestId('resume-test-name')).toHaveText('Practice Test 1');
   await expect(resume).toContainText(/Resume Practice Test 1: Question 1 of 3/);
   await expect(resume.getByTestId('resume')).toHaveText('Continue Rivers');
   await expect(page.getByTestId('today-line')).toHaveCount(0);

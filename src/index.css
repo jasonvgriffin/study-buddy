@@ -162,6 +162,7 @@ a { color: inherit; }
 .home-tab-note { font-size: 0.8rem; font-weight: 550; opacity: 0.8; }
 .home-hero { scroll-margin-top: 0.75rem; min-width: 0; max-width: 100%; }
 .home-hero .btn { min-height: 64px; font-size: 1.15rem; }
+.resume-test-name { font-weight: 750; }
 .home-continue { max-width: 100%; min-width: 0; }
 .home-continue-label {
   flex: 1 1 auto;

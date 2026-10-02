@@ -16,7 +16,8 @@ test('the continue button names the session subject and a long name stays inside
   await page.getByRole('button', { name: 'Back' }).click();
 
   const card = page.getByTestId('resume-card');
-  await expect(card.getByTestId('hero-kicker')).toHaveText('Continue');
+  await expect(card.getByTestId('hero-kicker')).toHaveCount(0);
+  await expect(card.getByTestId('resume-test-name')).toHaveText('Practice Test 1');
   await expect(card.getByTestId('resume')).toHaveText(`Continue ${longSubject}`);
   await expect(card).toContainText(/Resume Practice Test 1: Question 1 of 3/);
 
