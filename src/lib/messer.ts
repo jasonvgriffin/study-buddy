@@ -111,3 +111,11 @@ export function messerHref(certId: string | null | undefined, domainName: string
   const winner = [...top].sort((a, b) => b.length - a.length)[0];
   return sectionHref(course.index, winner?.anchor ?? null);
 }
+
+/** True when any of the text names Professor Messer. */
+export function mentionsProfessorMesser(texts: Iterable<string | null | undefined>): boolean {
+  for (const text of texts) {
+    if (text && /professor\s*messer/i.test(text)) return true;
+  }
+  return false;
+}

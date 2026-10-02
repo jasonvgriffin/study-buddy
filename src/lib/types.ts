@@ -100,6 +100,8 @@ export type Deck = {
   sourceFileName: string;
   sourceGroupId: string;
   domains: ParsedDomain[];
+  /** True when the source PDF names Professor Messer. Older saves omit it. */
+  mentionsMesser?: boolean;
   createdAt: number;
   updatedAt: number;
 };
@@ -209,6 +211,8 @@ export type ImportDraft = {
   fileName: string;
   tests: ParsedTest[];
   domains: ParsedDomain[];
+  /** True when the PDF text names Professor Messer. */
+  mentionsMesser?: boolean;
   /** Optional start times entered during review, keyed by "testIndex:cardIndex". */
   videoStarts?: Record<string, number | null>;
   updatedAt: number;

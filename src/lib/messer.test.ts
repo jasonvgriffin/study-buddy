@@ -42,3 +42,14 @@ describe('messer links', () => {
     expect(messerHref('220-1201', 'No domain')).toBe(INDEX['220-1201']);
   });
 });
+
+import { mentionsProfessorMesser } from './messer';
+import { describe as describeMention, expect as expectMention, it as itMention } from 'vitest';
+
+describeMention('mentionsProfessorMesser', () => {
+  itMention('needs the name Professor Messer', () => {
+    expectMention(mentionsProfessorMesser(['CompTIA A+ 220-1201 practice exam'])).toBe(false);
+    expectMention(mentionsProfessorMesser(['', 'From PROFESSOR  MESSER, LLC'])).toBe(true);
+    expectMention(mentionsProfessorMesser([null, 'professormesser.com'])).toBe(true);
+  });
+});
