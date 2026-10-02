@@ -21,7 +21,7 @@ export function Home() {
   const snap = study.snap;
   const tab = study.homeTab;
   const [name, setName] = useState('');
-  const [rename, setRename] = useState('');
+  const [rename, setRename] = useState<string | null>(null);
   const [examDeckId, setExamDeckId] = useState<string | null>(() => readExamDeckId());
   const [naming, setNaming] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
@@ -241,7 +241,7 @@ export function Home() {
                 setNaming(open);
               }}
               onSaveSubject={() => {
-                if (focused) void study.renameSubject(focused.id, rename || focused.name);
+                if (focused) void study.renameSubject(focused.id, rename ?? focused.name);
               }}
             />
           ) : null}
@@ -620,7 +620,7 @@ function LibraryPanel({
   cards: Card[];
   subjects: Subject[];
   focused: Subject | null;
-  rename: string;
+  rename: string | null;
   naming: boolean;
   inFocus: (subjectId: string) => boolean;
   onRename: (value: string) => void;
@@ -811,7 +811,7 @@ function LibraryPanel({
         >
           <label className="stack" style={{ gap: '0.35rem' }}>
             <span>Rename {focused.name}</span>
-            <input className="field" value={rename || focused.name} onChange={(event) => onRename(event.target.value)} />
+            <input className="field" value={rename ?? focused.name} onChange={(event) => onRename(event.target.value)} />
           </label>
           <button className="btn btn-ghost btn-block" type="submit">
             Save name
