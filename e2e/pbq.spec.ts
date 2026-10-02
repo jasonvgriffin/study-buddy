@@ -11,7 +11,7 @@ const shots = process.env.E2E_SHOTS ?? path.resolve('test-results/shots');
 mkdirSync(shots, { recursive: true });
 
 async function openDeck(page: Page, name: string) {
-  const libraryOpen = await page.getByRole('heading', { name: 'Library', exact: true }).isVisible();
+  const libraryOpen = await page.getByRole('heading', { name: 'Subjects', exact: true }).isVisible();
   if (!libraryOpen) await page.getByTestId('home-tab-library').click();
   await page.locator(`[data-deck-name="${name}"]`).click();
   await expect(page.getByTestId('start-untimed')).toBeVisible();

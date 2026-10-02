@@ -50,7 +50,7 @@ test('a tab deep link opens that tab, and deck or a finished session returns do 
   await expect(page.getByTestId('start-untimed')).toBeVisible();
   await page.reload();
   await page.getByRole('button', { name: 'Back', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Library', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Subjects', exact: true })).toBeVisible();
   await expect(page.locator('[data-deck-name="Practice Test 1"]')).toBeVisible();
 
   await page.locator('[data-deck-name="Practice Test 1"]').click();
@@ -88,7 +88,7 @@ test('tapping the open tab collapses it, and another tap shows only that tab', a
 
   await page.getByTestId('home-tab-study').click();
   await page.getByTestId('home-tab-library').click();
-  await expect(page.getByRole('heading', { name: 'Library', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Subjects', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Study', exact: true })).toHaveCount(0);
   await expect(page.getByTestId('home-tab-study')).toHaveAttribute('aria-selected', 'false');
   await expect(page.getByTestId('home-tab-library')).toHaveAttribute('aria-selected', 'true');
