@@ -5,7 +5,7 @@ const sampleThree = path.resolve('public/samples/sample-three-tests.pdf');
 
 test('a fresh open shows the four tabs and remembers nothing on reload', async ({ page }) => {
   await page.goto('./');
-  await expect(page.getByTestId('home-tab-hint')).toHaveText('Pick a tab to start');
+  await expect(page.getByTestId('home-tab-hint')).toHaveCount(0);
   await expect(page.locator('#home-panel')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'What to study next' })).toHaveCount(0);
   for (const id of ['study', 'library', 'settings']) {
@@ -20,7 +20,7 @@ test('a fresh open shows the four tabs and remembers nothing on reload', async (
   await expect(page.getByTestId('home-tab-hint')).toHaveCount(0);
 
   await page.reload();
-  await expect(page.getByTestId('home-tab-hint')).toBeVisible();
+  await expect(page.getByTestId('home-tab-hint')).toHaveCount(0);
   await expect(page.locator('#home-panel')).toHaveCount(0);
   await expect(page.getByTestId('home-tab-study')).toHaveAttribute('aria-selected', 'false');
 });
@@ -35,7 +35,7 @@ test('a tab deep link opens that tab, and deck or a finished session returns do 
   await expect(page.getByRole('heading', { name: 'Missed questions' })).toHaveCount(0);
   await expect(page.getByTestId('domain-stats')).toHaveCount(0);
   await page.getByRole('navigation').getByRole('button', { name: 'Home', exact: true }).click();
-  await expect(page.getByTestId('home-tab-hint')).toBeVisible();
+  await expect(page.getByTestId('home-tab-hint')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Progress', exact: true })).toHaveCount(0);
 
   await page.goto('./');
@@ -81,7 +81,7 @@ test('tapping the open tab collapses it, and another tap shows only that tab', a
     await expect(page.locator('#home-panel')).toBeVisible();
     await expect(page.getByTestId(`home-tab-${id}`)).toHaveAttribute('aria-selected', 'true');
     await page.getByTestId(`home-tab-${id}`).click();
-    await expect(page.getByTestId('home-tab-hint')).toHaveText('Pick a tab to start');
+    await expect(page.getByTestId('home-tab-hint')).toHaveCount(0);
     await expect(page.locator('#home-panel')).toHaveCount(0);
     await expect(page.getByTestId(`home-tab-${id}`)).toHaveAttribute('aria-selected', 'false');
   }
@@ -104,9 +104,9 @@ test('tapping the open tab collapses it, and another tap shows only that tab', a
   await expect(page.getByRole('heading', { name: 'By test', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'By domain', exact: true })).toHaveCount(0);
   await page.getByRole('navigation').getByRole('button', { name: 'Home', exact: true }).click();
-  await expect(page.getByTestId('home-tab-hint')).toBeVisible();
+  await expect(page.getByTestId('home-tab-hint')).toHaveCount(0);
   await expect(page).toHaveURL(/#\/$/);
   await page.reload();
-  await expect(page.getByTestId('home-tab-hint')).toBeVisible();
+  await expect(page.getByTestId('home-tab-hint')).toHaveCount(0);
   await expect(page.getByTestId('home-tab-stats')).toHaveText('Stats');
 });

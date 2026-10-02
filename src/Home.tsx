@@ -269,11 +269,7 @@ export function Home() {
             />
           ) : null}
         </div>
-      ) : (
-        <p className="muted home-tab-hint" data-testid="home-tab-hint">
-          Pick a tab to start
-        </p>
-      )}
+      ) : null}
     </div>
   );
 }
