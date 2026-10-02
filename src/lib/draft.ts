@@ -138,6 +138,7 @@ export function draftFromSavedTests(input: {
     fileName: first.sourceFileName,
     tests,
     domains: first.domains,
+    mentionsMesser: ordered.some((deck) => deck.mentionsMesser === true),
     videoStarts,
     updatedAt: input.now,
     fromSourceGroupId: first.sourceGroupId,

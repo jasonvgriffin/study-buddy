@@ -160,7 +160,7 @@ export function DeckScreen({ deckId, cardId = null }: { deckId: string; cardId?:
         <div className="row-scroll">
           {domains.map((number) => {
             const label = cards.find((card) => card.domainNumber === number)?.domainName ?? `Domain ${number}`;
-            const certId = detectCert([
+            const certId = !deck.mentionsMesser ? null : detectCert([
               snap?.subjects.find((item) => item.id === deck.subjectId)?.name,
               deck.name,
               deck.sourceFileName,

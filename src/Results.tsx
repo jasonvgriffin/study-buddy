@@ -48,7 +48,11 @@ export function ResultsScreen({ sessionId }: { sessionId: string }) {
     sitting.map((id) => ({ cardId: id, correct: latest.get(id)?.correct ?? null })),
   );
   const subject = study.snap?.subjects.find((item) => item.id === session.subjectId) ?? null;
-  const certId = detectCert([
+  const sittingDeckIds = new Set(sitting.map((id) => cardById.get(id)?.deckId).filter(Boolean));
+  const namesMesser = (study.snap?.decks ?? []).some(
+    (item) => item.mentionsMesser === true && (item.id === deck?.id || sittingDeckIds.has(item.id)),
+  );
+  const certId = !namesMesser ? null : detectCert([
     subject?.name,
     deck?.name,
     deck?.sourceFileName,

@@ -289,7 +289,7 @@ export function Stats() {
         activeMs={breakdown.activeMs}
         days={breakdown.days.slice(-14)}
         domains={breakdown.domains}
-        certId={detectCert([
+        certId={!deck.mentionsMesser ? null : detectCert([
           subject?.name,
           deck.name,
           deck.sourceFileName,

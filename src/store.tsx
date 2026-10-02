@@ -40,6 +40,7 @@ import { newId } from './lib/format';
 import { lessonTitle, watchUrl } from './lib/lessons';
 import { assignFigures, bindFiguresToCards } from './lib/figures';
 import { extractPdfStudy } from './lib/pdfExtract';
+import { mentionsProfessorMesser } from './lib/messer';
 import { pbqFigureJobs } from './lib/regions';
 import { choiceGraded, gradeLabels, parseDocument } from './lib/parser';
 import { dueCardIds } from './lib/queue';
@@ -405,6 +406,10 @@ export function StudyProvider({ children }: { children: ReactNode }) {
         fileName: file.name,
         tests,
         domains: doc.domains,
+        mentionsMesser: mentionsProfessorMesser([
+          ...extracted.textPages.flatMap((page) => page.lines),
+          ...extracted.chrome.map((item) => item.text),
+        ]),
         videoStarts: {},
         updatedAt: Date.now(),
       };
@@ -544,6 +549,7 @@ export function StudyProvider({ children }: { children: ReactNode }) {
           sourceFileName: draft.fileName,
           sourceGroupId: draft.id,
           domains: draft.domains,
+          mentionsMesser: draft.mentionsMesser === true,
           createdAt: now + testIndex,
           updatedAt: now,
         };
