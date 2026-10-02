@@ -1,17 +1,27 @@
 import { expect, test } from '@playwright/test';
 
-test('Open settings lands at the top and backup buttons are green', async ({ page }) => {
+test('Settings opens in the top spot of Home, scrolled to its top, with green backup buttons', async ({ page }) => {
   await page.goto('./');
-  await page.getByTestId('home-tab-settings').click();
-  const exportButton = page.locator('#home-panel').getByRole('button', { name: 'Export backup' });
-  await expect(exportButton).toHaveClass(/btn-primary/);
-  await expect(page.locator('#home-panel label', { hasText: 'Import backup' })).toHaveClass(/btn-primary/);
-  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-  await page.getByRole('button', { name: 'Open settings' }).click();
-  await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
-  await page.waitForTimeout(300);
-  expect(await page.evaluate(() => window.scrollY)).toBe(0);
-  await expect(page.locator('label', { hasText: 'Import backup' })).toHaveClass(/btn-primary/);
+  const panelTop = () => page.locator('#home-panel').evaluate((el) => el.getBoundingClientRect().top);
+  for (const open of [
+    () => page.getByTestId('home-tab-settings').click(),
+    () => page.getByRole('navigation').getByRole('button', { name: 'Settings', exact: true }).click(),
+  ]) {
+    await page.getByTestId('home-tab-study').click();
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await open();
+    const section = page.getByTestId('home-section-settings');
+    await expect(section).toBeVisible();
+    await expect(page).toHaveURL(/\/(#\/)?$/);
+    await expect(section.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
+    await page.waitForTimeout(300);
+    // The section top is on screen rather than scrolled past.
+    const top = await panelTop();
+    expect(top).toBeGreaterThanOrEqual(-1);
+    expect(top).toBeLessThan(200);
+    await expect(section.getByRole('button', { name: 'Export backup' })).toHaveClass(/btn-primary/);
+    await expect(section.locator('label', { hasText: 'Import backup' })).toHaveClass(/btn-primary/);
+  }
 });
 
 test('Settings explains where the answer buzz works; Home does not', async ({ page }) => {

@@ -263,7 +263,7 @@ export function Stats() {
     const deck = snap.decks.find((item) => item.id === deckId);
     if (!deck) {
       return (
-        <Screen title="Stats" onBack={() => navigate('/stats')}>
+        <Screen title="Stats" onBack={() => navigate('/?tab=stats')}>
           <p>That test is not on this device.</p>
         </Screen>
       );
@@ -302,7 +302,7 @@ export function Stats() {
           attempts: memory.attempts,
           deckLabel: null,
         }))}
-        onBack={() => navigate('/stats')}
+        onBack={() => navigate('/?tab=stats')}
       />
     );
   }

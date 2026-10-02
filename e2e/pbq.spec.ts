@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { openSubjects } from './homeSections';
 
 function pointer(locator: Locator) {
   return test.info().project.use.hasTouch ? locator.tap() : locator.click();
@@ -126,6 +127,7 @@ test('phone import: every PBQ takes taps and typing and grades every part', asyn
   await expect(page.locator('[data-subject-name="Core 1"]')).toHaveClass(/on/);
   await page.getByTestId('pdf-file').setInputFiles(pdfPath);
   await expect(page.getByTestId('start-saved')).toBeVisible({ timeout: 240_000 });
+  await openSubjects(page);
   await expect(page.locator('[data-deck-name="Practice Exam A"]')).toBeVisible();
 
   const plan: Record<string, { figure: 'items' | 'one' | 'none'; shot?: boolean }[]> = {

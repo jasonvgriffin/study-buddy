@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import path from 'node:path';
+import { openSubjects } from './homeSections';
 
 const sampleThree = path.resolve('public/samples/sample-three-tests.pdf');
 
@@ -58,6 +59,8 @@ test('organize stays optional: the library list has no Rename tests link, the im
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
   await expect(page.getByTestId('start-saved')).toBeVisible();
   await expect(page.getByTestId('save-tests')).toHaveCount(0);
+  await openSubjects(page);
+  await expect(page.getByTestId('start-offer')).toHaveCount(0);
 
   const library = page.getByTestId('library-subject');
   await expect(library.getByTestId('delete-subject')).toBeVisible();
@@ -65,14 +68,18 @@ test('organize stays optional: the library list has no Rename tests link, the im
   await expect(library.getByTestId('organize-tests')).toHaveCount(0);
   await expect(library.getByText('Rename tests', { exact: true })).toHaveCount(0);
 
+  await page.getByTestId('home-tab-study').click();
   await page.getByTestId('start-offer').getByTestId('organize-tests').click();
   await expect(page.getByRole('heading', { name: 'Rename tests' })).toBeVisible();
   await expect(page.getByTestId('test-name').first()).toHaveValue('Practice Test 1');
   await page.getByTestId('test-name').first().fill('Rivers combined');
   await page.getByRole('button', { name: 'Back', exact: true }).click();
 
+  await expect(page.getByTestId('start-saved')).toBeVisible();
+  await openSubjects(page);
   await expect(page.locator('[data-deck-name="Practice Test 1"]')).toBeVisible();
   await expect(page.locator('[data-deck-name="Rivers combined"]')).toHaveCount(0);
+  await page.getByTestId('home-tab-study').click();
   await expect(page.getByTestId('start-saved')).toBeVisible();
   await page.getByTestId('start-saved').click();
   await expect(page.getByRole('heading', { name: 'Which river runs through Cairo?' })).toBeVisible();

@@ -11,6 +11,9 @@ import { resumeLabelParts } from './lib/session';
 import { openHomeSessions } from './homeSessions';
 import { nextHomeTab } from './homeTab';
 import { navigate } from './nav';
+import { BackupReminder } from './BackupReminder';
+import { Settings } from './Settings';
+import { Stats } from './Stats';
 import type { StudySnapshot } from './lib/db';
 import { useStudy } from './store';
 import type { Card, Deck, LiveSession, Subject } from './lib/types';
@@ -28,16 +31,45 @@ export function Home() {
   const [startTimed, setStartTimed] = useState<boolean>(() => readStartTimed());
   const [naming, setNaming] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
-  const [backupError, setBackupError] = useState<string | null>(null);
   const offerId = study.startOffer?.deckId ?? null;
   const offerNote = study.startOffer?.added ?? null;
+  const libraryOnTop = tab === 'library';
+  const { setHomeTab } = study;
+  // A finished import shows its Start studying card, which shares the top spot with the Subjects panel.
+  // Only a new import result switches sections; opening Subjects afterwards (or coming back to it) is left alone.
+  const offerKey = offerId ? `${offerId}|${offerNote ?? ''}` : null;
+  const shownOffer = useRef<string | null>(offerKey);
   useEffect(() => {
-    if (!offerId) return;
+    if (offerKey === shownOffer.current) return;
+    shownOffer.current = offerKey;
+    if (offerKey && libraryOnTop) setHomeTab('study');
+  }, [offerKey, libraryOnTop, setHomeTab]);
+  // Opening a section brings the top of it into view. Stats and Settings always land at their top (Brave mobile
+  // can restore an old offset after first paint, so pin it again on the next frames). Subjects only scrolls when
+  // its top is out of view, so flows that open it from further down (or above it, like naming a subject) stay put.
+  useEffect(() => {
+    if (tab !== 'library' && tab !== 'stats' && tab !== 'settings') return;
+    const toTop = () => document.getElementById('home-panel')?.scrollIntoView({ block: 'start' });
+    if (tab === 'library') {
+      const top = document.getElementById('home-panel')?.getBoundingClientRect().top;
+      if (top != null && (top < 0 || top > window.innerHeight * 0.6)) toTop();
+      return;
+    }
+    toTop();
+    const frame = requestAnimationFrame(toTop);
+    const timer = window.setTimeout(toTop, 150);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+    };
+  }, [tab]);
+  useEffect(() => {
+    if (!offerId || libraryOnTop) return;
     const root = document.querySelector('[data-testid="start-offer"]');
     if (!(root instanceof HTMLElement)) return;
     (root.closest<HTMLElement>('.start-offer') ?? root).scrollIntoView({ block: 'start' });
     root.querySelector<HTMLButtonElement>('[data-testid="start-saved"]')?.focus({ preventScroll: true });
-  }, [offerId, offerNote]);
+  }, [offerId, offerNote, libraryOnTop]);
   if (!snap) return null;
 
   const now = Date.now();
@@ -99,7 +131,10 @@ export function Home() {
   const offerCardAboveResume = !!startOffer && sessions.length > 0 && !!startDeck;
   // With tests saved, the Study tab has no panel of its own: it brings the Home card into view instead.
   const studyHasPanel = decks.length === 0;
-  const panelOpen = tab === 'library' || tab === 'settings' || (tab === 'study' && studyHasPanel);
+  // The open section renders in the top spot, in place of the Start studying / Resume card. Study only has a
+  // section of its own before any test is saved; otherwise Study is the Start studying card itself.
+  const topTab = tab === 'library' || tab === 'stats' || tab === 'settings' || (tab === 'study' && studyHasPanel) ? tab : null;
+  // Subjects renders in the top spot (in place of the Start studying / Resume card), not under the tabs.
   const nameFor = (session: LiveSession) => sessionDeckLabel(session, snap.decks);
   const recap = todayRecap({
     reviews: snap.reviews,
@@ -168,105 +203,16 @@ export function Home() {
         />
       ) : null}
 
-      {offerCardAboveResume && startDeck ? (
-        <StartCard
-          choices={startChoices}
-          deck={startDeck}
-          offer={startOffer}
-          recap={null}
-          timing={timing}
-          practice={practice}
-          onPick={pickStart}
-          onStart={() => void study.startExam(startDeck, startTimed)}
-        />
-      ) : null}
-
-      <StudyHero
-        sessions={sessions}
-        nameFor={nameFor}
-        now={now}
-        recap={recap}
-        arrival={study.homeArrival}
-        startDeck={startDeck}
-        startChoices={startChoices}
-        offer={startOffer}
-        onPickStart={pickStart}
-        timing={timing}
-        practice={practice}
-        practiceInResume={!offerCardAboveResume}
-        emptyDetail={focused ? `Import a PDF into ${focused.name}.` : 'Name a subject, then import its PDF.'}
-        emptyAction={focused ? 'Import a PDF' : 'Start a new subject'}
-        busy={!!study.busy}
-        onPickPdf={
-          focused
-            ? (file) => {
-                study.setHomeTab('library');
-                void study.importPdf(file);
-              }
-            : undefined
-        }
-        onResume={(session) => {
-          void study.resume(session.id);
-        }}
-        onStart={() => {
-          if (startDeck) void study.startExam(startDeck, startTimed);
-          else {
-            study.setHomeTab('library');
-            if (!focused) {
-              setNameError(null);
-              setNaming(true);
-            }
-          }
-        }}
-      />
-
-      <div className="home-tabs" role="group" aria-label="Home">
-        {(
-          [
-            { id: 'study', label: 'Study', note: 'Continue' },
-            { id: 'library', label: 'Subjects', note: 'Decks' },
-            { id: 'stats', label: 'Stats', note: '' },
-            { id: 'settings', label: 'Settings', note: 'Backup' },
-          ] as const
-        ).map((item) =>
-          item.id === 'stats' ? (
-            <button
-              key="stats"
-              className="home-tab"
-              type="button"
-              data-testid="home-tab-stats"
-              onClick={() => navigate('/stats')}
-            >
-              Stats
-            </button>
-          ) : (
-            <button
-              key={item.id}
-              className={tab === item.id ? 'home-tab on' : 'home-tab'}
-              type="button"
-              role="tab"
-              id={`home-tab-${item.id}`}
-              data-testid={`home-tab-${item.id}`}
-              aria-selected={tab === item.id}
-              aria-controls={tab === item.id && panelOpen ? 'home-panel' : undefined}
-              aria-label={item.id === 'settings' ? 'Settings and backup' : item.label}
-              onClick={() => {
-                study.setHomeTab(nextHomeTab(tab, item.id));
-                if (item.id === 'study' && !studyHasPanel) requestAnimationFrame(scrollToStartCard);
-              }}
-            >
-              <span>{item.label}</span>
-            </button>
-          ),
-        )}
-      </div>
-
-      {panelOpen ? (
-        <div className="card stack home-panel" role="tabpanel" id="home-panel" aria-labelledby={`home-tab-${tab}`}>
-          {tab === 'study' ? (
-            <StudyPanel onLibrary={() => study.setHomeTab('library')} />
-          ) : null}
-          {tab === 'library' ? (
+      {topTab ? (
+        <div
+          className={topTab === 'stats' || topTab === 'settings' ? 'stack home-panel-top' : 'card stack home-panel home-panel-top'}
+          role="tabpanel"
+          id="home-panel"
+          aria-labelledby={`home-tab-${topTab}`}
+          data-testid={`home-section-${topTab}`}
+        >
+          {topTab === 'study' ? <StudyPanel onLibrary={() => study.setHomeTab('library')} /> : null}
+          {topTab === 'library' ? (
             <LibraryPanel
               snap={snap}
               decks={decks}
@@ -286,19 +232,98 @@ export function Home() {
               }}
             />
           ) : null}
-          {tab === 'settings' ? (
-            <SettingsPanel
-              error={backupError}
-              onExport={() => void study.downloadBackup()}
-              onImport={(file) => {
-                void study.restoreBackup(file).catch((reason: unknown) => {
-                  setBackupError(reason instanceof Error ? reason.message : 'Could not import that file.');
-                });
-              }}
-            />
+          {topTab === 'stats' ? <Stats /> : null}
+          {topTab === 'settings' ? (
+            <>
+              <BackupReminder />
+              <Settings />
+            </>
           ) : null}
         </div>
       ) : null}
+
+      {!topTab && offerCardAboveResume && startDeck ? (
+        <StartCard
+          choices={startChoices}
+          deck={startDeck}
+          offer={startOffer}
+          recap={null}
+          timing={timing}
+          practice={practice}
+          onPick={pickStart}
+          onStart={() => void study.startExam(startDeck, startTimed)}
+        />
+      ) : null}
+
+      {topTab ? null : (
+        <StudyHero
+          sessions={sessions}
+          nameFor={nameFor}
+          now={now}
+          recap={recap}
+          arrival={study.homeArrival}
+          startDeck={startDeck}
+          startChoices={startChoices}
+          offer={startOffer}
+          onPickStart={pickStart}
+          timing={timing}
+          practice={practice}
+          practiceInResume={!offerCardAboveResume}
+          emptyDetail={focused ? `Import a PDF into ${focused.name}.` : 'Name a subject, then import its PDF.'}
+          emptyAction={focused ? 'Import a PDF' : 'Start a new subject'}
+          busy={!!study.busy}
+          onPickPdf={
+            focused
+              ? (file) => {
+                  study.setHomeTab('library');
+                  void study.importPdf(file);
+                }
+              : undefined
+          }
+          onResume={(session) => {
+            void study.resume(session.id);
+          }}
+          onStart={() => {
+            if (startDeck) void study.startExam(startDeck, startTimed);
+            else {
+              study.setHomeTab('library');
+              if (!focused) {
+                setNameError(null);
+                setNaming(true);
+              }
+            }
+          }}
+        />
+      )}
+
+      <div className="home-tabs" role="group" aria-label="Home">
+        {(
+          [
+            { id: 'study', label: 'Study', note: 'Continue' },
+            { id: 'library', label: 'Subjects', note: 'Decks' },
+            { id: 'stats', label: 'Stats', note: '' },
+            { id: 'settings', label: 'Settings', note: 'Backup' },
+          ] as const
+        ).map((item) => (
+          <button
+            key={item.id}
+            className={tab === item.id ? 'home-tab on' : 'home-tab'}
+            type="button"
+            role="tab"
+            id={`home-tab-${item.id}`}
+            data-testid={`home-tab-${item.id}`}
+            aria-selected={tab === item.id}
+            aria-controls={tab === item.id && topTab === item.id ? 'home-panel' : undefined}
+            aria-label={item.id === 'settings' ? 'Settings and backup' : item.label}
+            onClick={() => {
+              study.setHomeTab(nextHomeTab(tab, item.id));
+              if (item.id === 'study' && !studyHasPanel) requestAnimationFrame(scrollToStartCard);
+            }}
+          >
+            <span>{item.label}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -993,45 +1018,6 @@ function LibraryPanel({
           onCancel={() => setPending(null)}
         />
       ) : null}
-    </>
-  );
-}
-
-function SettingsPanel({
-  error,
-  onExport,
-  onImport,
-}: {
-  error: string | null;
-  onExport: () => void;
-  onImport: (file: File) => void;
-}) {
-  return (
-    <>
-      <h2>Settings and backup</h2>
-      <p className="muted" style={{ margin: 0 }}>
-        Text size, haptics, sounds, and storage live on the settings screen. Export a backup after you study.
-      </p>
-      <button className="btn btn-primary btn-block" type="button" onClick={() => navigate('/settings')}>
-        Open settings
-      </button>
-      <button className="btn btn-primary btn-block" type="button" onClick={onExport}>
-        Export backup
-      </button>
-      <label className="btn btn-primary btn-block">
-        Import backup
-        <input
-          hidden
-          type="file"
-          accept="application/json,.json"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            event.target.value = '';
-            if (file) onImport(file);
-          }}
-        />
-      </label>
-      {error ? <p role="alert">{error}</p> : null}
     </>
   );
 }

@@ -180,12 +180,12 @@ test('Drill and Recommended sit right under Start studying, and the Study tab br
     'review-due-home',
   ]);
 
-  // The Study tab has no panel once tests exist; tapping it scrolls the Start studying card into view.
-  const libraryTab = page.getByTestId('home-tab-library');
-  if ((await libraryTab.getAttribute('aria-selected')) !== 'true') await libraryTab.click();
+  // The Study tab has no panel once tests exist; tapping it brings back the Start studying card, in view.
+  const settingsTab = page.getByTestId('home-tab-settings');
+  if ((await settingsTab.getAttribute('aria-selected')) !== 'true') await settingsTab.click();
+  await expect(page.getByTestId('study-hero')).toHaveCount(0);
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   const heroTop = () => page.getByTestId('study-hero').evaluate((el) => el.getBoundingClientRect().top);
-  expect(await heroTop()).toBeLessThan(-100);
   const studyTab = page.getByTestId('home-tab-study');
   await studyTab.click();
   await expect(studyTab).toHaveAttribute('aria-selected', 'true');

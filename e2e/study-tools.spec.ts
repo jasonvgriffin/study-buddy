@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import path from 'node:path';
+import { openSettings, openSubjects } from './homeSections';
 
 const sampleThree = path.resolve('public/samples/sample-three-tests.pdf');
 
@@ -13,6 +14,7 @@ test('skip and text size on a question', async ({ page }) => {
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
   await expect(page.getByTestId('start-saved')).toBeVisible();
   await expect(page.getByTestId('flagged-link')).toHaveCount(0);
+  await openSubjects(page);
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await page.getByTestId('start-untimed').click();
 
@@ -54,5 +56,6 @@ test('skip and text size on a question', async ({ page }) => {
   await expect(page.locator('html')).toHaveAttribute('data-text-size', 'large');
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-text-size', 'large');
+  await openSettings(page);
   await expect(page.getByTestId('text-size-large')).toHaveAttribute('aria-pressed', 'true');
 });

@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { PDFDocument, StandardFonts } from 'pdf-lib';
+import { openSubjects } from './homeSections';
 
 const sampleThree = path.resolve('public/samples/sample-three-tests.pdf');
 const shots = process.env.E2E_SHOTS ?? '/opt/cursor/artifacts';
@@ -25,6 +26,7 @@ test('stats checklist lists facts and does not predict a pass', async ({ page })
   await page.getByTestId('add-subject').click();
   await page.getByTestId('pdf-file').setInputFiles(await messerSample());
   await expect(page.getByTestId('start-saved')).toBeVisible();
+  await openSubjects(page);
 
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await page.getByTestId('start-untimed').click();
@@ -70,6 +72,7 @@ test('Messer links stay hidden when the PDF never names Professor Messer', async
   await page.getByTestId('add-subject').click();
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
   await expect(page.getByTestId('start-saved')).toBeVisible();
+  await openSubjects(page);
 
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await page.getByTestId('start-untimed').click();

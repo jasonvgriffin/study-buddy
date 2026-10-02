@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useState } from 'react';
 import { Screen } from './bits';
 import { readHaptics, readSounds, writeHaptics, writeSounds } from './lib/feedback';
 import { readShuffle, writeShuffle } from './lib/shuffle';
@@ -12,20 +12,7 @@ export function Settings() {
   const [shuffle, setShuffle] = useState(() => readShuffle());
   const [haptics, setHaptics] = useState(() => readHaptics());
   const [sounds, setSounds] = useState(() => readSounds());
-  // Brave mobile keeps the old scroll offset across the hash change and can
-  // restore it after first paint, so pin the page to the top now and again
-  // after the next frames.
-  useLayoutEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => window.scrollTo(0, 0));
-    const timer = window.setTimeout(() => window.scrollTo(0, 0), 150);
-    return () => {
-      cancelAnimationFrame(frame);
-      window.clearTimeout(timer);
-    };
-  }, []);
+  // Settings renders in Home's top spot; Home scrolls it into view when the section opens.
   const persist = study.snap?.persist;
   const persistText =
     persist?.granted === true

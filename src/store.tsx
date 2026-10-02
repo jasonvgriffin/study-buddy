@@ -83,7 +83,7 @@ import type {
   StoredFigure,
   Subject,
 } from './lib/types';
-import { hashOpensStats, parseHomeTab, resolveHomeTab, type HomeTab } from './homeTab';
+import { legacyHomeHash, parseHomeTab, resolveHomeTab, type HomeTab } from './homeTab';
 import { navigate, parseRoute, type Route } from './nav';
 
 type StudyApi = {
@@ -165,6 +165,12 @@ function nextPaint(): Promise<void> {
   });
 }
 
+/** Old `#/stats` and `#/settings` links open Home with that section; swap the URL in place (no extra history entry). */
+function redirectLegacyHomeHash() {
+  const target = legacyHomeHash(location.hash);
+  if (target) history.replaceState(history.state, '', target);
+}
+
 export function StudyProvider({ children }: { children: ReactNode }) {
   const [snap, setSnap] = useState<StudySnapshot | null>(null);
   const snapRef = useRef<StudySnapshot | null>(null);
@@ -177,11 +183,12 @@ export function StudyProvider({ children }: { children: ReactNode }) {
     setMessageText(text);
     setMessageTone(tone);
   }, []);
-  const [route, setRoute] = useState<Route>(() =>
-    hashOpensStats(location.hash) ? { name: 'stats' } : parseRoute(location.hash),
-  );
+  const [route, setRoute] = useState<Route>(() => {
+    redirectLegacyHomeHash();
+    return parseRoute(location.hash);
+  });
   const [homeTab, setHomeTabState] = useState<HomeTab | null>(() => {
-    if (hashOpensStats(location.hash) || parseRoute(location.hash).name !== 'home') return null;
+    if (parseRoute(location.hash).name !== 'home') return null;
     return parseHomeTab(location.hash);
   });
   const [focus, setFocus] = useState<string | 'all'>('all');
@@ -199,9 +206,9 @@ export function StudyProvider({ children }: { children: ReactNode }) {
   const setHomeTab = useCallback((tab: HomeTab | null) => {
     homeTabRef.current = tab;
     setHomeTabState(tab);
-    if (tab === null && parseRoute(location.hash).name === 'home' && parseHomeTab(location.hash)) {
-      navigate('/');
-    }
+    // Drop a stale `?tab=` so a later return to Home does not reopen the old section.
+    const linked = parseRoute(location.hash).name === 'home' ? parseHomeTab(location.hash) : null;
+    if (linked && linked !== tab) history.replaceState(history.state, '', '#/');
   }, []);
 
   const replaceSnap = (next: StudySnapshot) => {
@@ -260,10 +267,7 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       void pause(from.sessionId);
     };
     const onHash = () => {
-      if (hashOpensStats(location.hash)) {
-        navigate('/stats');
-        return;
-      }
+      redirectLegacyHomeHash();
       const prev = routeRef.current;
       const next = parseRoute(location.hash);
       if (next.name === 'home' && prev.name !== 'home') {
@@ -289,7 +293,6 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       setRoute(next);
     };
     window.addEventListener('hashchange', onHash);
-    if (hashOpensStats(location.hash)) navigate('/stats');
     return () => window.removeEventListener('hashchange', onHash);
   }, [setHomeTab]);
 
