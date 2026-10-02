@@ -30,7 +30,7 @@ async function showLibrary(page: Page) {
   }
 }
 
-test('practice exams list A, B, C and default to A, then the last test used', async ({ page }) => {
+test('practice exams list A, B, C, default to the imported test, then the last test used', async ({ page }) => {
   await page.goto('./');
   await page.getByTestId('home-tab-library').click();
   await page.getByTestId('start-subject').click();
@@ -41,9 +41,12 @@ test('practice exams list A, B, C and default to A, then the last test used', as
   await expect(page.getByTestId('start-saved')).toBeVisible();
   await showLibrary(page);
 
+  const offered = await page.getByTestId('start-offer-test').textContent();
   const stored = await deckNamesInStorage(page);
   expect(stored).toHaveLength(3);
   const targets = ['Practice Exam B', 'Practice Exam C', 'Practice Exam A'];
+  const offeredAfterRename = targets[stored.indexOf(offered ?? '')] ?? '';
+  expect(offeredAfterRename).not.toBe('');
   for (let index = 0; index < stored.length; index += 1) {
     await page.locator(`[data-deck-name="${stored[index]}"]`).click();
     await page.getByLabel('Test name').fill(targets[index] ?? '');
@@ -61,27 +64,33 @@ test('practice exams list A, B, C and default to A, then the last test used', as
   expect(libraryNames).toEqual(['Practice Exam A', 'Practice Exam B', 'Practice Exam C']);
 
   await page.getByTestId('home-tab-study').click();
-  const select = page.getByTestId('exam-deck');
+  const select = page.getByTestId('start-deck');
   await expect(select.locator('option')).toHaveText(['Practice Exam A', 'Practice Exam B', 'Practice Exam C']);
-  await expect(select.locator('option:checked')).toHaveText('Practice Exam A');
-  await expect(page.getByTestId('study-hero')).toContainText('Practice Exam A');
+  // While the import card is up, the picker defaults to the test the import offered (renamed above).
+  await expect(select.locator('option:checked')).toHaveText(offeredAfterRename);
+  await expect(page.getByTestId('study-hero')).toContainText(offeredAfterRename);
 
   await page.getByTestId('home-tab-library').click();
   await page.locator('[data-deck-name="Practice Exam C"]').click();
   await page.getByTestId('start-untimed').click();
-  await page.getByRole('button', { name: 'Back', exact: true }).click();
-  await page.getByTestId('home-tab-study').click();
-  await expect(page.getByTestId('exam-deck').locator('option:checked')).toHaveText('Practice Exam C');
+  // Finish C so Home shows the picker again (an open sitting shows Resume instead).
+  for (let step = 0; step < 6 && !/#\/results\//.test(page.url()); step += 1) {
+    await page.getByTestId('i-dont-know').click();
+    await page.getByTestId('next').click();
+  }
+  await expect(page).toHaveURL(/#\/results\//);
+  await page.getByRole('button', { name: 'Home', exact: true }).click();
+  await expect(page.getByTestId('start-deck').locator('option:checked')).toHaveText('Practice Exam C');
 
   await page.reload();
   await page.getByTestId('home-tab-study').click();
-  await expect(page.getByTestId('exam-deck').locator('option:checked')).toHaveText('Practice Exam C');
+  await expect(page.getByTestId('start-deck').locator('option:checked')).toHaveText('Practice Exam C');
 
-  await page.getByTestId('exam-deck').selectOption({ label: 'Practice Exam B' });
+  await page.getByTestId('start-deck').selectOption({ label: 'Practice Exam B' });
   await page.reload();
   await page.getByTestId('home-tab-study').click();
-  await expect(page.getByTestId('exam-deck').locator('option:checked')).toHaveText('Practice Exam B');
-  await expect(page.getByTestId('exam-deck').locator('option')).toHaveText([
+  await expect(page.getByTestId('start-deck').locator('option:checked')).toHaveText('Practice Exam B');
+  await expect(page.getByTestId('start-deck').locator('option')).toHaveText([
     'Practice Exam A',
     'Practice Exam B',
     'Practice Exam C',

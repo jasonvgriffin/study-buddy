@@ -37,6 +37,7 @@ import {
 import { addedQuestionsMessage, READING_STATUS, UPLOADING_STATUS } from './lib/importStatus';
 import { deckNameForImport, draftFromSavedTests } from './lib/draft';
 import { newId } from './lib/format';
+import { writeExamDeckId } from './lib/examDeck';
 import { lessonTitle, watchUrl } from './lib/lessons';
 import { assignFigures, bindFiguresToCards } from './lib/figures';
 import { extractPdfStudy } from './lib/pdfExtract';
@@ -677,6 +678,8 @@ export function StudyProvider({ children }: { children: ReactNode }) {
     }
     if (blockIfBusyDeck(deck.id)) return;
     const session = createExamSession(deck, cards, timed ? 'timed' : 'untimed', Date.now());
+    // The exam just started becomes Home's picked exam (Start studying and Drill missed cards).
+    writeExamDeckId(deck.id);
     await openSession(session);
   }
 

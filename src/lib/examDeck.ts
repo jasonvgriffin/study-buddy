@@ -49,6 +49,25 @@ export function resolveDeckPick<T extends { id: string; name: string }>(
   return ordered[0] ?? null;
 }
 
+const TIMING_KEY = 'study-buddy-start-timing';
+
+/** Last Timing pick on the Home Start studying card. Untimed unless Timed was chosen before. */
+export function readStartTimed(): boolean {
+  try {
+    return localStorage.getItem(TIMING_KEY) === 'timed';
+  } catch {
+    return false;
+  }
+}
+
+export function writeStartTimed(timed: boolean): void {
+  try {
+    localStorage.setItem(TIMING_KEY, timed ? 'timed' : 'untimed');
+  } catch {
+    // Private mode can refuse storage. The choice still applies for this visit.
+  }
+}
+
 export function readExamDeckId(): string | null {
   try {
     const value = localStorage.getItem(STORAGE_KEY);

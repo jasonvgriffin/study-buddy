@@ -65,7 +65,7 @@ test('two PDFs with the same test name stay distinct in one subject', async ({ p
   await expect(page.locator('[data-deck-name="Practice Exam A"]')).toHaveCount(2);
 
   await showTab(page, 'study');
-  const select = page.getByTestId('exam-deck');
+  const select = page.getByTestId('start-deck');
   const optionText = await select.locator('option').allTextContents();
   expect(optionText.slice().sort()).toEqual([dionLabel, messerLabel]);
 

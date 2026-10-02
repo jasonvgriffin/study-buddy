@@ -14,7 +14,8 @@ test('the Study tab has no Exam simulation button, even for a CompTIA subject', 
 
   const study = page.getByTestId('home-tab-study');
   if ((await study.getAttribute('aria-selected')) !== 'true') await study.click();
-  await expect(page.getByTestId('start-timed-home')).toBeVisible();
+  await expect(page.getByTestId('drill-home')).toBeVisible();
+  await expect(page.getByTestId('start-timed-home')).toHaveCount(0);
   await expect(page.getByTestId('practice-exam')).toHaveCount(0);
   await expect(page.getByTestId('exam-sim')).toHaveCount(0);
   await expect(page.getByText('Exam simulation')).toHaveCount(0);

@@ -54,7 +54,7 @@ test('discard and start over clears every saved study record', async ({ page }) 
   await expect(page.locator('html')).toHaveAttribute('data-text-size', 'large');
   await page.getByRole('button', { name: 'Home', exact: true }).click();
   await page.getByTestId('home-tab-study').click();
-  await expect(page.getByRole('heading', { name: 'Study', exact: true })).toBeVisible();
+  await expect(page.getByTestId('drill-home')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'What to study next' })).toHaveCount(0);
   await expect(page.getByTestId('review-due-home')).toContainText(/\(/);
   await expect(page.getByTestId('discard')).toHaveCount(0);
@@ -85,7 +85,7 @@ test('discard and start over clears every saved study record', async ({ page }) 
 
   await page.getByTestId('home-tab-study').click();
   await expect(page.getByRole('heading', { name: 'What to study next' })).toHaveCount(0);
-  await expect(page.getByTestId('start-timed-home')).toHaveCount(0);
+  await expect(page.getByTestId('drill-home')).toHaveCount(0);
   await expect(page.getByTestId('discard')).toHaveCount(0);
   await page.getByTestId('home-tab-library').click();
   await expect(page.locator('[data-deck-name="Practice Test 1"]')).toHaveCount(0);
@@ -181,9 +181,10 @@ test('library can delete one PDF and an entire subject', async ({ page }) => {
 
   await page.getByTestId('home-tab-study').click();
   await expect(page.getByText('A+', { exact: true })).toHaveCount(0);
-  await expect(page.getByTestId('start-timed-home')).toBeVisible();
+  await expect(page.getByTestId('drill-home')).toBeVisible();
   await expect(page.getByTestId('practice-exam')).toHaveCount(0);
-  await expect(page.getByTestId('exam-deck')).toContainText('sample-notes');
+  await expect(page.getByTestId('start-timed-home')).toHaveCount(0);
+  await expect(page.getByTestId('start-deck')).toContainText('sample-notes');
   await expect(page.getByRole('heading', { name: 'What to study next' })).toHaveCount(0);
   await expect(page.locator('#home-panel')).not.toContainText('A+');
   await page.getByTestId('home-tab-stats').click();

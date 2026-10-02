@@ -18,7 +18,28 @@ test('the resume button names the test and a long name stays inside 360px', asyn
   await page.getByLabel('Test name').fill(longTest);
   await page.getByRole('button', { name: 'Rename test' }).click();
   await expect(page.getByRole('heading', { name: longTest })).toBeVisible();
-  await page.getByTestId('start-untimed').click();
+  await page.getByRole('button', { name: 'Back' }).click();
+
+  const picker = page.getByTestId('start-offer-test');
+  await expect(picker).toHaveText(longTest);
+  const pickerFit = await picker.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return {
+      nowrap: style.whiteSpace === 'nowrap',
+      ellipsis: style.textOverflow === 'ellipsis',
+      clipped: el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1,
+      pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+    };
+  });
+  expect(pickerFit.nowrap).toBe(false);
+  expect(pickerFit.ellipsis).toBe(false);
+  expect(pickerFit.clipped).toBe(false);
+  expect(pickerFit.pageOverflow).toBe(false);
+
+  if (test.info().project.name === 'chromium-mobile') {
+    await page.screenshot({ path: '/opt/cursor/artifacts/labels-long-picker-360.png', fullPage: true });
+  }
+  await page.getByTestId('start-saved').click();
   await page.getByRole('button', { name: 'Back' }).click();
 
   const card = page.getByTestId('resume-card');
@@ -65,24 +86,4 @@ test('the resume button names the test and a long name stays inside 360px', asyn
     await page.screenshot({ path: '/opt/cursor/artifacts/labels-long-resume-360.png', fullPage: true });
   }
 
-  await page.getByTestId('home-tab-study').click();
-  const picker = page.getByTestId('exam-deck-label');
-  await expect(picker).toHaveText(longTest);
-  const pickerFit = await picker.evaluate((el) => {
-    const style = getComputedStyle(el);
-    return {
-      nowrap: style.whiteSpace === 'nowrap',
-      ellipsis: style.textOverflow === 'ellipsis',
-      clipped: el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1,
-      pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
-    };
-  });
-  expect(pickerFit.nowrap).toBe(false);
-  expect(pickerFit.ellipsis).toBe(false);
-  expect(pickerFit.clipped).toBe(false);
-  expect(pickerFit.pageOverflow).toBe(false);
-
-  if (test.info().project.name === 'chromium-mobile') {
-    await page.screenshot({ path: '/opt/cursor/artifacts/labels-long-picker-360.png', fullPage: true });
-  }
 });

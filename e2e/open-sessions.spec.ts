@@ -56,14 +56,16 @@ test('every open session is listed on the top card and each button resumes that 
 
   await showTab(page, 'study');
   const panel = page.locator('#home-panel');
-  await expect(panel.getByRole('heading', { name: 'Study', exact: true })).toBeVisible();
+  await expect(panel.getByTestId('drill-home')).toBeVisible();
+  await expect(panel.getByRole('heading', { name: 'Study', exact: true })).toHaveCount(0);
   await expect(panel.getByTestId('resume')).toHaveCount(0);
   await expect(panel.getByTestId('resume-test-name')).toHaveCount(0);
   await expect(panel).not.toContainText('Resume Practice Test');
   await expect(panel.getByTestId('discard')).toHaveCount(0);
-  await expect(panel.getByTestId('start-timed-home')).toBeVisible();
+  await expect(panel.getByTestId('start-timed-home')).toHaveCount(0);
   await expect(panel.getByTestId('practice-exam')).toHaveCount(0);
-  await expect(panel.getByTestId('exam-deck')).toBeVisible();
+  await expect(panel.getByTestId('exam-deck')).toHaveCount(0);
+  await expect(panel.getByTestId('review-due-home')).toBeVisible();
   await shot(page, 'two-open-sessions');
 
   await card.getByRole('button', { name: 'Resume Practice Test 1' }).click();

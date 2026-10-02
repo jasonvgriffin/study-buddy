@@ -3,7 +3,7 @@ import { DemandPanel, DestructiveConfirm, DrillReplacePrompt, ResetConfirm, Spin
 import { deckLabel, sessionDeckLabel } from './lib/deckLabel';
 import { resumeButtonLabel } from './lib/resumeButton';
 import { feedbackMailHref } from './lib/feedbackMail';
-import { readExamDeckId, resolveDeckPick, sortDecksByName, writeExamDeckId } from './lib/examDeck';
+import { readExamDeckId, readStartTimed, resolveDeckPick, sortDecksByName, writeExamDeckId, writeStartTimed } from './lib/examDeck';
 import { formatDuration, formatPercent } from './lib/format';
 import { todayProgressLine, todayRecap } from './lib/today';
 import { dueCardIds } from './lib/queue';
@@ -23,7 +23,9 @@ export function Home() {
   const [name, setName] = useState('');
   const [rename, setRename] = useState<string | null>(null);
   const [examDeckId, setExamDeckId] = useState<string | null>(() => readExamDeckId());
-  const [startPick, setStartPick] = useState<{ id: string; offer: string | null } | null>(null);
+  // Which import offer (if any) was showing when the exam was last picked by hand on Home.
+  const [pickedForOffer, setPickedForOffer] = useState<string | null | undefined>(undefined);
+  const [startTimed, setStartTimed] = useState<boolean>(() => readStartTimed());
   const [naming, setNaming] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
   const [backupError, setBackupError] = useState<string | null>(null);
@@ -47,14 +49,27 @@ export function Home() {
   const sessions = openHomeSessions(snap.sessions, inFocus);
   const primary = sessions[0] ?? null;
   const focused = subjects.find((subject) => subject.id === study.focus) ?? null;
-  const examDeck = resolveDeckPick(decks, snap.sessions, inFocus, examDeckId);
   const offerDeck = study.startOffer
     ? decks.find((deck) => deck.id === study.startOffer?.deckId) ?? null
     : null;
   // One Start studying card: the picked exam wins, then a fresh import's first test, then the latest sitting, then A.
-  const explicitStart = startPick && startPick.offer === (offerDeck?.id ?? null) ? startPick.id : null;
-  const startDeck = resolveDeckPick(decks, snap.sessions, inFocus, explicitStart ?? offerDeck?.id ?? null);
+  // One selection drives both Start studying and Drill missed cards, so they can never disagree.
+  const followOffer = !!offerDeck && pickedForOffer !== offerDeck.id;
+  const startDeck = resolveDeckPick(decks, snap.sessions, inFocus, followOffer ? offerDeck.id : examDeckId);
+  const examDeck = startDeck;
+  const pickStart = (id: string) => {
+    setExamDeckId(id);
+    writeExamDeckId(id);
+    setPickedForOffer(offerDeck?.id ?? null);
+  };
   const startChoices = decks.map((deck) => ({ id: deck.id, label: deckLabel(deck, snap.decks) }));
+  const timing = {
+    timed: startTimed,
+    onChange: (timed: boolean) => {
+      setStartTimed(timed);
+      writeStartTimed(timed);
+    },
+  };
   const startOffer = offerDeck
     ? {
         added: study.startOffer?.added ?? null,
@@ -135,8 +150,9 @@ export function Home() {
           deck={startDeck}
           offer={startOffer}
           recap={null}
-          onPick={(id) => setStartPick({ id, offer: offerDeck?.id ?? null })}
-          onStart={() => void study.startExam(startDeck, false)}
+          timing={timing}
+          onPick={pickStart}
+          onStart={() => void study.startExam(startDeck, startTimed)}
         />
       ) : null}
 
@@ -149,7 +165,8 @@ export function Home() {
         startDeck={startDeck}
         startChoices={startChoices}
         offer={startOffer}
-        onPickStart={(id) => setStartPick({ id, offer: offerDeck?.id ?? null })}
+        onPickStart={pickStart}
+        timing={timing}
         emptyDetail={focused ? `Import a PDF into ${focused.name}.` : 'Name a subject, then import its PDF.'}
         emptyAction={focused ? 'Import a PDF' : 'Start a new subject'}
         busy={!!study.busy}
@@ -165,7 +182,7 @@ export function Home() {
           void study.resume(session.id);
         }}
         onStart={() => {
-          if (startDeck) void study.startExam(startDeck, false);
+          if (startDeck) void study.startExam(startDeck, startTimed);
           else {
             study.setHomeTab('library');
             if (!focused) {
@@ -223,15 +240,8 @@ export function Home() {
               catalog={snap.decks}
               examDeck={examDeck}
               dueCount={due.length}
-              onPickDeck={(id) => {
-                setExamDeckId(id);
-                writeExamDeckId(id);
-              }}
               onLibrary={() => study.setHomeTab('library')}
               onReset={() => void study.discard()}
-              onTimed={() => {
-                if (examDeck) void study.startExam(examDeck, true);
-              }}
               onDrill={async () => {
                 if (!examDeck) return 'none';
                 return study.startMissedDrill(examDeck, null, { holdForConfirm: true });
@@ -294,6 +304,7 @@ function StudyHero({
   startChoices,
   offer,
   onPickStart,
+  timing,
   emptyDetail,
   emptyAction,
   onResume,
@@ -310,6 +321,7 @@ function StudyHero({
   startChoices: StartChoice[];
   offer: StartOfferInfo | null;
   onPickStart: (id: string) => void;
+  timing: StartTiming;
   emptyDetail: string;
   emptyAction: string;
   onResume: (session: LiveSession) => void;
@@ -361,6 +373,7 @@ function StudyHero({
         deck={startDeck}
         offer={offer}
         recap={recap}
+        timing={timing}
         onPick={onPickStart}
         onStart={onStart}
       />
@@ -415,12 +428,16 @@ function ResumeLine({ session, now, name }: { session: LiveSession; now: number;
   );
 }
 
+const TIMED_LABEL = 'Timed (90 minutes)';
+
 type StartChoice = { id: string; label: string };
 type StartOfferInfo = { added: string | null; onOrganize: () => void };
+type StartTiming = { timed: boolean; onChange: (timed: boolean) => void };
 
 /**
  * The one Start studying card on Home. After an import it also carries the "Added N questions" note and
- * Rename tests. The exam picker lists every test in view so a PDF with several exams can start any of them.
+ * Rename tests. The exam picker lists every test in view so a PDF with several exams can start any of them,
+ * and the Timing picker chooses an untimed sitting or the 90-minute timed exam.
  */
 function StartCard({
   cardRef,
@@ -429,6 +446,7 @@ function StartCard({
   deck,
   offer,
   recap,
+  timing,
   onPick,
   onStart,
 }: {
@@ -438,6 +456,7 @@ function StartCard({
   deck: Deck;
   offer: StartOfferInfo | null;
   recap: TodayRecap | null;
+  timing: StartTiming;
   onPick: (id: string) => void;
   onStart: () => void;
 }) {
@@ -477,10 +496,28 @@ function StartCard({
           </select>
         </span>
       </label>
+      <label className="stack start-pick" style={{ gap: '0.35rem' }}>
+        <span className="start-pick-label">Timing</span>
+        <span className="test-picker">
+          <span className="test-picker-value" data-testid="start-timing-label" aria-hidden="true">
+            {timing.timed ? TIMED_LABEL : 'Untimed'}
+          </span>
+          <select
+            className="field"
+            data-testid="start-timing"
+            value={timing.timed ? 'timed' : 'untimed'}
+            onChange={(event) => timing.onChange(event.target.value === 'timed')}
+          >
+            <option value="untimed">Untimed</option>
+            <option value="timed">{TIMED_LABEL}</option>
+          </select>
+        </span>
+      </label>
       <button
         className="btn btn-primary btn-block btn-start"
         data-testid={offer ? 'start-saved' : 'start-studying'}
         data-deck-id={deck.id}
+        data-timed={timing.timed ? 'true' : 'false'}
         type="button"
         onClick={onStart}
       >
@@ -557,10 +594,8 @@ function StudyPanel({
   catalog,
   examDeck,
   dueCount,
-  onPickDeck,
   onLibrary,
   onReset,
-  onTimed,
   onDrill,
   onReplaceDrill,
   onReviewDue,
@@ -570,10 +605,8 @@ function StudyPanel({
   catalog: Deck[];
   examDeck: Deck | null;
   dueCount: number;
-  onPickDeck: (id: string) => void;
   onLibrary: () => void;
   onReset: () => void;
-  onTimed: () => void;
   onDrill: () => Promise<'started' | 'none' | 'busy'>;
   onReplaceDrill: () => void;
   onReviewDue: () => void;
@@ -584,7 +617,6 @@ function StudyPanel({
   const promptName = drillDeckName && drillDeckName === examLabel ? drillDeckName : null;
   return (
     <>
-      <h2>Study</h2>
       {!decks.length ? (
         <>
           <p className="muted" style={{ margin: 0 }}>
@@ -596,31 +628,6 @@ function StudyPanel({
         </>
       ) : (
         <>
-          <label className="stack" style={{ gap: '0.35rem' }} aria-label="Test">
-            <span className="test-picker">
-              <span className="test-picker-value" data-testid="exam-deck-label" aria-hidden="true">
-                {examLabel ?? ''}
-              </span>
-              <select
-                className="field"
-                data-testid="exam-deck"
-                value={examDeck?.id ?? ''}
-                onChange={(event) => {
-                  setDrillDeckName(null);
-                  onPickDeck(event.target.value);
-                }}
-              >
-                {decks.map((deck) => (
-                  <option key={deck.id} value={deck.id}>
-                    {deckLabel(deck, catalog)}
-                  </option>
-                ))}
-              </select>
-            </span>
-          </label>
-          <button className="btn btn-primary btn-block" data-testid="start-timed-home" type="button" onClick={onTimed}>
-            90-minute exam
-          </button>
           <button
             className="btn btn-primary btn-block"
             data-testid="drill-home"

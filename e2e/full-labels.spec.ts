@@ -70,11 +70,11 @@ test('long test names stay fully visible at 360px', async ({ page }) => {
   await shot(page, 'labels-library-360');
 
   await showTab(page, 'study');
-  const select = page.getByTestId('exam-deck');
+  const select = page.getByTestId('start-deck');
   const optionText = await select.locator('option').allTextContents();
   expect(optionText.slice().sort()).toEqual([dionLabel, messerLabel]);
   await select.selectOption({ label: messerLabel });
-  await showsFull(page.getByTestId('exam-deck-label'), messerLabel);
+  await showsFull(page.getByTestId('start-offer-test'), messerLabel);
 
   const optionFit = await select.evaluate((el) => {
     const selectEl = el as HTMLSelectElement;
