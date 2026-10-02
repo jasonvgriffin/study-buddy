@@ -16,9 +16,10 @@ test('stats checklist lists facts and does not predict a pass', async ({ page })
 
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await page.getByTestId('start-untimed').click();
-  await page.keyboard.press('b');
+  await expect(page.getByRole('heading', { name: 'Which river runs through Cairo?' })).toBeVisible();
+  await page.getByRole('button', { name: 'B. Amazon' }).click();
   await expect(page.getByTestId('result')).toHaveText('✗ Incorrect');
-  await page.keyboard.press('Enter');
+  await page.getByTestId('next').click();
   await page.getByRole('button', { name: 'Back', exact: true }).click();
 
   await page.getByRole('navigation').getByRole('button', { name: 'Stats', exact: true }).click();
