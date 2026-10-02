@@ -81,7 +81,7 @@ test('two PDFs with the same test name stay distinct in one subject', async ({ p
     });
   }
 
-  await page.getByRole('button', { name: 'Stats', exact: true }).click();
+  await page.getByRole('navigation').getByRole('button', { name: 'Stats', exact: true }).click();
   await expect(page.getByTestId('by-test')).toContainText(messerLabel);
   await expect(page.getByTestId('by-test')).toContainText(dionLabel);
   await page.getByRole('button', { name: 'Home', exact: true }).click();
