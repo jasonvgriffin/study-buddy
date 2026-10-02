@@ -122,6 +122,13 @@ export function deckLabel(deck: DeckLabelSource, decks: readonly DeckLabelSource
   return stem ? `${deck.name}, ${stem} (${n})` : `${deck.name} (${n})`;
 }
 
+/** Review sittings started before the rename keep their old stored name; show the current one. */
+const LEGACY_REVIEW_NAMES = new Set(['Due for review', 'Due in this subject', 'Recommended Questions']);
+
+export function currentReviewName(name: string): string {
+  return LEGACY_REVIEW_NAMES.has(name.trim()) ? 'Recommended Cards' : name;
+}
+
 /**
  * Name to show for a sitting.
  * Exam and drill sittings use the deck's display label.
@@ -132,7 +139,7 @@ export function sessionDeckLabel(
   decks: readonly DeckLabelSource[],
 ): string {
   const deck = decks.find((item) => item.id === session.deckId);
-  if (!deck) return session.deckName;
-  if (session.kind === 'review' && session.deckName !== deck.name) return session.deckName;
+  if (!deck) return session.kind === 'review' ? currentReviewName(session.deckName) : session.deckName;
+  if (session.kind === 'review' && session.deckName !== deck.name) return currentReviewName(session.deckName);
   return deckLabel(deck, decks);
 }
