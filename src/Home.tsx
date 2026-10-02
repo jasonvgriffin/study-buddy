@@ -195,7 +195,6 @@ export function Home() {
               onClick={() => study.setHomeTab(nextHomeTab(tab, item.id))}
             >
               <span>{item.label}</span>
-              <span className="home-tab-note">{item.note}</span>
             </button>
           ),
         )}
