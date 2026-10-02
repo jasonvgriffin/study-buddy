@@ -29,9 +29,11 @@ test('a tab deep link opens that tab, and deck or a finished session returns do 
   await page.goto('./#/?tab=progress');
   await expect(page).toHaveURL(/#\/stats$/);
   await expect(page.getByRole('heading', { name: 'Stats', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'By test', exact: true })).toBeVisible();
+  await expect(page.getByText('No tests in this view.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Domain breakdown' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Missed questions' })).toHaveCount(0);
-  await expect(page.getByTestId('domain-stats')).toBeVisible();
+  await expect(page.getByTestId('domain-stats')).toHaveCount(0);
   await page.getByRole('navigation').getByRole('button', { name: 'Home', exact: true }).click();
   await expect(page.getByTestId('home-tab-hint')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Progress', exact: true })).toHaveCount(0);
@@ -99,7 +101,8 @@ test('tapping the open tab collapses it, and another tap shows only that tab', a
   await expect(page).toHaveURL(/#\/stats$/);
   await expect(page.getByRole('heading', { name: 'Stats', exact: true })).toBeVisible();
   await expect(page.locator('#home-panel')).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'By domain', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'By test', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'By domain', exact: true })).toHaveCount(0);
   await page.getByRole('navigation').getByRole('button', { name: 'Home', exact: true }).click();
   await expect(page.getByTestId('home-tab-hint')).toBeVisible();
   await expect(page).toHaveURL(/#\/$/);

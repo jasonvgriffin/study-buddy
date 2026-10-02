@@ -5,9 +5,6 @@ import { accuracyByDay, rollup, weakestMemories, type DayStat } from './scoring'
 import { activeSessionForDeck, elapsedMs, inProgressLabel } from './session';
 import type { CardMemory, LiveSession, Review } from './types';
 
-/** Overall Stats page, top to bottom. By test stays above the combined accuracy card. */
-export const STATS_OVERVIEW_SECTIONS = ['by-test', 'accuracy', 'by-day', 'by-domain', 'weakest'] as const;
-
 /** One exam's page: its own accuracy, days, domains, and weakest cards. */
 export const STATS_DECK_SECTIONS = ['accuracy', 'by-day', 'by-domain', 'weakest'] as const;
 

@@ -64,8 +64,12 @@ test('keyboard grading, missed review, domain scores, and the backup reminder', 
 
   await page.getByRole('button', { name: 'Back', exact: true }).click();
   await page.getByRole('navigation').getByRole('button', { name: 'Stats', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'By test', exact: true })).toBeVisible();
+  await expect(page.getByTestId('domain-stats')).toHaveCount(0);
+  await page.getByTestId('by-test-row').filter({ hasText: 'Practice Test 1' }).click();
   await expect(page.getByTestId('domain-stats')).toContainText('No domain');
   await expect(page.getByTestId('domain-stats')).toContainText('1 right, 2 wrong');
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
 
   await page.getByRole('button', { name: 'Home' }).click();
   await expect(page.getByTestId('backup-reminder')).toHaveCount(0);

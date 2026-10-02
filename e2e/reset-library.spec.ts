@@ -188,9 +188,11 @@ test('library can delete one PDF and an entire subject', async ({ page }) => {
   await expect(page).toHaveURL(/#\/stats$/);
   await expect(page.locator('main')).not.toContainText('A+');
   await expect(page.locator('main')).not.toContainText('Which river runs through Cairo?');
+  await expect(page.getByRole('heading', { name: 'By test', exact: true })).toBeVisible();
+  await expect(page.getByTestId('by-test')).toContainText('sample-notes');
   await expect(page.getByRole('heading', { name: 'Domain breakdown' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Missed questions' })).toHaveCount(0);
-  await expect(page.getByTestId('domain-stats')).toBeVisible();
+  await expect(page.getByTestId('domain-stats')).toHaveCount(0);
 
   await page.reload();
   await page.getByRole('navigation').getByRole('button', { name: 'Home', exact: true }).click();

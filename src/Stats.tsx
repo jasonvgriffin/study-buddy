@@ -1,15 +1,13 @@
 import { Fragment, type ReactNode } from 'react';
 import { deckLabel } from './lib/deckLabel';
-import { domainBreakdown, type DomainScore } from './lib/domains';
+import type { DomainScore } from './lib/domains';
 import { formatDuration, formatPercent } from './lib/format';
-import { accuracyByDay, rollup, studyStreak, type DayStat } from './lib/scoring';
-import { elapsedMs } from './lib/session';
+import type { DayStat } from './lib/scoring';
 import {
   STATS_DECK_SECTIONS,
-  STATS_OVERVIEW_SECTIONS,
   byTestRows,
   deckBreakdown,
-  weakestCardLabels,
+  type ByTestRow,
 } from './lib/statsDeck';
 import { Screen } from './bits';
 import { navigate } from './nav';
@@ -22,8 +20,6 @@ type AccuracyTotals = {
   attempts: number;
 };
 
-type Streak = { current: number; best: number };
-
 export type WeakestRow = {
   cardId: string;
   question: string;
@@ -35,12 +31,10 @@ export type WeakestRow = {
 function AccuracyCard({
   totals,
   activeMs,
-  streak,
   testId,
 }: {
   totals: AccuracyTotals;
   activeMs: number;
-  streak?: Streak | null;
   testId: string;
 }) {
   return (
@@ -50,11 +44,6 @@ function AccuracyCard({
         {totals.correct} right, {totals.incorrect} wrong, {totals.attempts} answers.
       </p>
       <p style={{ margin: 0 }}>Active study time {formatDuration(activeMs)}.</p>
-      {streak ? (
-        <p style={{ margin: 0 }}>
-          {streak.current ? `${streak.current} day streak.` : 'No streak yet.'} Best {streak.best}.
-        </p>
-      ) : null}
     </article>
   );
 }
@@ -126,28 +115,14 @@ function WeakestSection({ rows }: { rows: WeakestRow[] }) {
 }
 
 export function StatsOverview({
-  lede,
-  totals,
-  activeMs,
-  streak,
-  days,
-  domains,
   tests,
-  weakest,
   onOpenTest,
 }: {
-  lede: string;
-  totals: AccuracyTotals;
-  activeMs: number;
-  streak: Streak;
-  days: DayStat[];
-  domains: DomainScore[];
-  tests: { id: string; label: string; attempts: number; accuracy: number | null; progress: string | null }[];
-  weakest: WeakestRow[];
+  tests: ByTestRow[];
   onOpenTest: (deckId: string) => void;
 }) {
-  const sections: Record<(typeof STATS_OVERVIEW_SECTIONS)[number], ReactNode> = {
-    'by-test': (
+  return (
+    <Screen title="Stats">
       <section className="stack" data-testid="by-test">
         <h2>By test</h2>
         {!tests.length ? <p className="muted">No tests in this view.</p> : null}
@@ -172,18 +147,6 @@ export function StatsOverview({
           </button>
         ))}
       </section>
-    ),
-    accuracy: <AccuracyCard totals={totals} activeMs={activeMs} streak={streak} testId="overall-accuracy" />,
-    'by-day': <DaySection days={days} />,
-    'by-domain': <DomainSection domains={domains} />,
-    weakest: <WeakestSection rows={weakest} />,
-  };
-
-  return (
-    <Screen title="Stats" lede={lede}>
-      {STATS_OVERVIEW_SECTIONS.map((id) => (
-        <Fragment key={id}>{sections[id]}</Fragment>
-      ))}
     </Screen>
   );
 }
@@ -232,9 +195,6 @@ export function Stats() {
   const snap = study.snap;
   if (!snap) return null;
   const deckId = study.route.name === 'stats' ? study.route.deckId : undefined;
-  const offset = new Date().getTimezoneOffset();
-  const now = Date.now();
-  const cardById = new Map(snap.cards.map((card) => [card.id, card]));
 
   if (deckId) {
     const deck = snap.decks.find((item) => item.id === deckId);
@@ -245,6 +205,9 @@ export function Stats() {
         </Screen>
       );
     }
+    const offset = new Date().getTimezoneOffset();
+    const now = Date.now();
+    const cardById = new Map(snap.cards.map((card) => [card.id, card]));
     const breakdown = deckBreakdown({
       deckId,
       reviews: snap.reviews,
@@ -274,44 +237,13 @@ export function Stats() {
   }
 
   const inFocus = (subjectId: string) => study.focus === 'all' || study.focus === subjectId;
-  const reviews = snap.reviews.filter((review) => inFocus(review.subjectId));
   const memories = snap.memories.filter((memory) => inFocus(memory.subjectId));
   const decks = snap.decks.filter((deck) => inFocus(deck.subjectId));
   const sessions = snap.sessions.filter((session) => inFocus(session.subjectId));
-  const totals = rollup(memories);
-  const days = accuracyByDay(reviews, offset).slice(-14);
-  const streak = studyStreak(
-    reviews.map((review) => review.at),
-    now,
-    offset,
-  );
-  const activeMs = sessions.reduce((sum, session) => sum + elapsedMs(session, now), 0);
-  const domains = domainBreakdown(
-    snap.cards.filter((card) => inFocus(card.subjectId)),
-    reviews.map((review) => ({ cardId: review.cardId, correct: review.correct })),
-  );
-  const weakest = weakestCardLabels(memories, snap.decks).map((row) => ({
-    cardId: row.cardId,
-    question: cardById.get(row.cardId)?.question ?? 'Card',
-    correct: row.correct,
-    attempts: row.attempts,
-    deckLabel: row.label,
-  }));
 
   return (
     <StatsOverview
-      lede={
-        study.focus === 'all'
-          ? 'Every subject on this device.'
-          : 'This subject only. Time counts while a session is open, not while the screen is hidden.'
-      }
-      totals={totals}
-      activeMs={activeMs}
-      streak={streak}
-      days={days}
-      domains={domains}
       tests={byTestRows({ decks, catalog: snap.decks, memories, sessions })}
-      weakest={weakest}
       onOpenTest={(id) => navigate(`/stats/test/${encodeURIComponent(id)}`)}
     />
   );
