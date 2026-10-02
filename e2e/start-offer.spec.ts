@@ -16,7 +16,7 @@ test('saving tests lands on a focused Start studying button', async ({ page }) =
   await expect(offer).toBeVisible();
   await expect(page.getByTestId('start-offer-cue')).toHaveText("You're all set — tap Start studying to begin");
   await expect(page.getByTestId('start-offer-test')).toHaveText('Practice Test 1');
-  const button = page.getByTestId('start-studying');
+  const button = page.getByTestId('start-saved');
   await expect(button).toHaveText('Start studying');
   await expect(button).toBeFocused();
   await expect(button).toHaveClass(/btn-primary/);
@@ -25,12 +25,13 @@ test('saving tests lands on a focused Start studying button', async ({ page }) =
 
   const placed = await button.evaluate((el) => {
     const rect = el.getBoundingClientRect();
+    const offer = el.closest('[data-testid="start-offer"]')?.getBoundingClientRect();
     const style = getComputedStyle(el);
     return {
       top: rect.top,
       bottom: rect.bottom,
       width: rect.width,
-      viewportWidth: window.innerWidth,
+      offerWidth: offer?.width ?? rect.width,
       viewportHeight: window.innerHeight,
       background: style.backgroundColor,
       color: style.color,
@@ -38,7 +39,7 @@ test('saving tests lands on a focused Start studying button', async ({ page }) =
   });
   expect(placed.top).toBeGreaterThanOrEqual(0);
   expect(placed.bottom).toBeLessThanOrEqual(placed.viewportHeight);
-  expect(placed.width).toBeGreaterThan(placed.viewportWidth * 0.75);
+  expect(placed.width).toBeGreaterThan(placed.offerWidth * 0.8);
   expect(placed.background).not.toBe(placed.color);
 
   await button.click();

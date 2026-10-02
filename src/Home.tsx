@@ -25,6 +25,14 @@ export function Home() {
   const [naming, setNaming] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
   const [backupError, setBackupError] = useState<string | null>(null);
+  const offerId = study.startOffer?.deckId ?? null;
+  useEffect(() => {
+    if (!offerId) return;
+    const root = document.querySelector('[data-testid="start-offer"]');
+    if (!(root instanceof HTMLElement)) return;
+    root.scrollIntoView({ block: 'start' });
+    root.querySelector<HTMLButtonElement>('[data-testid="start-saved"]')?.focus({ preventScroll: true });
+  }, [offerId]);
   if (!snap) return null;
 
   const now = Date.now();
@@ -102,7 +110,6 @@ export function Home() {
 
       <TodayCard focus={study.focus} arrival={study.homeArrival} />
 
-      {offerDeck && !primary ? null : (
       <StudyHero
         primary={primary}
         now={now}
@@ -123,7 +130,6 @@ export function Home() {
           }
         }}
       />
-      )}
 
       <div className="home-tabs" role="tablist" aria-label="Home">
         {(
@@ -282,33 +288,15 @@ function StudyHero({
 }
 
 function StartOffer({ deck, onStart }: { deck: Deck; onStart: () => void }) {
-  const rootRef = useRef<HTMLElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    rootRef.current?.scrollIntoView({ block: 'start' });
-    buttonRef.current?.focus();
-  }, []);
   return (
-    <section
-      ref={rootRef}
-      className="card stack start-offer"
-      data-testid="start-offer"
-      aria-label="Start studying"
-      style={{ padding: '1rem' }}
-    >
+    <section className="card stack start-offer" data-testid="start-offer" aria-label="Start studying" style={{ padding: '1rem' }}>
       <p data-testid="start-offer-cue" style={{ margin: 0 }}>
         You're all set — tap Start studying to begin
       </p>
       <p className="muted" data-testid="start-offer-test" style={{ margin: 0 }}>
         {deck.name}
       </p>
-      <button
-        ref={buttonRef}
-        className="btn btn-primary btn-block btn-start"
-        data-testid="start-studying"
-        type="button"
-        onClick={onStart}
-      >
+      <button className="btn btn-primary btn-block btn-start" data-testid="start-saved" type="button" onClick={onStart}>
         Start studying
       </button>
     </section>

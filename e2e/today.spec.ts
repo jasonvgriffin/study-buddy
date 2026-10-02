@@ -23,7 +23,7 @@ test('today recap is quiet until a session, then shows the day on home', async (
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
   await page.getByTestId('save-tests').click();
   await expect(page.getByTestId('start-offer-cue')).toHaveText("You're all set — tap Start studying to begin");
-  await page.getByTestId('start-studying').click();
+  await page.getByTestId('start-saved').click();
 
   await expect(page.getByRole('heading', { name: 'Which river runs through Cairo?' })).toBeVisible();
   await page.getByTestId('i-dont-know').click();
