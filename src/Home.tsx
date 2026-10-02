@@ -846,15 +846,6 @@ function LibraryPanel({
                   {list[0]?.sourceFileName}
                 </p>
                 <button
-                  className="text-link"
-                  data-testid="organize-tests"
-                  data-source-id={groupId}
-                  type="button"
-                  onClick={() => void study.openOrganize(groupId)}
-                >
-                  Rename tests
-                </button>
-                <button
                   className="btn btn-clay btn-block"
                   data-testid="delete-source"
                   data-file-name={list[0]?.sourceFileName ?? ''}
@@ -937,7 +928,7 @@ function LibraryPanel({
       {focused ? <UploadBlock subjectName={focused.name} /> : null}
       {focused ? (
         <button
-          className="btn btn-ghost btn-block"
+          className="btn btn-primary btn-block"
           data-testid="rename-subject-toggle"
           type="button"
           aria-expanded={renaming}

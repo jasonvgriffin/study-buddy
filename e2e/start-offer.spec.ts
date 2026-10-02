@@ -49,7 +49,7 @@ test('uploading a PDF lands on a focused Start studying button with no extra tap
   await expect(page.getByRole('heading', { name: 'Which river runs through Cairo?' })).toBeVisible();
 });
 
-test('organize stays optional and can be opened later from the library', async ({ page }) => {
+test('organize stays optional: the library list has no Rename tests link, the import card does', async ({ page }) => {
   await page.goto('./');
   await page.getByTestId('home-tab-library').click();
   await page.getByTestId('start-subject').click();
@@ -59,7 +59,13 @@ test('organize stays optional and can be opened later from the library', async (
   await expect(page.getByTestId('start-saved')).toBeVisible();
   await expect(page.getByTestId('save-tests')).toHaveCount(0);
 
-  await page.locator('[data-testid="organize-tests"][data-source-id]').click();
+  const library = page.getByTestId('library-subject');
+  await expect(library.getByTestId('delete-subject')).toBeVisible();
+  await expect(library.getByTestId('delete-source')).toBeVisible();
+  await expect(library.getByTestId('organize-tests')).toHaveCount(0);
+  await expect(library.getByText('Rename tests', { exact: true })).toHaveCount(0);
+
+  await page.getByTestId('start-offer').getByTestId('organize-tests').click();
   await expect(page.getByRole('heading', { name: 'Rename tests' })).toBeVisible();
   await expect(page.getByTestId('test-name').first()).toHaveValue('Practice Test 1');
   await page.getByTestId('test-name').first().fill('Rivers combined');
