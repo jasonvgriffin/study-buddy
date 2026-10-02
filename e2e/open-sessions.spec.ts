@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
+import { openSubjects } from './homeSections';
 
 const sampleThree = path.resolve('public/samples/sample-three-tests.pdf');
 const shots = '/opt/cursor/artifacts';
@@ -25,6 +26,7 @@ test('every open session is listed on the top card and each button resumes that 
   await page.getByTestId('add-subject').click();
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
   await expect(page.getByTestId('start-saved')).toBeVisible();
+  await openSubjects(page);
 
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await page.getByTestId('start-untimed').click();

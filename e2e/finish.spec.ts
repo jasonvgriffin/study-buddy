@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import path from 'node:path';
+import { openSettings, openSubjects } from './homeSections';
 
 const sampleThree = path.resolve('public/samples/sample-three-tests.pdf');
 
@@ -13,6 +14,7 @@ test('keyboard grading, missed review, domain scores, and the backup reminder', 
   await expect(page.locator('[data-subject-name="Finish"]')).toHaveClass(/on/);
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
   await expect(page.getByTestId('start-saved')).toBeVisible();
+  await openSubjects(page);
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await page.getByTestId('start-untimed').click();
 
@@ -81,6 +83,8 @@ test('keyboard grading, missed review, domain scores, and the backup reminder', 
   await page.getByTestId('backup-reminder-dismiss').click();
   await expect(page.getByTestId('backup-reminder')).toHaveCount(0);
   await page.reload();
+  await expect(page.getByTestId('backup-reminder')).toHaveCount(0);
+  await openSettings(page);
   await expect(page.getByTestId('backup-reminder')).toHaveCount(0);
   await expect(page.getByTestId('shuffle-toggle')).toHaveAttribute('aria-pressed', 'true');
   await page.getByTestId('shuffle-toggle').click();

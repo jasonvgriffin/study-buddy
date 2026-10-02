@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
+import { openSubjects } from './homeSections';
 
 const sampleThree = path.resolve('public/samples/sample-three-tests.pdf');
 const longTest = 'CompTIA A Plus Core 1 Hardware Networking Mobile Devices and Virtualization Study Notes';
@@ -14,11 +15,13 @@ test('the resume button names the test and a long name stays inside 360px', asyn
   await page.getByTestId('add-subject').click();
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
   await expect(page.getByTestId('start-saved')).toBeVisible();
+  await openSubjects(page);
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await page.getByLabel('Test name').fill(longTest);
   await page.getByRole('button', { name: 'Rename test' }).click();
   await expect(page.getByRole('heading', { name: longTest })).toBeVisible();
   await page.getByRole('button', { name: 'Back' }).click();
+  await page.getByTestId('home-tab-study').click();
 
   const picker = page.getByTestId('start-offer-test');
   await expect(picker).toHaveText(longTest);

@@ -39,9 +39,8 @@ test('practice exams list A, B, C, default to the imported test, then the last t
   await expect(page.locator('[data-subject-name="Exams"]')).toHaveClass(/on/);
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
   await expect(page.getByTestId('start-saved')).toBeVisible();
-  await showLibrary(page);
-
   const offered = await page.getByTestId('start-offer-test').textContent();
+  await showLibrary(page);
   const stored = await deckNamesInStorage(page);
   expect(stored).toHaveLength(3);
   const targets = ['Practice Exam B', 'Practice Exam C', 'Practice Exam A'];

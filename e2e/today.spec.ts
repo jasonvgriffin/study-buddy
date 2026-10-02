@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import path from 'node:path';
+import { openSubjects } from './homeSections';
 
 const sampleThree = path.resolve('public/samples/sample-three-tests.pdf');
 
@@ -14,8 +15,10 @@ test('home keeps today on the primary card and stays quiet when the day is empty
   await page.getByTestId('home-tab-library').click();
   await page.getByTestId('start-subject').click();
   const panelTop = await page.getByTestId('new-subject-panel').evaluate((el) => el.getBoundingClientRect().top);
-  const heroTop = await page.getByTestId('study-hero').evaluate((el) => el.getBoundingClientRect().top);
-  expect(panelTop).toBeLessThan(heroTop);
+  // The Subjects section has the top spot instead of the Start card; the new-subject form sits above it.
+  await expect(page.getByTestId('study-hero')).toHaveCount(0);
+  const sectionTop = await page.locator('#home-panel').evaluate((el) => el.getBoundingClientRect().top);
+  expect(panelTop).toBeLessThan(sectionTop);
 
   await page.getByTestId('subject-name').fill('Rivers');
   await page.getByTestId('add-subject').click();
@@ -103,6 +106,7 @@ test('today recap follows the subject chip and stays quiet for a subject with no
   await page.getByRole('button', { name: 'Home', exact: true }).click();
   await expect(page.getByTestId('today-line')).toHaveText('Today: 3 answered · 1 right (33%) · 1-day streak');
 
+  await openSubjects(page);
   await page.getByTestId('start-subject').click();
   await page.getByTestId('subject-name').fill('Weather');
   await page.getByTestId('add-subject').click();
@@ -111,7 +115,9 @@ test('today recap follows the subject chip and stays quiet for a subject with no
   await expect(page.getByTestId('start-saved')).toBeVisible();
 
   // "Subjects:" is a plain label now; clear the subject focus from the Subjects panel picker.
+  await openSubjects(page);
   await page.getByTestId('subject-picker').selectOption('');
+  await page.getByTestId('home-tab-study').click();
   const all = page.getByTestId('study-hero');
   await expect(all.getByTestId('today-line')).toHaveText('Today: 3 answered · 1 right (33%) · 1-day streak');
   await expect(all.getByTestId('today-subjects')).toContainText('Rivers');

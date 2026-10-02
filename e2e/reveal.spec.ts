@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import path from 'node:path';
+import { openSubjects } from './homeSections';
 
 const sampleThree = path.resolve('public/samples/sample-three-tests.pdf');
 const sampleFigure = path.resolve('public/samples/sample-figure.pdf');
@@ -13,6 +14,7 @@ test('tapping a choice grades it and shows the explanation underneath', async ({
   await expect(page.locator('[data-subject-name="Rivers"]')).toHaveClass(/on/);
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
   await expect(page.getByTestId('start-saved')).toBeVisible();
+  await openSubjects(page);
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await page.getByTestId('start-untimed').click();
   await expect(page.getByTestId('result')).toHaveCount(0);
@@ -55,6 +57,7 @@ test('a wrong choice shows the correct answer, the PDF explanation, and the less
   await expect(page.locator('[data-subject-name="Rivers"]')).toHaveClass(/on/);
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
   await expect(page.getByTestId('start-saved')).toBeVisible();
+  await openSubjects(page);
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await page.getByTestId('start-untimed').click();
   await page.getByTestId('choice').filter({ hasText: 'Amazon' }).click();
@@ -134,6 +137,7 @@ test("I don't know reveals the answer and lesson and counts the question missed"
   await expect(page.locator('[data-subject-name="Rivers"]')).toHaveClass(/on/);
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
   await expect(page.getByTestId('start-saved')).toBeVisible();
+  await openSubjects(page);
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await page.getByTestId('start-untimed').click();
 
@@ -180,6 +184,7 @@ test('choose two submits only after two taps, and a missing explanation is state
   await expect(page.locator('[data-subject-name="Rivers"]')).toHaveClass(/on/);
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
   await expect(page.getByTestId('start-saved')).toBeVisible();
+  await openSubjects(page);
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await page.getByTestId('start-untimed').click();
   await page.getByTestId('choice').filter({ hasText: 'Nile' }).click();
@@ -218,6 +223,7 @@ test('a question figure from the PDF is shown before the answer', async ({ page 
   await expect(page.locator('[data-subject-name="Color"]')).toHaveClass(/on/);
   await page.getByTestId('pdf-file').setInputFiles(sampleFigure);
   await expect(page.getByTestId('start-saved')).toBeVisible();
+  await openSubjects(page);
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await page.getByTestId('start-untimed').click();
   await expect(page.getByTestId('question-figure')).toBeVisible();

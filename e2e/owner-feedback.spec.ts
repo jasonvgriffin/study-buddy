@@ -3,6 +3,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { openSubjects } from './homeSections';
 
 const tagline =
   'A simple tool to help you study. Create a subject, upload a pdf of test questions and this tool will quiz you on the test questions.';
@@ -109,7 +110,7 @@ test('home title, feedback link, subject panel, upload status, and review chips'
   expect(
     await page.evaluate(() => {
       const form = document.querySelector('[data-testid="new-subject-panel"]');
-      const hero = document.querySelector('[data-testid="study-hero"]');
+      const hero = document.getElementById('home-panel');
       if (!form || !hero) return false;
       return form.getBoundingClientRect().top < hero.getBoundingClientRect().top;
     }),
@@ -124,7 +125,8 @@ test('home title, feedback link, subject panel, upload status, and review chips'
   await expect(page.getByTestId('start-subject')).toBeVisible();
   expect(
     await page.evaluate(() => {
-      const hero = document.querySelector('[data-testid="study-hero"]');
+      // The Subjects section holds the top spot (in place of the Start card), above the tabs.
+      const hero = document.getElementById('home-panel');
       const tabs = document.querySelector('.home-tabs');
       if (!hero || !tabs) return false;
       return hero.getBoundingClientRect().top < tabs.getBoundingClientRect().top;
@@ -172,6 +174,7 @@ test('home title, feedback link, subject panel, upload status, and review chips'
   await expect(page.getByTestId('replace-old')).toHaveCount(0);
   await expect(page.getByTestId('card-chip')).toHaveCount(0);
   await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await openSubjects(page);
   await page.locator('[data-deck-name="Practice Exam A"]').click();
   await page.getByRole('button', { name: /^A1\./ }).click();
   const editor = page.getByTestId('card-editor-panel');

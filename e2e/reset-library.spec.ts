@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
+import { openSubjects } from './homeSections';
 
 const sampleThree = path.resolve('public/samples/sample-three-tests.pdf');
 const sampleNotes = path.resolve('public/samples/sample-notes.pdf');
@@ -43,6 +44,7 @@ test('discard and start over clears every saved study record', async ({ page }) 
   await expect(page.locator('[data-subject-name="A+"]')).toHaveClass(/on/);
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
   await expect(page.getByTestId('start-saved')).toBeVisible();
+  await openSubjects(page);
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await page.getByTestId('start-untimed').click();
   await page.getByTestId('choice').filter({ hasText: 'Amazon' }).click();
@@ -91,7 +93,7 @@ test('discard and start over clears every saved study record', async ({ page }) 
   await expect(page.locator('[data-deck-name="Practice Test 1"]')).toHaveCount(0);
   await expect(page.getByTestId('delete-subject')).toHaveCount(0);
   await page.getByTestId('home-tab-stats').click();
-  await expect(page).toHaveURL(/#\/stats$/);
+  await expect(page.getByTestId('home-section-stats')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Stats', exact: true })).toBeVisible();
   await expect(page.getByText('A+')).toHaveCount(0);
   await expect(page.getByText('Which river runs through Cairo?')).toHaveCount(0);
@@ -119,8 +121,10 @@ test('library can delete one PDF and an entire subject', async ({ page }) => {
   await expect(page.locator('[data-subject-name="A+"]')).toHaveClass(/on/);
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
   await expect(page.getByTestId('start-saved')).toBeVisible();
+  await openSubjects(page);
   await page.getByTestId('pdf-file').setInputFiles(sampleNotes);
   await expect(page.getByTestId('import-added')).toContainText('sample-notes.pdf');
+  await openSubjects(page);
 
   await expect(page.getByTestId('delete-subject')).toHaveText('Delete A+ and all its PDFs');
   await expect(page.getByTestId('delete-source')).toHaveCount(2);
@@ -150,6 +154,7 @@ test('library can delete one PDF and an entire subject', async ({ page }) => {
   await expect(page.locator('[data-subject-name="Network+"]')).toHaveClass(/on/);
   await page.getByTestId('pdf-file').setInputFiles(sampleNotes);
   await expect(page.getByTestId('import-added')).toContainText('sample-notes.pdf');
+  await openSubjects(page);
   await page.locator('[data-subject-name="A+"]').click();
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await page.getByTestId('start-untimed').click();
@@ -189,7 +194,7 @@ test('library can delete one PDF and an entire subject', async ({ page }) => {
   await expect(page.locator('#home-panel')).toHaveCount(0);
   await expect(page.getByTestId('study-hero')).not.toContainText('A+');
   await page.getByTestId('home-tab-stats').click();
-  await expect(page).toHaveURL(/#\/stats$/);
+  await expect(page.getByTestId('home-section-stats')).toBeVisible();
   await expect(page.locator('main')).not.toContainText('A+');
   await expect(page.locator('main')).not.toContainText('Which river runs through Cairo?');
   await expect(page.getByRole('heading', { name: 'By test', exact: true })).toBeVisible();

@@ -20,11 +20,11 @@ test('dark mode preference still shows the light palette', async ({ page }) => {
   expect(colors.theme?.toLowerCase()).toBe('#ffffff');
   for (const name of ['Stats', 'Settings']) {
     await page.getByRole('navigation').getByRole('button', { name, exact: true }).click();
-    await expect(page.locator('.card').first()).toBeVisible();
+    await expect(page.getByTestId(`home-section-${name.toLowerCase()}`)).toBeVisible();
     const again = await read();
     expect(again.bg).toBe(colors.bg);
     expect(again.color).toBe(colors.color);
-    expect(again.cardBg).toBe(colors.cardBg);
+    if (again.cardBg) expect(again.cardBg).toBe(colors.cardBg);
   }
   const manifest = await page.evaluate(async () => {
     const href = document.querySelector('link[rel="manifest"]')?.getAttribute('href');

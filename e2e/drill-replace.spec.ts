@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
+import { openSubjects } from './homeSections';
 
 const sampleThree = path.resolve('public/samples/sample-three-tests.pdf');
 const shots = '/opt/cursor/artifacts';
@@ -51,6 +52,7 @@ async function importSample(page: Page, subject: string) {
   await expect(page.locator(`[data-subject-name="${subject}"]`)).toHaveClass(/on/);
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
   await expect(page.getByTestId('start-saved')).toBeVisible();
+  await openSubjects(page);
 }
 
 test('drill missed cards confirms beside the button when a sitting is open', async ({ page }) => {
@@ -139,8 +141,9 @@ test('drill missed cards confirms beside the button when a sitting is open', asy
   await expect(page.getByTestId('resume')).toHaveCount(1);
   await expect(page.getByTestId('resume-card').first()).toContainText('Question 1 of 1');
 
+  // The Settings section is the whole Settings screen now, so its backup reminder shows there too.
   await showTab(page, 'settings');
-  await expect(page.getByTestId('backup-reminder')).toHaveCount(0);
+  await expect(page.getByTestId('home-section-settings').getByTestId('backup-reminder')).toBeVisible();
   await page.getByRole('navigation').getByRole('button', { name: 'Stats', exact: true }).click();
   await expect(page.getByTestId('backup-reminder')).toHaveCount(0);
   await page.getByRole('button', { name: 'Settings', exact: true }).click();

@@ -1,13 +1,10 @@
 import { useEffect, useRef } from 'react';
-import { BackupReminder } from './BackupReminder';
-import { backupReminderOnScreen } from './lib/backup';
 import { PressFeedback } from './PressFeedback';
 import { DeckScreen } from './Deck';
 import { Home } from './Home';
 import { ResultsScreen } from './Results';
 import { ReviewScreen } from './Review';
 import { SessionScreen } from './Session';
-import { Settings } from './Settings';
 import { Stats } from './Stats';
 import { Spinner } from './bits';
 import { navigate } from './nav';
@@ -70,7 +67,15 @@ function StatusNotice() {
 function Shell() {
   const study = useStudy();
   const route = study.route;
-  const showNav = route.name === 'home' || route.name === 'stats' || route.name === 'settings';
+  const showNav = route.name === 'home' || route.name === 'stats';
+  const homeSection = route.name === 'home' ? study.homeTab : null;
+  // Stats and Settings are sections of Home now; the bottom bar opens them there instead of routing away.
+  const openSection = (tab: 'stats' | 'settings' | null) => {
+    study.setHomeTab(tab);
+    if (route.name !== 'home') navigate(tab ? `/?tab=${tab}` : '/');
+    else if (tab) requestAnimationFrame(() => document.getElementById('home-panel')?.scrollIntoView({ block: 'start' }));
+    else window.scrollTo(0, 0);
+  };
 
   return (
     <div className="app-shell">
@@ -79,10 +84,8 @@ function Shell() {
         {!study.ready && !study.bootError ? <p>Opening saved decks…</p> : null}
         {study.bootError ? <p role="alert">{study.bootError}</p> : null}
         <StatusNotice />
-        {study.ready && backupReminderOnScreen(route.name) ? <BackupReminder /> : null}
         {study.ready && route.name === 'home' ? <Home key={study.dataEpoch} /> : null}
         {study.ready && route.name === 'stats' ? <Stats /> : null}
-        {study.ready && route.name === 'settings' ? <Settings /> : null}
         {study.ready && route.name === 'review' ? <ReviewScreen draftId={route.draftId} /> : null}
         {study.ready && route.name === 'deck' ? <DeckScreen deckId={route.deckId} cardId={route.cardId} /> : null}
         {study.ready && route.name === 'session' ? <SessionScreen sessionId={route.sessionId} /> : null}
@@ -96,13 +99,21 @@ function Shell() {
       </main>
       {showNav ? (
         <nav className="nav">
-          <button className={route.name === 'home' ? 'on' : ''} type="button" onClick={() => navigate('/')}>
+          <button
+            className={route.name === 'home' && homeSection !== 'stats' && homeSection !== 'settings' ? 'on' : ''}
+            type="button"
+            onClick={() => openSection(null)}
+          >
             Home
           </button>
-          <button className={route.name === 'stats' ? 'on' : ''} type="button" onClick={() => navigate('/stats')}>
+          <button
+            className={route.name === 'stats' || homeSection === 'stats' ? 'on' : ''}
+            type="button"
+            onClick={() => openSection('stats')}
+          >
             Stats
           </button>
-          <button className={route.name === 'settings' ? 'on' : ''} type="button" onClick={() => navigate('/settings')}>
+          <button className={homeSection === 'settings' ? 'on' : ''} type="button" onClick={() => openSection('settings')}>
             Settings
           </button>
         </nav>
