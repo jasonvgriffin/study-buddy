@@ -652,7 +652,7 @@ function LibraryPanel({
               type="button"
               onClick={() => setPending({ kind: 'subject', id: subject.id, name: subject.name })}
             >
-              Delete {subject.name}
+              Delete {subject.name} and all its PDFs
             </button>
             {!subjectDecks.length && !subjectDrafts.length ? (
               <p className="muted" style={{ margin: 0 }}>
@@ -685,7 +685,7 @@ function LibraryPanel({
                     })
                   }
                 >
-                  Delete PDF
+                  Delete this PDF only
                 </button>
                 <button className="btn btn-ghost btn-block" type="button" onClick={() => navigate(`/review/${draft.id}`)}>
                   {draft.fileName}: {draft.tests.length} test{draft.tests.length === 1 ? '' : 's'} waiting for review
@@ -727,7 +727,7 @@ function LibraryPanel({
                     })
                   }
                 >
-                  Delete PDF
+                  Delete this PDF only
                 </button>
                 {list.map((deck) => {
                   const count = cards.filter((card) => card.deckId === deck.id).length;
@@ -775,7 +775,7 @@ function LibraryPanel({
                 })
               }
             >
-              Delete PDF
+              Delete this PDF only
             </button>
             <button className="btn btn-ghost btn-block" type="button" onClick={() => navigate(`/review/${draft.id}`)}>
               {draft.fileName}: {draft.tests.length} test{draft.tests.length === 1 ? '' : 's'} waiting for review
@@ -814,7 +814,7 @@ function LibraryPanel({
         <DestructiveConfirm
           title={`Delete ${pending.name}?`}
           body={`This permanently removes ${pending.name} and all of its questions, metrics, progress, test sessions, and source files.`}
-          confirmLabel={`Delete ${pending.name}`}
+          confirmLabel={`Delete ${pending.name} and all its PDFs`}
           onConfirm={() => {
             const id = pending.id;
             setPending(null);
@@ -827,7 +827,7 @@ function LibraryPanel({
         <DestructiveConfirm
           title={`Delete ${pending.fileName}?`}
           body={`This removes ${pending.fileName} from ${pending.subjectName}, including the tests, questions, progress, and saved sessions that came from that file.`}
-          confirmLabel="Delete PDF"
+          confirmLabel="Delete this PDF only"
           onConfirm={() => {
             const sourceGroupId = pending.sourceGroupId;
             setPending(null);
