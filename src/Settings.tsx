@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { Screen } from './bits';
 import { readHaptics, readSounds, writeHaptics, writeSounds } from './lib/feedback';
 import { readShuffle, writeShuffle } from './lib/shuffle';
@@ -12,6 +12,20 @@ export function Settings() {
   const [shuffle, setShuffle] = useState(() => readShuffle());
   const [haptics, setHaptics] = useState(() => readHaptics());
   const [sounds, setSounds] = useState(() => readSounds());
+  // Brave mobile keeps the old scroll offset across the hash change and can
+  // restore it after first paint, so pin the page to the top now and again
+  // after the next frames.
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => window.scrollTo(0, 0));
+    const timer = window.setTimeout(() => window.scrollTo(0, 0), 150);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+    };
+  }, []);
   const persist = study.snap?.persist;
   const persistText =
     persist?.granted === true
@@ -108,10 +122,10 @@ export function Settings() {
         <p className="muted" style={{ margin: 0 }}>
           Export JSON after a study session. Import replaces what is currently stored on this device.
         </p>
-        <button className="btn btn-primary" type="button" onClick={() => void study.downloadBackup()}>
+        <button className="btn btn-primary btn-block" type="button" onClick={() => void study.downloadBackup()}>
           Export backup
         </button>
-        <label className="btn btn-ghost btn-block">
+        <label className="btn btn-primary btn-block">
           Import backup
           <input
             hidden
