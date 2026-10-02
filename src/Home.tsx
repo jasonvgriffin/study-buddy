@@ -858,7 +858,7 @@ function LibraryPanel({
           }}
         >
           <label className="stack" style={{ gap: '0.35rem' }}>
-            <span>Rename {focused.name}</span>
+            <span>Rename subject</span>
             <input className="field" value={rename ?? focused.name} onChange={(event) => onRename(event.target.value)} />
           </label>
           <button className="btn btn-ghost btn-block" type="submit">
