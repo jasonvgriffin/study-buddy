@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { flushSync } from 'react-dom';
 import {
   deleteCard,
   deleteDeck,
@@ -31,6 +32,7 @@ import {
   wipeStudyDatabase,
   type StudySnapshot,
 } from './lib/db';
+import { addedQuestionsMessage, READING_STATUS, UPLOADING_STATUS } from './lib/importStatus';
 import { newId } from './lib/format';
 import { lessonTitle, watchUrl } from './lib/lessons';
 import { assignFigures, bindFiguresToCards } from './lib/figures';
@@ -81,6 +83,7 @@ type StudyApi = {
   bootError: string | null;
   busy: string | null;
   message: string | null;
+  messageTone: 'info' | 'error' | 'success';
   route: Route;
   focus: string | 'all';
   homeTab: HomeTab | null;
@@ -88,7 +91,7 @@ type StudyApi = {
   dataEpoch: number;
   snap: StudySnapshot | null;
   setFocus: (id: string | 'all') => void;
-  setMessage: (message: string | null) => void;
+  setMessage: (message: string | null, tone?: 'info' | 'error' | 'success') => void;
   addSubject: (name: string) => Promise<string>;
   renameSubject: (id: string, name: string) => Promise<void>;
   removeSubject: (id: string) => Promise<void>;
@@ -135,13 +138,26 @@ export type ReviewFilter = {
 
 const StudyContext = createContext<StudyApi | null>(null);
 
+function nextPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve());
+    });
+  });
+}
+
 export function StudyProvider({ children }: { children: ReactNode }) {
   const [snap, setSnap] = useState<StudySnapshot | null>(null);
   const snapRef = useRef<StudySnapshot | null>(null);
   const [ready, setReady] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessageText] = useState<string | null>(null);
+  const [messageTone, setMessageTone] = useState<'info' | 'error' | 'success'>('info');
+  const setMessage = useCallback((text: string | null, tone: 'info' | 'error' | 'success' = 'info') => {
+    setMessageText(text);
+    setMessageTone(tone);
+  }, []);
   const [route, setRoute] = useState<Route>(() => parseRoute(location.hash));
   const [homeTab, setHomeTabState] = useState<HomeTab | null>(() =>
     parseRoute(location.hash).name === 'home' ? parseHomeTab(location.hash) : null,
@@ -331,17 +347,17 @@ export function StudyProvider({ children }: { children: ReactNode }) {
   async function importPdf(file: File) {
     const subjectId = selectedSubjectId();
     if (!subjectId) {
-      setMessage('Choose a subject before uploading. All subjects is a view, not a place to store a PDF.');
+      setMessage('Choose a subject before uploading. All subjects is a view, not a place to store a PDF.', 'error');
       return;
     }
     setMessage(null);
-    setBusy(`Reading ${file.name}`);
+    flushSync(() => setBusy(UPLOADING_STATUS));
+    await nextPaint();
     try {
       const data = new Uint8Array(await file.arrayBuffer());
-      const extracted = await extractPdfStudy(data, (page, total) => {
-        setBusy(`Reading page ${page} of ${total}`);
-      });
-      setBusy('Finding questions');
+      flushSync(() => setBusy(READING_STATUS));
+      await nextPaint();
+      const extracted = await extractPdfStudy(data, () => undefined);
       const doc = parseDocument(extracted.textPages);
       const tests = doc.tests
         .filter((test) => test.cards.length > 0)
@@ -350,7 +366,7 @@ export function StudyProvider({ children }: { children: ReactNode }) {
           cards: test.cards.map((card) => ({ ...card, captureId: card.captureId ?? newId() })),
         }));
       if (!tests.length) {
-        setMessage('No questions found in that PDF. Study Buddy reads text in the file. Scanned pages need OCR first.');
+        setMessage('No questions found in that PDF. Study Buddy reads text in the file. Scanned pages need OCR first.', 'error');
         return;
       }
       const draft: ImportDraft = {
@@ -379,7 +395,6 @@ export function StudyProvider({ children }: { children: ReactNode }) {
         pages: extracted.pageSizes,
         images: extracted.images,
       });
-      if (regionJobs.length) setBusy('Cropping figures for performance-based questions');
       const regionPngs = regionJobs.length ? await extracted.renderRegions(regionJobs) : new Map<string, Blob>();
       const figures: StoredFigure[] = [];
       for (const test of tests) {
@@ -403,7 +418,6 @@ export function StudyProvider({ children }: { children: ReactNode }) {
         }
       }
       if (mapped.assignments.length) {
-        setBusy('Saving figures from the PDF');
         const pngs = await extracted.rasterize(mapped.assignments.map((item) => item.imageIndex));
         const links = bindFiguresToCards(tests, mapped.slots);
         for (const link of links) {
@@ -433,15 +447,14 @@ export function StudyProvider({ children }: { children: ReactNode }) {
           }
         }
       }
-      if (figures.length) {
-        setBusy('Saving figures from the PDF');
-        await putFigures(figures);
-      }
+      if (figures.length) await putFigures(figures);
       await putDraft(draft);
       patch((state) => ({ ...state, drafts: [...state.drafts.filter((item) => item.id !== draft.id), draft] }));
+      const count = tests.reduce((sum, test) => sum + test.cards.length, 0);
+      setMessage(addedQuestionsMessage(count, file.name), 'success');
       navigate(`/review/${draft.id}`);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Could not read that PDF.');
+      setMessage(error instanceof Error ? error.message : 'Could not read that PDF.', 'error');
     } finally {
       setBusy(null);
     }
@@ -469,55 +482,62 @@ export function StudyProvider({ children }: { children: ReactNode }) {
 
   async function saveDraftTests(draft: ImportDraft, options?: { replaceDeckIds?: string[] }) {
     if (!draft.subjectId) {
-      setMessage('Choose a subject before saving.');
+      setMessage('Choose a subject before saving.', 'error');
       return;
     }
-    // Re-importing the same PDF replaces the earlier decks (cards, figures, answers,
-    // and paused sessions) so an old parse without figures cannot linger beside the new one.
-    for (const deckId of options?.replaceDeckIds ?? []) {
-      await deleteDeck(deckId);
-    }
-    const subjectId = draft.subjectId;
-    const now = Date.now();
-    const stem = draft.fileName.replace(/\.pdf$/i, '');
-    const captureToCard = new Map<string, string>();
-    for (let testIndex = 0; testIndex < draft.tests.length; testIndex += 1) {
-      const test = draft.tests[testIndex];
-      const deckId = newId();
-      const name = test.name === 'Imported test' && draft.tests.length === 1 ? stem : test.name;
-      const deck: Deck = {
-        id: deckId,
-        subjectId,
-        name,
-        sourceFileName: draft.fileName,
-        sourceGroupId: draft.id,
-        domains: draft.domains,
-        createdAt: now,
-        updatedAt: now,
-      };
-      const cards: Card[] = test.cards.map((card, cardIndex) => {
-        const raw = draft.videoStarts?.[`${testIndex}:${cardIndex}`];
-        const videoStartSec = typeof raw === 'number' && raw > 0 ? Math.floor(raw) : null;
-        return {
-          ...card,
-          id: newId(),
-          deckId,
-          subjectId,
-          order: cardIndex,
-          videoStartSec,
-        };
-      });
-      for (const card of cards) {
-        if (card.captureId) captureToCard.set(card.captureId, card.id);
+    flushSync(() => setBusy('Saving…'));
+    try {
+      // Re-importing the same PDF replaces the earlier decks (cards, figures, answers,
+      // and paused sessions) so an old parse without figures cannot linger beside the new one.
+      for (const deckId of options?.replaceDeckIds ?? []) {
+        await deleteDeck(deckId);
       }
-      await putDeckBundle(deck, cards);
+      const subjectId = draft.subjectId;
+      const now = Date.now();
+      const stem = draft.fileName.replace(/\.pdf$/i, '');
+      const captureToCard = new Map<string, string>();
+      for (let testIndex = 0; testIndex < draft.tests.length; testIndex += 1) {
+        const test = draft.tests[testIndex];
+        const deckId = newId();
+        const name = test.name === 'Imported test' && draft.tests.length === 1 ? stem : test.name;
+        const deck: Deck = {
+          id: deckId,
+          subjectId,
+          name,
+          sourceFileName: draft.fileName,
+          sourceGroupId: draft.id,
+          domains: draft.domains,
+          createdAt: now,
+          updatedAt: now,
+        };
+        const cards: Card[] = test.cards.map((card, cardIndex) => {
+          const raw = draft.videoStarts?.[`${testIndex}:${cardIndex}`];
+          const videoStartSec = typeof raw === 'number' && raw > 0 ? Math.floor(raw) : null;
+          return {
+            ...card,
+            id: newId(),
+            deckId,
+            subjectId,
+            order: cardIndex,
+            videoStartSec,
+          };
+        });
+        for (const card of cards) {
+          if (card.captureId) captureToCard.set(card.captureId, card.id);
+        }
+        await putDeckBundle(deck, cards);
+      }
+      await relinkDraftFigures(draft.id, captureToCard);
+      await deleteDraft(draft.id);
+      const loaded = await loadSnapshot();
+      replaceSnap(loaded);
+      setFocus(subjectId);
+      navigate('/');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not save those tests.', 'error');
+    } finally {
+      setBusy(null);
     }
-    await relinkDraftFigures(draft.id, captureToCard);
-    await deleteDraft(draft.id);
-    const loaded = await loadSnapshot();
-    replaceSnap(loaded);
-    setFocus(subjectId);
-    navigate('/');
   }
 
   async function renameDeck(deck: Deck, name: string) {
@@ -848,6 +868,7 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       bootError,
       busy,
       message,
+      messageTone,
       route,
       focus,
       homeTab,
@@ -886,7 +907,7 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       restoreBackup,
       askPersist,
     }),
-    [ready, bootError, busy, message, route, focus, homeTab, setHomeTab, dataEpoch, snap],
+    [ready, bootError, busy, message, messageTone, route, focus, homeTab, setHomeTab, dataEpoch, snap],
   );
 
   return <StudyContext.Provider value={api}>{children}</StudyContext.Provider>;

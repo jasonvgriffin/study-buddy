@@ -4,7 +4,7 @@ test.use({ colorScheme: 'dark' });
 
 test('dark mode preference still shows the light palette', async ({ page }) => {
   await page.goto('./');
-  await expect(page.getByRole('heading', { name: 'Study Buddy' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Study Buddy Beta', exact: true })).toBeVisible();
   const read = () =>
     page.evaluate(() => {
       const body = getComputedStyle(document.body);
@@ -33,4 +33,6 @@ test('dark mode preference still shows the light palette', async ({ page }) => {
   });
   expect(String(manifest.theme_color).toLowerCase()).toBe('#ffffff');
   expect(String(manifest.background_color).toLowerCase()).toBe('#ffffff');
+  expect(manifest.name).toBe('Study Buddy Beta');
+  expect(manifest.short_name).toBe('Study Buddy Beta');
 });

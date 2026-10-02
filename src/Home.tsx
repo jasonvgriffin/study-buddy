@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { DestructiveConfirm, ResetConfirm } from './bits';
+import { useEffect, useRef, useState } from 'react';
+import { DemandPanel, DestructiveConfirm, ResetConfirm, Spinner } from './bits';
+import { feedbackMailHref } from './lib/feedbackMail';
 import { domainBreakdown } from './lib/domains';
 import { readExamDeckId, resolveDeckPick, sortDecksByName, writeExamDeckId } from './lib/examDeck';
 import { formatPercent } from './lib/format';
@@ -20,6 +21,7 @@ export function Home() {
   const [rename, setRename] = useState('');
   const [examDeckId, setExamDeckId] = useState<string | null>(() => readExamDeckId());
   const [naming, setNaming] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
   const [backupError, setBackupError] = useState<string | null>(null);
   if (!snap) return null;
 
@@ -40,9 +42,15 @@ export function Home() {
   return (
     <div className="stack">
       <header className="stack" style={{ gap: '0.3rem' }}>
-        <h1>Study Buddy</h1>
-        <p className="muted" style={{ margin: 0 }}>
-          Your PDFs, as flashcards. Questions come only from files you add.
+        <h1>Study Buddy Beta</h1>
+        <p className="muted" data-testid="tagline" style={{ margin: 0 }}>
+          An experimental tool to help you study. Create a subject, upload a pdf of test questions and this tool will quiz you.
+        </p>
+        <p className="feedback-note" data-testid="feedback-note">
+          Found a bug or have feedback? Email{' '}
+          <a data-testid="feedback-mail" href={feedbackMailHref(__APP_VERSION__, __BUILD_TIME__)}>
+            eve.chief_of_staff@agentmail.to
+          </a>
         </p>
       </header>
 
@@ -64,6 +72,27 @@ export function Home() {
         ))}
       </div>
 
+      {naming ? (
+        <NewSubjectPanel
+          name={name}
+          error={nameError}
+          onName={(value) => {
+            setName(value);
+            setNameError(null);
+          }}
+          onCancel={() => setNaming(false)}
+          onSave={() => {
+            void study.addSubject(name).then(() => {
+              setName('');
+              setNameError(null);
+              setNaming(false);
+            }).catch((reason: unknown) => {
+              setNameError(reason instanceof Error ? reason.message : 'Could not save that subject.');
+            });
+          }}
+        />
+      ) : null}
+
       <StudyHero
         primary={primary}
         now={now}
@@ -77,7 +106,10 @@ export function Home() {
           if (recentDeck) void study.startExam(recentDeck, false);
           else {
             study.setHomeTab('library');
-            if (!focused) setNaming(true);
+            if (!focused) {
+              setNameError(null);
+              setNaming(true);
+            }
           }
         }}
       />
@@ -150,18 +182,13 @@ export function Home() {
               cards={cards}
               subjects={subjects}
               focused={focused}
-              name={name}
               rename={rename}
               naming={naming}
               inFocus={inFocus}
-              onName={setName}
               onRename={setRename}
-              onNaming={setNaming}
-              onAddSubject={() => {
-                void study.addSubject(name).then(() => {
-                  setName('');
-                  setNaming(false);
-                });
+              onNaming={(open) => {
+                if (open) setNameError(null);
+                setNaming(open);
               }}
               onSaveSubject={() => {
                 if (focused) void study.renameSubject(focused.id, rename || focused.name);
@@ -342,20 +369,58 @@ type LibraryConfirm =
   | { kind: 'subject'; id: string; name: string }
   | { kind: 'source'; sourceGroupId: string; fileName: string; subjectName: string };
 
+function NewSubjectPanel({
+  name,
+  error,
+  onName,
+  onCancel,
+  onSave,
+}: {
+  name: string;
+  error: string | null;
+  onName: (value: string) => void;
+  onCancel: () => void;
+  onSave: () => void;
+}) {
+  return (
+    <DemandPanel title="Start a new subject" testId="new-subject-panel" onCancel={onCancel}>
+      <form
+        className="stack"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSave();
+        }}
+      >
+        <label className="stack" style={{ gap: '0.35rem' }}>
+          <span>Subject name</span>
+          <input
+            className="field"
+            data-testid="subject-name"
+            value={name}
+            placeholder="Core 1, Network+, a textbook..."
+            onChange={(event) => onName(event.target.value)}
+          />
+        </label>
+        {error ? <p role="alert">{error}</p> : null}
+        <button className="btn btn-primary btn-block" data-testid="add-subject" type="submit">
+          Save subject
+        </button>
+      </form>
+    </DemandPanel>
+  );
+}
+
 function LibraryPanel({
   snap,
   decks,
   cards,
   subjects,
   focused,
-  name,
   rename,
   naming,
   inFocus,
-  onName,
   onRename,
   onNaming,
-  onAddSubject,
   onSaveSubject,
 }: {
   snap: StudySnapshot;
@@ -363,14 +428,11 @@ function LibraryPanel({
   cards: Card[];
   subjects: Subject[];
   focused: Subject | null;
-  name: string;
   rename: string;
   naming: boolean;
   inFocus: (subjectId: string) => boolean;
-  onName: (value: string) => void;
   onRename: (value: string) => void;
   onNaming: (naming: boolean) => void;
-  onAddSubject: () => void;
   onSaveSubject: () => void;
 }) {
   const study = useStudy();
@@ -525,29 +587,7 @@ function LibraryPanel({
             </button>
           </div>
         ))}
-      {naming ? (
-        <form
-          className="stack"
-          onSubmit={(event) => {
-            event.preventDefault();
-            onAddSubject();
-          }}
-        >
-          <label className="stack" style={{ gap: '0.35rem' }}>
-            <span>Subject name</span>
-            <input
-              className="field"
-              data-testid="subject-name"
-              value={name}
-              placeholder="Core 1, Network+, a textbook..."
-              onChange={(event) => onName(event.target.value)}
-            />
-          </label>
-          <button className="btn btn-primary btn-block" data-testid="add-subject" type="submit">
-            Save subject
-          </button>
-        </form>
-      ) : (
+      {naming ? null : (
         <button className="btn btn-primary btn-block" data-testid="start-subject" type="button" onClick={() => onNaming(true)}>
           Start a new subject
         </button>
@@ -718,6 +758,19 @@ function SettingsPanel({
 
 function UploadBlock({ subjectName }: { subjectName: string }) {
   const study = useStudy();
+  const statusRef = useRef<HTMLParagraphElement>(null);
+  const statusText = study.busy || study.message;
+  useEffect(() => {
+    if (!statusText) return;
+    statusRef.current?.scrollIntoView({ block: 'center' });
+  }, [statusText]);
+  const toneClass = study.busy
+    ? 'upload-status'
+    : study.messageTone === 'error'
+      ? 'banner-error'
+      : study.messageTone === 'success'
+        ? 'banner-success'
+        : '';
 
   return (
     <div className="stack" data-testid="import-for-subject">
@@ -725,7 +778,7 @@ function UploadBlock({ subjectName }: { subjectName: string }) {
       <p className="muted" style={{ margin: 0 }}>
         This file is saved in {subjectName}. Text is copied from the PDF as written. Study Buddy does not write new questions.
       </p>
-      <label className="btn btn-primary btn-block">
+      <label className={study.busy ? 'btn btn-primary btn-block is-disabled' : 'btn btn-primary btn-block'} aria-disabled={study.busy ? true : undefined}>
         Import a PDF
         <input
           data-testid="pdf-file"
@@ -740,6 +793,12 @@ function UploadBlock({ subjectName }: { subjectName: string }) {
           }}
         />
       </label>
+      {statusText ? (
+        <p ref={statusRef} className={`banner ${toneClass}`} data-testid="import-status" aria-hidden="true">
+          {study.busy ? <Spinner /> : null}
+          {statusText}
+        </p>
+      ) : null}
     </div>
   );
 }

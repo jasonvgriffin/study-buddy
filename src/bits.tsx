@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 
 export function WatchLesson({
   href,
@@ -73,6 +73,41 @@ export function ResetConfirm({ onConfirm, onCancel }: { onConfirm: () => void; o
       onConfirm={onConfirm}
       onCancel={onCancel}
     />
+  );
+}
+
+export function Spinner() {
+  return <span className="spinner" aria-hidden="true" />;
+}
+
+/** A form that opens on demand, in the slot above the page's main action. */
+export function DemandPanel({
+  title,
+  testId = 'demand-panel',
+  onCancel,
+  children,
+}: {
+  title: string;
+  testId?: string;
+  onCancel: () => void;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const root = ref.current;
+    if (!root) return;
+    root.scrollIntoView({ block: 'start' });
+    const field = root.querySelector<HTMLElement>('input:not([type="hidden"]), textarea, select');
+    field?.focus();
+  }, []);
+  return (
+    <section ref={ref} className="card stack demand-panel" data-testid={testId} aria-label={title} style={{ padding: '1rem' }}>
+      <h2>{title}</h2>
+      {children}
+      <button className="btn btn-ghost btn-block" data-testid="demand-cancel" type="button" onClick={onCancel}>
+        Cancel
+      </button>
+    </section>
   );
 }
 
