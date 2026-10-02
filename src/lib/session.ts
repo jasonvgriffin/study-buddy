@@ -1,5 +1,6 @@
 import type { Card, LiveSession, SessionAnswer } from './types';
 import { formatDuration, newId } from './format';
+import { currentReviewName } from './deckLabel';
 
 export const TIMED_EXAM_MS = 90 * 60 * 1000;
 
@@ -38,7 +39,7 @@ export function inProgressLabel(session: ProgressSession): string {
 /** Pieces of the resume line so the test name can be emphasized without changing the words. */
 export function resumeLabelParts(session: LiveSession, now: number): { lead: string; name: string; rest: string } {
   const elapsed = formatDuration(elapsedMs(session, now));
-  const name = session.deckName;
+  const name = session.kind === 'review' ? currentReviewName(session.deckName) : session.deckName;
   const progress = sessionProgress(session);
   if ('skipped' in progress) {
     const noun = progress.skipped === 1 ? 'question' : 'questions';

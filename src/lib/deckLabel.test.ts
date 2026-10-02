@@ -94,11 +94,23 @@ describe('sessionDeckLabel', () => {
     expect(sessionDeckLabel({ deckId: 'm', deckName: 'Practice Exam A', kind: 'exam' }, decks)).toBe(
       'Practice Exam A, Messer',
     );
-    expect(sessionDeckLabel({ deckId: 'm', deckName: 'Due for review', kind: 'review' }, decks)).toBe(
-      'Due for review',
+    expect(sessionDeckLabel({ deckId: 'm', deckName: 'Hardware', kind: 'review' }, decks)).toBe(
+      'Hardware',
     );
     expect(sessionDeckLabel({ deckId: 'missing', deckName: 'Practice Exam A', kind: 'exam' }, decks)).toBe(
       'Practice Exam A',
     );
+  });
+});
+
+import { currentReviewName } from './deckLabel';
+import { describe as describeLegacy, expect as expectLegacy, it as itLegacy } from 'vitest';
+
+describeLegacy('currentReviewName', () => {
+  itLegacy('shows Recommended Cards for review sittings saved under older names', () => {
+    expectLegacy(currentReviewName('Due in this subject')).toBe('Recommended Cards');
+    expectLegacy(currentReviewName('Due for review')).toBe('Recommended Cards');
+    expectLegacy(currentReviewName('Recommended Questions')).toBe('Recommended Cards');
+    expectLegacy(currentReviewName('Hardware')).toBe('Hardware');
   });
 });
