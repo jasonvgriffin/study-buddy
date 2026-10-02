@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type Ref } from 'react';
-import { DemandPanel, DestructiveConfirm, DrillReplacePrompt, ResetConfirm, Spinner } from './bits';
+import { DemandPanel, DestructiveConfirm, DrillReplacePrompt, Spinner } from './bits';
 import { deckLabel, sessionDeckLabel } from './lib/deckLabel';
 import { resumeButtonLabel } from './lib/resumeButton';
 import { feedbackMailHref } from './lib/feedbackMail';
@@ -47,7 +47,6 @@ export function Home() {
   const cards = snap.cards.filter((card) => inFocus(card.subjectId));
   const due = dueCardIds(snap.cards, snap.memories, now, study.focus === 'all' ? {} : { subjectId: study.focus });
   const sessions = openHomeSessions(snap.sessions, inFocus);
-  const primary = sessions[0] ?? null;
   const focused = subjects.find((subject) => subject.id === study.focus) ?? null;
   const offerDeck = study.startOffer
     ? decks.find((deck) => deck.id === study.startOffer?.deckId) ?? null
@@ -76,6 +75,31 @@ export function Home() {
         onOrganize: () => void study.openOrganize(offerDeck.sourceGroupId),
       }
     : null;
+  // Drill missed cards and Recommended Cards live on the Home card (not in a tab) and follow the picked exam.
+  const practice: PracticeInfo | null = decks.length
+    ? {
+        examLabel: examDeck ? deckLabel(examDeck, snap.decks) : null,
+        dueCount: due.length,
+        onDrill: async () => {
+          if (!examDeck) return 'none';
+          return study.startMissedDrill(examDeck, null, { holdForConfirm: true });
+        },
+        onReplaceDrill: () => {
+          if (examDeck) void study.startMissedDrill(examDeck, null, { replaceOpen: true });
+        },
+        onReviewDue: () => {
+          void study.startDueReview('Recommended Cards', {
+            subjectId: study.focus === 'all' ? null : study.focus,
+            scopeKey: `review:home:${study.focus}`,
+          });
+        },
+      }
+    : null;
+  // With open sittings plus a fresh import, the import gets its own Start card above the Resume card.
+  const offerCardAboveResume = !!startOffer && sessions.length > 0 && !!startDeck;
+  // With tests saved, the Study tab has no panel of its own: it brings the Home card into view instead.
+  const studyHasPanel = decks.length === 0;
+  const panelOpen = tab === 'library' || tab === 'settings' || (tab === 'study' && studyHasPanel);
   const nameFor = (session: LiveSession) => sessionDeckLabel(session, snap.decks);
   const recap = todayRecap({
     reviews: snap.reviews,
@@ -106,9 +130,9 @@ export function Home() {
       </header>
 
       <div className="row-scroll" role="tablist" aria-label="Subjects">
-        <button className={study.focus === 'all' ? 'chip on' : 'chip'} type="button" onClick={() => study.setFocus('all')}>
+        <strong className="chip-row-label" data-testid="subjects-label">
           Subjects:
-        </button>
+        </strong>
         {subjects.map((subject) => (
           <button
             key={subject.id}
@@ -144,13 +168,14 @@ export function Home() {
         />
       ) : null}
 
-      {startOffer && sessions.length > 0 && startDeck ? (
+      {offerCardAboveResume && startDeck ? (
         <StartCard
           choices={startChoices}
           deck={startDeck}
           offer={startOffer}
           recap={null}
           timing={timing}
+          practice={practice}
           onPick={pickStart}
           onStart={() => void study.startExam(startDeck, startTimed)}
         />
@@ -167,6 +192,8 @@ export function Home() {
         offer={startOffer}
         onPickStart={pickStart}
         timing={timing}
+        practice={practice}
+        practiceInResume={!offerCardAboveResume}
         emptyDetail={focused ? `Import a PDF into ${focused.name}.` : 'Name a subject, then import its PDF.'}
         emptyAction={focused ? 'Import a PDF' : 'Start a new subject'}
         busy={!!study.busy}
@@ -221,9 +248,12 @@ export function Home() {
               id={`home-tab-${item.id}`}
               data-testid={`home-tab-${item.id}`}
               aria-selected={tab === item.id}
-              aria-controls={tab === item.id ? 'home-panel' : undefined}
+              aria-controls={tab === item.id && panelOpen ? 'home-panel' : undefined}
               aria-label={item.id === 'settings' ? 'Settings and backup' : item.label}
-              onClick={() => study.setHomeTab(nextHomeTab(tab, item.id))}
+              onClick={() => {
+                study.setHomeTab(nextHomeTab(tab, item.id));
+                if (item.id === 'study' && !studyHasPanel) requestAnimationFrame(scrollToStartCard);
+              }}
             >
               <span>{item.label}</span>
             </button>
@@ -231,31 +261,10 @@ export function Home() {
         )}
       </div>
 
-      {tab === 'study' || tab === 'library' || tab === 'settings' ? (
+      {panelOpen ? (
         <div className="card stack home-panel" role="tabpanel" id="home-panel" aria-labelledby={`home-tab-${tab}`}>
           {tab === 'study' ? (
-            <StudyPanel
-              primary={primary}
-              decks={decks}
-              catalog={snap.decks}
-              examDeck={examDeck}
-              dueCount={due.length}
-              onLibrary={() => study.setHomeTab('library')}
-              onReset={() => void study.discard()}
-              onDrill={async () => {
-                if (!examDeck) return 'none';
-                return study.startMissedDrill(examDeck, null, { holdForConfirm: true });
-              }}
-              onReplaceDrill={() => {
-                if (examDeck) void study.startMissedDrill(examDeck, null, { replaceOpen: true });
-              }}
-              onReviewDue={() => {
-                void study.startDueReview('Recommended Cards', {
-                  subjectId: study.focus === 'all' ? null : study.focus,
-                  scopeKey: `review:home:${study.focus}`,
-                });
-              }}
-            />
+            <StudyPanel onLibrary={() => study.setHomeTab('library')} />
           ) : null}
           {tab === 'library' ? (
             <LibraryPanel
@@ -305,6 +314,8 @@ function StudyHero({
   offer,
   onPickStart,
   timing,
+  practice,
+  practiceInResume,
   emptyDetail,
   emptyAction,
   onResume,
@@ -322,6 +333,9 @@ function StudyHero({
   offer: StartOfferInfo | null;
   onPickStart: (id: string) => void;
   timing: StartTiming;
+  practice: PracticeInfo | null;
+  /** False when a separate import Start card (with these actions) already sits above the Resume card. */
+  practiceInResume: boolean;
   emptyDetail: string;
   emptyAction: string;
   onResume: (session: LiveSession) => void;
@@ -356,6 +370,7 @@ function StudyHero({
             </div>
           );
         })}
+        {practice && practiceInResume ? <PracticeActions practice={practice} /> : null}
         {recap.answered > 0 ? (
           <p className="today-line" data-testid="today-line">
             {todayProgressLine(recap)}
@@ -374,6 +389,7 @@ function StudyHero({
         offer={offer}
         recap={recap}
         timing={timing}
+        practice={practice}
         onPick={onPickStart}
         onStart={onStart}
       />
@@ -447,6 +463,7 @@ function StartCard({
   offer,
   recap,
   timing,
+  practice,
   onPick,
   onStart,
 }: {
@@ -457,6 +474,7 @@ function StartCard({
   offer: StartOfferInfo | null;
   recap: TodayRecap | null;
   timing: StartTiming;
+  practice: PracticeInfo | null;
   onPick: (id: string) => void;
   onStart: () => void;
 }) {
@@ -523,6 +541,7 @@ function StartCard({
       >
         Start studying
       </button>
+      {practice ? <PracticeActions practice={practice} /> : null}
       {offer ? (
         <button className="text-link" data-testid="organize-tests" type="button" onClick={offer.onOrganize}>
           Rename tests
@@ -589,81 +608,72 @@ function TodayDetails({ recap }: { recap: TodayRecap }) {
   );
 }
 
-function StudyPanel({
-  decks,
-  catalog,
-  examDeck,
-  dueCount,
-  onLibrary,
-  onReset,
-  onDrill,
-  onReplaceDrill,
-  onReviewDue,
-}: {
-  primary: LiveSession | null;
-  decks: Deck[];
-  catalog: Deck[];
-  examDeck: Deck | null;
+type PracticeInfo = {
+  examLabel: string | null;
   dueCount: number;
-  onLibrary: () => void;
-  onReset: () => void;
   onDrill: () => Promise<'started' | 'none' | 'busy'>;
   onReplaceDrill: () => void;
   onReviewDue: () => void;
-}) {
-  const [confirmReset, setConfirmReset] = useState(false);
+};
+
+/** Drill missed cards (with its "still open, end it?" prompt) and Recommended Cards, shown on the Home card. */
+function PracticeActions({ practice }: { practice: PracticeInfo }) {
+  const { examLabel, dueCount, onDrill, onReplaceDrill, onReviewDue } = practice;
   const [drillDeckName, setDrillDeckName] = useState<string | null>(null);
-  const examLabel = examDeck ? deckLabel(examDeck, catalog) : null;
   const promptName = drillDeckName && drillDeckName === examLabel ? drillDeckName : null;
   return (
     <>
-      {!decks.length ? (
-        <>
-          <p className="muted" style={{ margin: 0 }}>
-            Add a test in Subjects, then come back to practice, drill, or review.
-          </p>
-          <button className="btn btn-primary btn-block" type="button" onClick={onLibrary}>
-            Open Subjects
-          </button>
-        </>
-      ) : (
-        <>
-          <button
-            className="btn btn-primary btn-block"
-            data-testid="drill-home"
-            type="button"
-            onClick={() => {
-              void onDrill().then((result) => {
-                setDrillDeckName(result === 'busy' && examLabel ? examLabel : null);
-              });
-            }}
-          >
-            Drill missed cards
-          </button>
-          {promptName ? (
-            <DrillReplacePrompt
-              deckName={promptName}
-              onStart={() => {
-                setDrillDeckName(null);
-                onReplaceDrill();
-              }}
-              onCancel={() => setDrillDeckName(null)}
-            />
-          ) : null}
-          <button className="btn btn-primary btn-block" data-testid="review-due-home" type="button" onClick={onReviewDue}>
-            Recommended Cards{dueCount ? ` (${dueCount})` : ''}
-          </button>
-        </>
-      )}
-      {confirmReset ? (
-        <ResetConfirm
-          onConfirm={() => {
-            setConfirmReset(false);
-            onReset();
+      <button
+        className="btn btn-primary btn-block"
+        data-testid="drill-home"
+        type="button"
+        onClick={() => {
+          void onDrill().then((result) => {
+            setDrillDeckName(result === 'busy' && examLabel ? examLabel : null);
+          });
+        }}
+      >
+        Drill missed cards
+      </button>
+      {promptName ? (
+        <DrillReplacePrompt
+          deckName={promptName}
+          onStart={() => {
+            setDrillDeckName(null);
+            onReplaceDrill();
           }}
-          onCancel={() => setConfirmReset(false)}
+          onCancel={() => setDrillDeckName(null)}
         />
       ) : null}
+      <button className="btn btn-primary btn-block" data-testid="review-due-home" type="button" onClick={onReviewDue}>
+        Recommended Cards{dueCount ? ` (${dueCount})` : ''}
+      </button>
+    </>
+  );
+}
+
+/** The top Home card: the import's Start card, else the Start studying card, else the Resume card. */
+function scrollToStartCard() {
+  const card =
+    document.querySelector<HTMLElement>('article.start-offer') ??
+    document.querySelector<HTMLElement>('[data-testid="study-hero"]') ??
+    document.querySelector<HTMLElement>('[data-testid="resume-card"]');
+  card?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+}
+
+/**
+ * Study tab panel, shown only before any test is saved. Once tests exist the Study tab just scrolls to the
+ * Home card, so removing the tab later means deleting this, scrollToStartCard, and the tab entry.
+ */
+function StudyPanel({ onLibrary }: { onLibrary: () => void }) {
+  return (
+    <>
+      <p className="muted" style={{ margin: 0 }}>
+        Add a test in Subjects, then come back to practice, drill, or review.
+      </p>
+      <button className="btn btn-primary btn-block" type="button" onClick={onLibrary}>
+        Open Subjects
+      </button>
     </>
   );
 }

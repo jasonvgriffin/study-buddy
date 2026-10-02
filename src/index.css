@@ -516,6 +516,7 @@ label.btn:active::after,
   white-space: nowrap;
 }
 .chip.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.chip-row-label { align-self: center; flex: 0 0 auto; white-space: nowrap; font-weight: 750; }
 .row-scroll { display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.2rem; min-width: 0; }
 .chip-row {
   display: flex;

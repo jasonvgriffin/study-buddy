@@ -83,6 +83,9 @@ export function Settings() {
         <p className="muted" style={{ margin: 0 }}>
           Buttons press in and give a short tap on phones that can vibrate. A wrong answer shakes and uses a double tap. Sounds are optional tones.
         </p>
+        <p className="muted" data-testid="haptics-note" style={{ margin: 0, fontSize: '0.92rem' }}>
+          Heads up: the little buzz when you answer doesn&apos;t work on iPhone in any browser. On Android it depends on the browser: Chrome buzzes, Firefox doesn&apos;t. The colors and animations always show.
+        </p>
         <button
           className={haptics ? 'btn btn-primary btn-block' : 'btn btn-ghost btn-block'}
           type="button"

@@ -186,7 +186,8 @@ test('library can delete one PDF and an entire subject', async ({ page }) => {
   await expect(page.getByTestId('start-timed-home')).toHaveCount(0);
   await expect(page.getByTestId('start-deck')).toContainText('sample-notes');
   await expect(page.getByRole('heading', { name: 'What to study next' })).toHaveCount(0);
-  await expect(page.locator('#home-panel')).not.toContainText('A+');
+  await expect(page.locator('#home-panel')).toHaveCount(0);
+  await expect(page.getByTestId('study-hero')).not.toContainText('A+');
   await page.getByTestId('home-tab-stats').click();
   await expect(page).toHaveURL(/#\/stats$/);
   await expect(page.locator('main')).not.toContainText('A+');
