@@ -126,21 +126,6 @@ test('phone import: every PBQ takes taps and typing and grades every part', asyn
   await expect(page.locator('[data-subject-name="Core 1"]')).toHaveClass(/on/);
   await page.getByTestId('pdf-file').setInputFiles(pdfPath);
   await expect(page.getByTestId('start-saved')).toBeVisible({ timeout: 240_000 });
-  await page.getByTestId('start-offer').getByTestId('organize-tests').click();
-  // Organize still hides answers behind a spoiler, then lists every part's answer.
-  await expect(page.getByTestId('review-notice')).toBeVisible();
-  await expect(page.getByTestId('review-answer')).toHaveCount(0);
-  await expect(page.getByTestId('review-explanation')).toHaveCount(0);
-  await expect(page.getByText(/Answer from the PDF/)).toHaveCount(0);
-  await expect(page.getByTestId('review-figure').first()).toBeVisible();
-  await page.getByTestId('review-show-answer').first().click();
-  await expect(page.getByTestId('review-answer').first()).toBeVisible();
-  await expect(page.getByTestId('pbq-answer-row')).toHaveCount(6);
-  await expect(page.getByText(/Answer from the PDF/)).toHaveCount(0);
-  await page.screenshot({ path: `${shots}/review-a1-spoiler.png`, fullPage: true });
-  await page.getByTestId('review-show-answer').first().click();
-  await expect(page.getByTestId('review-answer')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(page.locator('[data-deck-name="Practice Exam A"]')).toBeVisible();
 
   const plan: Record<string, { figure: 'items' | 'one' | 'none'; shot?: boolean }[]> = {

@@ -427,7 +427,7 @@ function StartOffer({
         Start studying
       </button>
       <button className="text-link" data-testid="organize-tests" type="button" onClick={onOrganize}>
-        Organize tests
+        Rename tests
       </button>
     </section>
   );
@@ -754,7 +754,7 @@ function LibraryPanel({
                   type="button"
                   onClick={() => void study.openOrganize(groupId)}
                 >
-                  Organize tests
+                  Rename tests
                 </button>
                 <button
                   className="btn btn-clay btn-block"

@@ -18,7 +18,7 @@ test('uploading a PDF lands on a focused Start studying button with no extra tap
   await expect(page.getByTestId('start-offer-test')).toHaveText('Practice Test 1');
   await expect(page.getByTestId('import-added')).toContainText('sample-three-tests.pdf');
   await expect(page.getByTestId('save-tests')).toHaveCount(0);
-  await expect(offer.getByTestId('organize-tests')).toHaveText('Organize tests');
+  await expect(offer.getByTestId('organize-tests')).toHaveText('Rename tests');
   const button = page.getByTestId('start-saved');
   await expect(button).toHaveText('Start studying');
   await expect(button).toBeFocused();
@@ -60,11 +60,9 @@ test('organize stays optional and can be opened later from the library', async (
   await expect(page.getByTestId('save-tests')).toHaveCount(0);
 
   await page.locator('[data-testid="organize-tests"][data-source-id]').click();
-  await expect(page.getByRole('heading', { name: 'Organize tests' })).toBeVisible();
-  await expect(page.getByTestId('test-chip').first()).toContainText('Practice Test 1');
-  await page.getByTestId('move-test-later').click();
-  await expect(page.getByTestId('test-chip').first()).toContainText('Practice Test 2');
-  await page.getByTestId('test-name').fill('Rivers combined');
+  await expect(page.getByRole('heading', { name: 'Rename tests' })).toBeVisible();
+  await expect(page.getByTestId('test-name').first()).toHaveValue('Practice Test 1');
+  await page.getByTestId('test-name').first().fill('Rivers combined');
   await page.getByRole('button', { name: 'Back', exact: true }).click();
 
   await expect(page.locator('[data-deck-name="Practice Test 1"]')).toBeVisible();

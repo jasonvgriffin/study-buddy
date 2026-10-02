@@ -163,35 +163,14 @@ test('home title, feedback link, subject panel, upload status, and review chips'
   expect(seen.some((line) => line.includes('Reading questions… please wait'))).toBe(true);
 
   await page.getByTestId('start-offer').getByTestId('organize-tests').click();
-  await expect(page.getByRole('heading', { name: 'Organize tests' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Rename tests' })).toBeVisible();
   await expect(page.getByTestId('save-tests')).toBeEnabled();
-  await expect(page.getByTestId('save-tests-top')).toBeEnabled();
-
-  await expect(page.getByTestId('test-chip')).toHaveText([
-    '1. Practice Exam A (4)',
-    '2. Practice Exam B (1)',
-    '3. Practice Exam C (1)',
-  ]);
-  expect(await rowIsClipped(page, 'test-chip-row')).toBe(false);
-  await expect(page.getByTestId('test-chip').first()).toHaveAttribute('aria-pressed', 'true');
-  await page.getByTestId('test-chip').nth(1).click();
-  await expect(page.getByTestId('test-chip').nth(1)).toHaveClass(/on/);
-  await expect(page.getByTestId('test-chip').first()).not.toHaveClass(/on/);
-
-  await expect(page.getByTestId('card-chip')).toHaveText(['B1']);
-  await page.getByTestId('test-chip').first().click();
-  await expect(page.getByTestId('card-chip')).toHaveText(['A1', 'A2', 'A12', 'A100']);
-  expect(await rowIsClipped(page, 'card-chip-row')).toBe(false);
-  const wrap = await page.getByTestId('card-chip-row').evaluate((row) => getComputedStyle(row).flexWrap);
-  expect(wrap).toBe('wrap');
-  await page.getByTestId('card-chip').last().click();
-  await expect(page.getByTestId('card-chip').last()).toHaveClass(/on/);
-  await expect(page.getByTestId('card-chip').last()).toHaveText('A100');
-  await page.getByTestId('move-test-later').click();
-  await expect(page.getByTestId('test-chip').first()).toContainText('Practice Exam B');
-  await page.getByTestId('move-test-earlier').click();
-  await expect(page.getByTestId('test-chip').first()).toContainText('Practice Exam A');
-
+  await expect(page.getByTestId('test-name')).toHaveCount(3);
+  await expect(page.getByTestId('test-name').first()).toHaveValue('Practice Exam A');
+  await expect(page.getByTestId('test-chip')).toHaveCount(0);
+  await expect(page.getByTestId('move-test-later')).toHaveCount(0);
+  await expect(page.getByTestId('replace-old')).toHaveCount(0);
+  await expect(page.getByTestId('card-chip')).toHaveCount(0);
   await page.getByRole('button', { name: 'Back', exact: true }).click();
   await page.locator('[data-deck-name="Practice Exam A"]').click();
   await page.getByRole('button', { name: /^A1\./ }).click();

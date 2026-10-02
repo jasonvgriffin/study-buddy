@@ -41,6 +41,27 @@ export function ReviewScreen({ draftId }: { draftId: string }) {
     setTestIndex(Math.max(0, testIndex + direction));
   };
 
+  if (organizing) {
+    return (
+      <Screen title="Rename tests" lede={draft.fileName} onBack={() => void study.dropDraft(draft.id)}>
+        {draft.tests.map((item, index) => (
+          <label key={index} className="stack" style={{ gap: '0.35rem' }}>
+            <span>Test {index + 1}</span>
+            <input
+              className="field"
+              data-testid="test-name"
+              value={item.name}
+              onChange={(event) => commit({ ...draft, tests: renameTest(draft.tests, index, event.target.value) })}
+            />
+          </label>
+        ))}
+        <button className="btn btn-primary btn-block" data-testid="save-tests" type="button" disabled={!!study.busy} onClick={save}>
+          Save names
+        </button>
+      </Screen>
+    );
+  }
+
   return (
     <Screen
       title={organizing ? 'Organize tests' : 'Check the tests'}
