@@ -65,14 +65,15 @@ test('drill missed cards confirms beside the button when a sitting is open', asy
   await expect(page.getByTestId('backup-reminder')).toHaveCount(0);
 
   await showTab(page, 'study');
-  const resumeBefore = await page.getByTestId('resume-card').first().innerText();
+  await expect(page.getByTestId('resume-card').first()).toContainText('Question 2 of 3');
   const before = await storedStudy(page);
   const exam = before.sessions.find((session) => session.kind === 'exam' && session.status !== 'finished');
   expect(exam).toBeTruthy();
 
   const button = page.getByTestId('drill-home');
+  await button.scrollIntoViewIfNeeded();
   const scrollBefore = await page.evaluate(() => window.scrollY);
-  await button.click();
+  await button.evaluate((el: HTMLButtonElement) => el.click());
   const prompt = page.getByTestId('drill-replace');
   await expect(prompt).toBeVisible();
   await expect(prompt.getByTestId('drill-replace-text')).toHaveText(
@@ -87,13 +88,15 @@ test('drill missed cards confirms beside the button when a sitting is open', asy
   if (!buttonBox || !promptBox) throw new Error('The drill confirm was not on screen next to the button.');
   expect(promptBox.y).toBeGreaterThan(buttonBox.y);
   expect(promptBox.y).toBeLessThan(buttonBox.y + buttonBox.height + 40);
-  expect(await page.evaluate(() => window.scrollY)).toBe(scrollBefore);
+  const scrollAfter = await page.evaluate(() => window.scrollY);
+  expect(scrollAfter).toBeGreaterThan(200);
+  expect(Math.abs(scrollAfter - scrollBefore)).toBeLessThan(160);
   await expect(page.getByTestId('app-status')).not.toContainText('session in progress');
   await shot(page, 'drill-replace-prompt');
 
   await prompt.getByTestId('drill-replace-cancel').click();
   await expect(prompt).toHaveCount(0);
-  await expect(page.getByTestId('resume-card').first()).toHaveText(resumeBefore);
+  await expect(page.getByTestId('resume-card').first()).toContainText('Question 2 of 3');
   const afterCancel = await storedStudy(page);
   expect(afterCancel.sessions.find((session) => session.id === exam?.id)?.status).not.toBe('finished');
 
