@@ -77,3 +77,69 @@ test('without a fresh import the standalone Start studying card still lets you p
   await hero.getByTestId('start-studying').click();
   await expect(page.getByRole('heading', { name: 'How many sides does a hexagon have?' })).toBeVisible();
 });
+
+test('Timing picker: Untimed is the default and starts with no countdown', async ({ page }, info) => {
+  const pdf = await multiExamPdf(info.outputPath('practice-exams.pdf'));
+  await importExams(page, pdf);
+
+  const offer = page.getByTestId('start-offer');
+  const timing = offer.getByTestId('start-timing');
+  await expect(timing).toHaveAccessibleName('Timing');
+  await expect(timing.locator('option')).toHaveText(['Untimed', 'Timed (90 minutes)']);
+  await expect(timing.locator('option:checked')).toHaveText('Untimed');
+  await expect(offer.getByTestId('start-timing-label')).toHaveText('Untimed');
+  await expect(page.getByTestId('start-timed-home')).toHaveCount(0);
+
+  await page.getByTestId('start-saved').click();
+  await expect(page.getByRole('heading', { name: 'Which river runs through Cairo?' })).toBeVisible();
+  await expect(page.getByTestId('time-left')).toHaveCount(0);
+  await expect(page.getByText(/Time left/)).toHaveCount(0);
+});
+
+test('Timing picker: Timed starts the 90-minute exam and the choice is remembered', async ({ page }, info) => {
+  const pdf = await multiExamPdf(info.outputPath('practice-exams.pdf'));
+  await importExams(page, pdf);
+
+  await page.getByTestId('start-offer').getByTestId('start-timing').selectOption({ label: 'Timed (90 minutes)' });
+  await expect(page.getByTestId('start-timing-label')).toHaveText('Timed (90 minutes)');
+  await page.reload();
+
+  const hero = page.getByTestId('study-hero');
+  await expect(hero.getByTestId('start-timing').locator('option:checked')).toHaveText('Timed (90 minutes)');
+  await hero.getByTestId('start-deck').selectOption({ label: 'Practice Exam B' });
+  await hero.getByTestId('start-studying').click();
+  await expect(page.getByRole('heading', { name: 'What does a barometer measure?' })).toBeVisible();
+  await expect(page.getByTestId('time-left')).toHaveText(/^Time left (90:00|89:[0-5]\d)$/);
+});
+
+test('Drill missed cards follows the exam picked on the Home card', async ({ page }, info) => {
+  const pdf = await multiExamPdf(info.outputPath('practice-exams.pdf'));
+  await importExams(page, pdf);
+
+  await page.getByTestId('start-saved').click();
+  await expect(page.getByRole('heading', { name: 'Which river runs through Cairo?' })).toBeVisible();
+  for (let index = 0; index < 3; index += 1) {
+    await page.getByTestId('i-dont-know').click();
+    await page.getByTestId('next').click();
+  }
+  await expect(page).toHaveURL(/#\/results\//);
+  await page.getByRole('button', { name: 'Home', exact: true }).click();
+
+  const hero = page.getByTestId('study-hero');
+  const pick = hero.getByTestId('start-deck');
+  await expect(pick.locator('option:checked')).toHaveText('Practice Exam A');
+  const studyTab = page.getByTestId('home-tab-study');
+  if ((await studyTab.getAttribute('aria-selected')) !== 'true') await studyTab.click();
+  await expect(page.getByTestId('exam-deck')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Study', exact: true })).toHaveCount(0);
+
+  await pick.selectOption({ label: 'Practice Exam C' });
+  await page.getByTestId('drill-home').click();
+  await expect(page.getByTestId('app-status')).toContainText('No missed cards in this test yet.');
+  await expect(page).not.toHaveURL(/session/);
+
+  await pick.selectOption({ label: 'Practice Exam A' });
+  await page.getByTestId('drill-home').click();
+  await expect(page).toHaveURL(/#\/session\//);
+  await expect(page.getByTestId('position')).toHaveText(/Question 1 of 3/);
+});

@@ -240,7 +240,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
             }}
           />
         </div>
-        {remaining != null ? <p style={{ margin: 0 }}>Time left {formatDuration(remaining)}</p> : null}
+        {remaining != null ? <p data-testid="time-left" style={{ margin: 0 }}>Time left {formatDuration(remaining)}</p> : null}
         {session.status === 'finished' && session.finishedReason === 'time' ? <p style={{ margin: 0 }}>Time is up.</p> : null}
         {session.status === 'finished' && !reveal ? (
           <button className="btn btn-primary btn-block" data-testid="see-results" type="button" onClick={() => navigate(`/results/${session.id}`)}>

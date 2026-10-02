@@ -15,7 +15,9 @@ test('a fresh open shows the four tabs and remembers nothing on reload', async (
   await expect(page.getByText('Scores', { exact: true })).toHaveCount(0);
 
   await page.getByTestId('home-tab-study').click();
-  await expect(page.getByRole('heading', { name: 'Study', exact: true })).toBeVisible();
+  await expect(page.locator('#home-panel')).toHaveAttribute('aria-labelledby', 'home-tab-study');
+  await expect(page.locator('#home-panel')).toContainText('Add a test in Subjects');
+  await expect(page.getByRole('heading', { name: 'Study', exact: true })).toHaveCount(0);
   await expect(page.getByTestId('home-tab-study')).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByTestId('home-tab-hint')).toHaveCount(0);
 
@@ -82,8 +84,12 @@ test('a tab deep link opens that tab, and deck or a finished session returns do 
   await page.getByTestId('next').click();
   await expect(page).toHaveURL(/#\/results\//);
   await page.getByRole('button', { name: 'Home', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Study', exact: true })).toBeVisible();
-  await expect(page.getByTestId('start-timed-home')).toBeVisible();
+  await expect(page.locator('#home-panel')).toHaveAttribute('aria-labelledby', 'home-tab-study');
+  await expect(page.getByTestId('drill-home')).toBeVisible();
+  await expect(page.getByTestId('review-due-home')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Study', exact: true })).toHaveCount(0);
+  await expect(page.getByTestId('exam-deck')).toHaveCount(0);
+  await expect(page.getByTestId('start-timed-home')).toHaveCount(0);
   await expect(page.getByTestId('practice-exam')).toHaveCount(0);
 });
 
@@ -102,7 +108,7 @@ test('tapping the open tab collapses it, and another tap shows only that tab', a
   await page.getByTestId('home-tab-study').click();
   await page.getByTestId('home-tab-library').click();
   await expect(page.getByRole('heading', { name: 'Subjects', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Study', exact: true })).toHaveCount(0);
+  await expect(page.getByTestId('review-due-home')).toHaveCount(0);
   await expect(page.getByTestId('home-tab-study')).toHaveAttribute('aria-selected', 'false');
   await expect(page.getByTestId('home-tab-library')).toHaveAttribute('aria-selected', 'true');
 

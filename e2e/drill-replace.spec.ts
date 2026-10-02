@@ -100,10 +100,9 @@ test('drill missed cards confirms beside the button when a sitting is open', asy
   const afterCancel = await storedStudy(page);
   expect(afterCancel.sessions.find((session) => session.id === exam?.id)?.status).not.toBe('finished');
 
-  await page.getByTestId('start-timed-home').click();
-  await expect(page.getByTestId('app-status')).toContainText(
-    'This test already has a session in progress. Resume it, or discard it, before starting another.',
-  );
+  // With a sitting open, Home offers Resume instead of a second way to start the same test.
+  await expect(page.getByRole('button', { name: 'Start studying', exact: true })).toHaveCount(0);
+  await expect(page.getByTestId('start-timed-home')).toHaveCount(0);
   await expect(page).not.toHaveURL(/session/);
   await expect(page.getByTestId('resume')).toBeVisible();
 
