@@ -4,6 +4,7 @@ import { figureCountForCards } from './lib/db';
 import { dueCardIds } from './lib/queue';
 import { isUnclearedMiss, rollup } from './lib/scoring';
 import { deckLabel } from './lib/deckLabel';
+import { resumeButtonLabel } from './lib/resumeButton';
 import { activeSessionForDeck, resumeLabelParts } from './lib/session';
 import { navigate } from './nav';
 import { DemandPanel, DrillReplacePrompt, ResetConfirm, Screen } from './bits';
@@ -101,8 +102,8 @@ export function DeckScreen({ deckId, cardId = null }: { deckId: string; cardId?:
             {label}
             {resumeParts?.rest}
           </p>
-          <button className="btn btn-primary" type="button" onClick={() => void study.resume(active.id)}>
-            Resume
+          <button className="btn btn-primary btn-block home-continue" data-testid="resume" type="button" onClick={() => void study.resume(active.id)}>
+            <span className="home-continue-label">{resumeButtonLabel(label)}</span>
           </button>
           <button className="btn btn-ghost" data-testid="discard" type="button" onClick={() => setConfirmReset(true)}>
             Discard and start over
