@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { DemandPanel, DestructiveConfirm, ResetConfirm, Spinner } from './bits';
+import { DemandPanel, DestructiveConfirm, DrillReplacePrompt, ResetConfirm, Spinner } from './bits';
 import { continueButtonLabel } from './lib/continueLabel';
 import { feedbackMailHref } from './lib/feedbackMail';
 import { domainBreakdown } from './lib/domains';
@@ -205,8 +205,12 @@ export function Home() {
               onTimed={() => {
                 if (examDeck) void study.startExam(examDeck, true);
               }}
-              onDrill={() => {
-                if (examDeck) void study.startMissedDrill(examDeck, null);
+              onDrill={async () => {
+                if (!examDeck) return 'none';
+                return study.startMissedDrill(examDeck, null, { holdForConfirm: true });
+              }}
+              onReplaceDrill={() => {
+                if (examDeck) void study.startMissedDrill(examDeck, null, { replaceOpen: true });
               }}
               onReviewDue={() => {
                 void study.startDueReview(study.focus === 'all' ? 'Due for review' : 'Due in this subject', {
@@ -428,6 +432,7 @@ function StudyPanel({
   onUntimed,
   onTimed,
   onDrill,
+  onReplaceDrill,
   onReviewDue,
 }: {
   sessions: LiveSession[];
@@ -442,10 +447,13 @@ function StudyPanel({
   onReset: () => void;
   onUntimed: () => void;
   onTimed: () => void;
-  onDrill: () => void;
+  onDrill: () => Promise<'started' | 'none' | 'busy'>;
+  onReplaceDrill: () => void;
   onReviewDue: () => void;
 }) {
   const [confirmReset, setConfirmReset] = useState(false);
+  const [drillDeckName, setDrillDeckName] = useState<string | null>(null);
+  const promptName = drillDeckName === examDeck?.name ? drillDeckName : null;
   const others = sessions.filter((session) => session.id !== primary?.id);
   return (
     <>
@@ -483,7 +491,10 @@ function StudyPanel({
               className="field"
               data-testid="exam-deck"
               value={examDeck?.id ?? ''}
-              onChange={(event) => onPickDeck(event.target.value)}
+              onChange={(event) => {
+                setDrillDeckName(null);
+                onPickDeck(event.target.value);
+              }}
             >
               {decks.map((deck) => (
                 <option key={deck.id} value={deck.id}>
@@ -498,9 +509,28 @@ function StudyPanel({
           <button className="btn btn-ghost btn-block" data-testid="start-timed-home" type="button" onClick={onTimed}>
             90-minute exam
           </button>
-          <button className="btn btn-ghost btn-block" data-testid="drill-home" type="button" onClick={onDrill}>
+          <button
+            className="btn btn-ghost btn-block"
+            data-testid="drill-home"
+            type="button"
+            onClick={() => {
+              void onDrill().then((result) => {
+                setDrillDeckName(result === 'busy' && examDeck ? examDeck.name : null);
+              });
+            }}
+          >
             Drill missed cards
           </button>
+          {promptName ? (
+            <DrillReplacePrompt
+              deckName={promptName}
+              onStart={() => {
+                setDrillDeckName(null);
+                onReplaceDrill();
+              }}
+              onCancel={() => setDrillDeckName(null)}
+            />
+          ) : null}
           <button className="btn btn-ghost btn-block" data-testid="review-due-home" type="button" onClick={onReviewDue}>
             Review due cards{dueCount ? ` (${dueCount})` : ''}
           </button>

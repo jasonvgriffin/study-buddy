@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { drillStillOpenPrompt } from './lib/session';
 
 export function WatchLesson({
   href,
@@ -59,6 +60,31 @@ export function DestructiveConfirm({
           Cancel
         </button>
       </div>
+    </div>
+  );
+}
+
+/** Inline confirm beside Drill missed cards when that test already has an open sitting. */
+export function DrillReplacePrompt({
+  deckName,
+  onStart,
+  onCancel,
+}: {
+  deckName: string;
+  onStart: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="stack" data-testid="drill-replace">
+      <p data-testid="drill-replace-text" style={{ margin: 0 }}>
+        {drillStillOpenPrompt(deckName)}
+      </p>
+      <button className="btn btn-primary btn-block" data-testid="drill-replace-start" type="button" onClick={onStart}>
+        Start drill
+      </button>
+      <button className="btn btn-ghost btn-block" data-testid="drill-replace-cancel" type="button" onClick={onCancel}>
+        Cancel
+      </button>
     </div>
   );
 }

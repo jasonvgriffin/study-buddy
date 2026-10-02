@@ -8,6 +8,11 @@ export function latestStudyActivity(reviews: { at: number }[]): number | null {
   return latest;
 }
 
+/** The 7-day banner is only on the Settings screen, not Home or the other pages. */
+export function backupReminderOnScreen(routeName: string): boolean {
+  return routeName === 'settings';
+}
+
 /** Show the reminder after study, until a backup is exported or the banner is dismissed. */
 export function backupReminderDue(input: {
   now: number;
