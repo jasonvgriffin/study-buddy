@@ -1,4 +1,4 @@
-import { compareTestNames, dayKey } from './format';
+import { compareTestNames, dayKey, formatPercent } from './format';
 import { studyStreak } from './scoring';
 import { elapsedMs } from './session';
 import type { AnswerResult, Review } from './types';
@@ -49,6 +49,18 @@ export function reviewResult(review: Pick<Review, 'correct' | 'result'>): Answer
     return review.result;
   }
   return review.correct ? 'correct' : 'incorrect';
+}
+
+/** One line for the home card, for example "Today: 24 answered · 18 right (75%) · 3-day streak". */
+export function todayProgressLine(
+  recap: Pick<TodayRecap, 'answered' | 'correct' | 'accuracy' | 'streak'>,
+): string {
+  const parts = [
+    `${recap.answered} answered`,
+    `${recap.correct} right (${formatPercent(recap.accuracy)})`,
+  ];
+  if (recap.streak > 0) parts.push(`${recap.streak}-day streak`);
+  return `Today: ${parts.join(' · ')}`;
 }
 
 export function todayEncouragement(answered: number, accuracy: number | null): string {

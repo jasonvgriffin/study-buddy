@@ -4,7 +4,7 @@ import { feedbackMailHref } from './lib/feedbackMail';
 import { domainBreakdown } from './lib/domains';
 import { readExamDeckId, resolveDeckPick, sortDecksByName, writeExamDeckId } from './lib/examDeck';
 import { formatDuration, formatPercent } from './lib/format';
-import { todayRecap } from './lib/today';
+import { todayProgressLine, todayRecap } from './lib/today';
 import { dueCardIds } from './lib/queue';
 import { isUnclearedMiss } from './lib/scoring';
 import { resumeLabel, sessionMissedCardIds } from './lib/session';
@@ -52,6 +52,15 @@ export function Home() {
   const offerDeck = study.startOffer
     ? decks.find((deck) => deck.id === study.startOffer?.deckId) ?? null
     : null;
+  const recap = todayRecap({
+    reviews: snap.reviews,
+    sessions: snap.sessions,
+    subjects: snap.subjects,
+    decks: snap.decks,
+    now,
+    offsetMinutes: new Date().getTimezoneOffset(),
+    subjectId: study.focus === 'all' ? null : study.focus,
+  });
 
   return (
     <div className="stack">
@@ -116,11 +125,11 @@ export function Home() {
         />
       ) : null}
 
-      <TodayCard focus={study.focus} arrival={study.homeArrival} />
-
       <StudyHero
         primary={primary}
         now={now}
+        recap={recap}
+        arrival={study.homeArrival}
         startDeck={recentDeck}
         emptyDetail={focused ? `Import a PDF into ${focused.name}.` : 'Name a subject, then import its PDF.'}
         emptyAction={focused ? 'Import a PDF' : 'Start a new subject'}
@@ -245,6 +254,8 @@ export function Home() {
 function StudyHero({
   primary,
   now,
+  recap,
+  arrival,
   startDeck,
   emptyDetail,
   emptyAction,
@@ -253,15 +264,24 @@ function StudyHero({
 }: {
   primary: LiveSession | null;
   now: number;
+  recap: TodayRecap;
+  arrival: { from: string; at: number } | null;
   startDeck: Deck | null;
   emptyDetail: string;
   emptyAction: string;
   onContinue: () => void;
   onStart: () => void;
 }) {
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!arrival || (arrival.from !== 'session' && arrival.from !== 'results')) return;
+    if (document.querySelector('[data-testid="new-subject-panel"], [data-testid="start-offer"]')) return;
+    ref.current?.scrollIntoView({ block: 'start' });
+  }, [arrival]);
+
   if (primary) {
     return (
-      <article className="card stack home-hero" style={{ padding: '1rem' }} data-testid="resume-card">
+      <article ref={ref} className="card stack home-hero" style={{ padding: '1rem' }} data-testid="resume-card">
         <p className="muted" style={{ margin: 0 }}>
           Continue
         </p>
@@ -269,12 +289,18 @@ function StudyHero({
         <button className="btn btn-primary btn-block" data-testid="resume" type="button" onClick={onContinue}>
           Continue
         </button>
+        {recap.answered > 0 ? (
+          <p className="today-line" data-testid="today-line">
+            {todayProgressLine(recap)}
+          </p>
+        ) : null}
       </article>
     );
   }
   const ready = !!startDeck;
   return (
     <article
+      ref={ref}
       className={ready ? 'card stack home-hero home-hero-ready' : 'card stack home-hero'}
       style={{ padding: '1rem' }}
       data-testid="study-hero"
@@ -291,6 +317,7 @@ function StudyHero({
       >
         {startDeck ? 'Start studying' : emptyAction}
       </button>
+      {recap.answered > 0 ? <TodayDetails recap={recap} /> : null}
     </article>
   );
 }
@@ -329,55 +356,11 @@ function StartOffer({
   );
 }
 
-function TodayCard({
-  focus,
-  arrival,
-}: {
-  focus: string | 'all';
-  arrival: { from: string; at: number } | null;
-}) {
-  const study = useStudy();
-  const snap = study.snap;
-  const ref = useRef<HTMLElement>(null);
-  useEffect(() => {
-    if (!arrival || (arrival.from !== 'session' && arrival.from !== 'results')) return;
-    if (document.querySelector('[data-testid="new-subject-panel"], [data-testid="start-offer"]')) return;
-    ref.current?.scrollIntoView({ block: 'start' });
-  }, [arrival]);
-  if (!snap) return null;
-  const recap = todayRecap({
-    reviews: snap.reviews,
-    sessions: snap.sessions,
-    subjects: snap.subjects,
-    decks: snap.decks,
-    now: Date.now(),
-    offsetMinutes: new Date().getTimezoneOffset(),
-    subjectId: focus === 'all' ? null : focus,
-  });
-  return (
-    <article ref={ref} className="card stack today-card" id="today-recap" data-testid="today-recap" aria-label="Today">
-      <h2>Today</h2>
-      {recap.empty ? (
-        <p className="today-empty" data-testid="today-empty" style={{ margin: 0 }}>
-          {recap.encouragement}
-        </p>
-      ) : (
-        <TodayDetails recap={recap} />
-      )}
-      {recap.streak > 0 ? (
-        <p data-testid="today-streak" style={{ margin: 0 }}>
-          {recap.streak}-day streak
-        </p>
-      ) : null}
-    </article>
-  );
-}
-
 function TodayDetails({ recap }: { recap: TodayRecap }) {
   return (
-    <>
-      <p data-testid="today-counts" style={{ margin: 0 }}>
-        {recap.answered} answered, {recap.correct} right, {formatPercent(recap.accuracy)}
+    <div className="stack today-recap" data-testid="today-recap" aria-label="Today">
+      <p className="today-line" data-testid="today-line">
+        {todayProgressLine(recap)}
       </p>
       {recap.unknown > 0 ? (
         <p data-testid="today-unknown" style={{ margin: 0 }}>
@@ -408,7 +391,7 @@ function TodayDetails({ recap }: { recap: TodayRecap }) {
       <p data-testid="today-encouragement" style={{ margin: 0 }}>
         {recap.encouragement}
       </p>
-    </>
+    </div>
   );
 }
 

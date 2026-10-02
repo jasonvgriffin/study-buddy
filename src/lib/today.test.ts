@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { reviewResult, studiedMsToday, todayEncouragement, todayRecap, type RecapReview, type RecapSession } from './today';
+import {
+  reviewResult,
+  studiedMsToday,
+  todayEncouragement,
+  todayProgressLine,
+  todayRecap,
+  type RecapReview,
+  type RecapSession,
+} from './today';
 
 const DAY = 24 * 60 * 60 * 1000;
 const now = Date.parse('2026-06-15T18:00:00Z');
@@ -149,6 +157,20 @@ describe('today recap', () => {
       0,
     );
     expect(total).toBeNull();
+  });
+});
+
+describe('progress line', () => {
+  it('puts today on one line and leaves off a zero streak', () => {
+    expect(todayProgressLine({ answered: 24, correct: 18, accuracy: 0.75, streak: 3 })).toBe(
+      'Today: 24 answered · 18 right (75%) · 3-day streak',
+    );
+    expect(todayProgressLine({ answered: 3, correct: 1, accuracy: 1 / 3, streak: 1 })).toBe(
+      'Today: 3 answered · 1 right (33%) · 1-day streak',
+    );
+    expect(todayProgressLine({ answered: 2, correct: 2, accuracy: 1, streak: 0 })).toBe(
+      'Today: 2 answered · 2 right (100%)',
+    );
   });
 });
 
