@@ -48,16 +48,10 @@ const weakest: WeakestRow[] = [
 ];
 
 describe('stats overview', () => {
-  it('shows By test first, an in-progress label, and the exam on each weakest card', () => {
+  it('shows the title and By test list, with an in-progress label that opens that test', () => {
     let opened = '';
     const view = mount(
       createElement(StatsOverview, {
-        lede: 'Every subject on this device.',
-        totals: { accuracy: 0.5, correct: 1, incorrect: 1, attempts: 2 },
-        activeMs: 65_000,
-        streak: { current: 0, best: 2 },
-        days: [{ day: '2026-01-02', correct: 1, incorrect: 1, accuracy: 0.5 }],
-        domains: [],
         tests: [
           {
             id: 'messer',
@@ -74,30 +68,43 @@ describe('stats overview', () => {
             progress: null,
           },
         ],
-        weakest,
         onOpenTest: (id: string) => {
           opened = id;
         },
       }),
     );
+    expect(view.host.querySelector('h1')?.textContent).toBe('Stats');
+    expect(view.host.querySelectorAll('h2')).toHaveLength(1);
     expect(view.host.querySelector('h2')?.textContent).toBe('By test');
-    follows(view.host, 'by-test', 'overall-accuracy');
-    follows(view.host, 'overall-accuracy', 'accuracy-by-day');
-    follows(view.host, 'accuracy-by-day', 'domain-stats');
-    follows(view.host, 'domain-stats', 'weakest-cards');
+    expect(view.host.textContent).not.toContain('Every subject');
+    expect(view.host.querySelector('[data-testid="overall-accuracy"]')).toBeNull();
+    expect(view.host.querySelector('[data-testid="accuracy-by-day"]')).toBeNull();
+    expect(view.host.querySelector('[data-testid="domain-stats"]')).toBeNull();
+    expect(view.host.querySelector('[data-testid="weakest-cards"]')).toBeNull();
     const openRow = view.host.querySelector('[data-deck-id="messer"]');
     expect(openRow?.querySelector('[data-testid="in-progress"]')?.textContent).toBe(
       'In progress, question 7 of 90',
     );
     expect(view.host.querySelector('[data-deck-id="dion"] [data-testid="in-progress"]')).toBeNull();
-    expect(
-      [...view.host.querySelectorAll('[data-testid="weakest-deck"]')].map((node) => node.textContent),
-    ).toEqual(['Practice Exam A, Messer', 'Practice Exam A, Dion']);
     act(() => {
       (openRow as HTMLButtonElement).click();
     });
     expect(opened).toBe('messer');
     expect(openRow?.tagName).toBe('BUTTON');
+    view.unmount();
+  });
+
+  it('says when there are no tests', () => {
+    const view = mount(
+      createElement(StatsOverview, {
+        tests: [],
+        onOpenTest: () => {},
+      }),
+    );
+    expect(view.host.querySelector('h1')?.textContent).toBe('Stats');
+    expect(view.host.textContent).toContain('No tests in this view.');
+    expect(view.host.querySelector('[data-testid="by-test-row"]')).toBeNull();
+    expect(view.host.querySelector('[data-testid="overall-accuracy"]')).toBeNull();
     view.unmount();
   });
 });

@@ -9,7 +9,6 @@ import {
 } from './session';
 import {
   STATS_DECK_SECTIONS,
-  STATS_OVERVIEW_SECTIONS,
   byTestRows,
   deckBreakdown,
   weakestCardLabels,
@@ -62,9 +61,7 @@ function review(cardId: string, deckId: string, correct: boolean, at: number): R
 }
 
 describe('stats section order', () => {
-  it('puts By test above the overall accuracy card, and keeps the rest in place', () => {
-    expect(STATS_OVERVIEW_SECTIONS).toEqual(['by-test', 'accuracy', 'by-day', 'by-domain', 'weakest']);
-    expect(STATS_OVERVIEW_SECTIONS.indexOf('by-test')).toBeLessThan(STATS_OVERVIEW_SECTIONS.indexOf('accuracy'));
+  it('keeps one test’s page in accuracy, day, domain, weakest order', () => {
     expect(STATS_DECK_SECTIONS).toEqual(['accuracy', 'by-day', 'by-domain', 'weakest']);
   });
 });

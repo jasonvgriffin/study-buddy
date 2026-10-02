@@ -35,14 +35,13 @@ test('stats leads with each test and opens that test’s own numbers', async ({ 
   await page.getByRole('button', { name: 'Back', exact: true }).click();
 
   await page.getByRole('navigation').getByRole('button', { name: 'Stats', exact: true }).click();
-  await expect(page.getByRole('heading', { level: 2 }).first()).toHaveText('By test');
-  const byTestBeforeAccuracy = await page.evaluate(() => {
-    const tests = document.querySelector('[data-testid="by-test"]');
-    const accuracy = document.querySelector('[data-testid="overall-accuracy"]');
-    if (!tests || !accuracy) return false;
-    return (tests.compareDocumentPosition(accuracy) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
-  });
-  expect(byTestBeforeAccuracy).toBe(true);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Stats');
+  await expect(page.getByRole('heading', { level: 2 })).toHaveText('By test');
+  await expect(page.getByText('Every subject on this device.')).toHaveCount(0);
+  await expect(page.getByTestId('overall-accuracy')).toHaveCount(0);
+  await expect(page.getByTestId('accuracy-by-day')).toHaveCount(0);
+  await expect(page.getByTestId('domain-stats')).toHaveCount(0);
+  await expect(page.getByTestId('weakest-cards')).toHaveCount(0);
 
   const test1 = page.getByTestId('by-test-row').filter({ hasText: 'Practice Test 1' });
   const test2 = page.getByTestId('by-test-row').filter({ hasText: 'Practice Test 2' });
@@ -51,19 +50,13 @@ test('stats leads with each test and opens that test’s own numbers', async ({ 
   await expect(test2.getByTestId('in-progress')).toHaveText('In progress, question 2 of 2');
   await expect(test3.getByTestId('in-progress')).toHaveCount(0);
   await expect(test1).toHaveRole('button');
-  await expect(page.getByTestId('overall-accuracy')).toContainText('0 right, 2 wrong, 2 answers.');
-  await expect(page.getByTestId('accuracy-by-day')).toContainText('0/2');
-  await expect(page.getByTestId('domain-stats')).toContainText('0 right, 2 wrong');
-  const tags = page.getByTestId('weakest-deck');
-  await expect(tags).toHaveCount(2);
-  await expect(tags.filter({ hasText: 'Practice Test 1' })).toHaveCount(1);
-  await expect(tags.filter({ hasText: 'Practice Test 2' })).toHaveCount(1);
-  await expect(page.getByTestId('weakest-card').filter({ hasText: 'Cairo' })).toContainText('Practice Test 1');
-  await expect(page.getByTestId('weakest-card').filter({ hasText: 'barometer' })).toContainText('Practice Test 2');
 
   mkdirSync(shots, { recursive: true });
+  const previous = page.viewportSize();
+  await page.setViewportSize({ width: 360, height: 800 });
   await page.evaluate(() => window.scrollTo(0, 0));
-  await page.screenshot({ path: path.join(shots, 'stats-top.png'), fullPage: true });
+  await page.screenshot({ path: path.join(shots, 'stats-overview-360.png'), fullPage: true });
+  if (previous) await page.setViewportSize(previous);
 
   await test1.click();
   await expect(page).toHaveURL(/#\/stats\/test\//);
