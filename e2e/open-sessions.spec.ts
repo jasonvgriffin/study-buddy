@@ -60,8 +60,7 @@ test('every open session is listed on the top card and each button resumes that 
   await expect(panel.getByTestId('resume')).toHaveCount(0);
   await expect(panel.getByTestId('resume-test-name')).toHaveCount(0);
   await expect(panel).not.toContainText('Resume Practice Test');
-  await expect(panel.getByTestId('discard')).toHaveCount(1);
-  await expect(panel.getByTestId('discard')).toHaveText('Discard and start over');
+  await expect(panel.getByTestId('discard')).toHaveCount(0);
   await expect(panel.getByTestId('practice-exam')).toBeVisible();
   await expect(panel.getByTestId('exam-deck')).toBeVisible();
   await shot(page, 'two-open-sessions');

@@ -471,7 +471,6 @@ function TodayDetails({ recap }: { recap: TodayRecap }) {
 }
 
 function StudyPanel({
-  primary,
   decks,
   catalog,
   examDeck,
@@ -506,11 +505,6 @@ function StudyPanel({
   return (
     <>
       <h2>Study</h2>
-      {primary ? (
-        <button className="btn btn-ghost btn-block" data-testid="discard" type="button" onClick={() => setConfirmReset(true)}>
-          Discard and start over
-        </button>
-      ) : null}
       {!decks.length ? (
         <>
           <p className="muted" style={{ margin: 0 }}>

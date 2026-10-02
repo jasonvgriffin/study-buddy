@@ -57,14 +57,14 @@ test('discard and start over clears every saved study record', async ({ page }) 
   await expect(page.getByRole('heading', { name: 'Study', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'What to study next' })).toHaveCount(0);
   await expect(page.getByTestId('review-due-home')).toContainText(/\(/);
+  await expect(page.getByTestId('discard')).toHaveCount(0);
+  await page.getByTestId('home-tab-library').click();
+  await page.locator('[data-deck-name="Practice Test 1"]').first().click();
   await expect(page.getByTestId('discard').first()).toBeVisible();
 
   await page.getByTestId('discard').first().click();
   await expect(page.getByTestId('confirm-dialog')).toContainText('Discard and start over?');
   await page.getByTestId('confirm-cancel').click();
-  await expect(page.getByRole('heading', { name: 'Study', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'What to study next' })).toHaveCount(0);
-  await expect(page.locator('[data-subject-name="A+"]')).toBeVisible();
 
   await page.getByTestId('discard').first().click();
   await page.getByTestId('confirm-destructive').click();
