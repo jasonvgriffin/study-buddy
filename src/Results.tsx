@@ -1,3 +1,4 @@
+import { sessionDeckLabel } from './lib/deckLabel';
 import { attemptComparison, formatPercentSafe } from './resultsMath';
 import { answerText, correctAnswerText, domainBreakdown } from './lib/domains';
 import { MISSING_EXPLANATION, formatDuration, formatPercent } from './lib/format';
@@ -47,7 +48,7 @@ export function ResultsScreen({ sessionId }: { sessionId: string }) {
   );
 
   return (
-    <Screen title={session.deckName} lede="Results for this sitting" onBack={() => navigate('/')}>
+    <Screen title={sessionDeckLabel(session, study.snap?.decks ?? [])} lede="Results for this sitting" onBack={() => navigate('/')}>
       <article className="card stack" style={{ padding: '1rem' }}>
         <h2>{formatPercent(score.percent)}</h2>
         <p data-testid="score-counts" style={{ margin: 0 }}>

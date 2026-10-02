@@ -6,7 +6,8 @@ import { choiceGraded, gradeLabels } from './lib/parser';
 import { choiceForKey, presentChoices, readShuffle } from './lib/shuffle';
 import { PbqForm } from './PbqForm';
 import { itemExplanations } from './lib/pbq';
-import { resumeButtonLabel, resumeTestName } from './lib/resumeButton';
+import { sessionDeckLabel } from './lib/deckLabel';
+import { resumeButtonLabel } from './lib/resumeButton';
 import { elapsedMs, liveScore, skippedUnanswered } from './lib/session';
 import { navigate } from './nav';
 import { WatchLesson } from './bits';
@@ -117,7 +118,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
   const elapsed = elapsedMs(session, session.status === 'active' ? now : session.updatedAt);
   const remaining = session.timeLimitMs != null ? Math.max(0, session.timeLimitMs - elapsed) : null;
   const paused = session.status !== 'active';
-  const resumeSittingLabel = resumeButtonLabel(resumeTestName(study.snap?.decks ?? [], session.deckId));
+  const resumeSittingLabel = resumeButtonLabel(sessionDeckLabel(session, study.snap?.decks ?? []));
   const graded = card ? choiceGraded(card) : false;
   const multi = graded && !!card && card.correctLabels.length > 1;
   const pbq = card?.pbq ?? null;
