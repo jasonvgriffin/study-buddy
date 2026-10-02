@@ -229,9 +229,6 @@ export function Home() {
               }}
               onLibrary={() => study.setHomeTab('library')}
               onReset={() => void study.discard()}
-              onUntimed={() => {
-                if (examDeck) void study.startExam(examDeck, false);
-              }}
               onTimed={() => {
                 if (examDeck) void study.startExam(examDeck, true);
               }}
@@ -563,7 +560,6 @@ function StudyPanel({
   onPickDeck,
   onLibrary,
   onReset,
-  onUntimed,
   onTimed,
   onDrill,
   onReplaceDrill,
@@ -577,7 +573,6 @@ function StudyPanel({
   onPickDeck: (id: string) => void;
   onLibrary: () => void;
   onReset: () => void;
-  onUntimed: () => void;
   onTimed: () => void;
   onDrill: () => Promise<'started' | 'none' | 'busy'>;
   onReplaceDrill: () => void;
@@ -623,9 +618,6 @@ function StudyPanel({
               </select>
             </span>
           </label>
-          <button className="btn btn-primary btn-block" data-testid="practice-exam" type="button" onClick={onUntimed}>
-            Practice exam
-          </button>
           <button className="btn btn-primary btn-block" data-testid="start-timed-home" type="button" onClick={onTimed}>
             90-minute exam
           </button>

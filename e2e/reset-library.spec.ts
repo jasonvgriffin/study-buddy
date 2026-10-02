@@ -85,7 +85,7 @@ test('discard and start over clears every saved study record', async ({ page }) 
 
   await page.getByTestId('home-tab-study').click();
   await expect(page.getByRole('heading', { name: 'What to study next' })).toHaveCount(0);
-  await expect(page.getByTestId('practice-exam')).toHaveCount(0);
+  await expect(page.getByTestId('start-timed-home')).toHaveCount(0);
   await expect(page.getByTestId('discard')).toHaveCount(0);
   await page.getByTestId('home-tab-library').click();
   await expect(page.locator('[data-deck-name="Practice Test 1"]')).toHaveCount(0);
@@ -181,7 +181,8 @@ test('library can delete one PDF and an entire subject', async ({ page }) => {
 
   await page.getByTestId('home-tab-study').click();
   await expect(page.getByText('A+', { exact: true })).toHaveCount(0);
-  await expect(page.getByTestId('practice-exam')).toBeVisible();
+  await expect(page.getByTestId('start-timed-home')).toBeVisible();
+  await expect(page.getByTestId('practice-exam')).toHaveCount(0);
   await expect(page.getByTestId('exam-deck')).toContainText('sample-notes');
   await expect(page.getByRole('heading', { name: 'What to study next' })).toHaveCount(0);
   await expect(page.locator('#home-panel')).not.toContainText('A+');

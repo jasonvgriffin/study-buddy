@@ -92,7 +92,8 @@ test('long test names stay fully visible at 360px', async ({ page }) => {
   for (const option of optionFit.options) expect(option.clipped).toBe(false);
   await shot(page, 'labels-study-360');
 
-  await page.getByTestId('practice-exam').click();
+  await page.getByTestId('start-deck').selectOption({ label: messerLabel });
+  await page.getByRole('button', { name: 'Start studying', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Which river runs through Cairo?' })).toBeVisible();
   await showsFull(page.getByRole('heading', { name: 'Which river runs through Cairo?' }), 'Which river runs through Cairo?');
   await page.getByTestId('pause').click();

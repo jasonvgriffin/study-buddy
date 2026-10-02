@@ -100,7 +100,7 @@ test('drill missed cards confirms beside the button when a sitting is open', asy
   const afterCancel = await storedStudy(page);
   expect(afterCancel.sessions.find((session) => session.id === exam?.id)?.status).not.toBe('finished');
 
-  await page.getByTestId('practice-exam').click();
+  await page.getByTestId('start-timed-home').click();
   await expect(page.getByTestId('app-status')).toContainText(
     'This test already has a session in progress. Resume it, or discard it, before starting another.',
   );

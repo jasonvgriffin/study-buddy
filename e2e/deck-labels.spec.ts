@@ -87,8 +87,8 @@ test('two PDFs with the same test name stay distinct in one subject', async ({ p
   await page.getByRole('button', { name: 'Home', exact: true }).click();
 
   await showTab(page, 'study');
-  await select.selectOption({ label: messerLabel });
-  await page.getByTestId('practice-exam').click();
+  await page.getByTestId('start-deck').selectOption({ label: messerLabel });
+  await page.getByRole('button', { name: 'Start studying', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Which river runs through Cairo?' })).toBeVisible();
   await page.keyboard.press('b');
   await expect(page.getByTestId('result')).toHaveText('✗ Incorrect');

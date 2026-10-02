@@ -83,7 +83,8 @@ test('a tab deep link opens that tab, and deck or a finished session returns do 
   await expect(page).toHaveURL(/#\/results\//);
   await page.getByRole('button', { name: 'Home', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Study', exact: true })).toBeVisible();
-  await expect(page.getByTestId('practice-exam')).toBeVisible();
+  await expect(page.getByTestId('start-timed-home')).toBeVisible();
+  await expect(page.getByTestId('practice-exam')).toHaveCount(0);
 });
 
 test('tapping the open tab collapses it, and another tap shows only that tab', async ({ page }) => {
