@@ -135,6 +135,15 @@ export function Home() {
         startLabel={recentDeck ? deckLabel(recentDeck, snap.decks) : null}
         emptyDetail={focused ? `Import a PDF into ${focused.name}.` : 'Name a subject, then import its PDF.'}
         emptyAction={focused ? 'Import a PDF' : 'Start a new subject'}
+        busy={!!study.busy}
+        onPickPdf={
+          focused
+            ? (file) => {
+                study.setHomeTab('library');
+                void study.importPdf(file);
+              }
+            : undefined
+        }
         onResume={(session) => {
           void study.resume(session.id);
         }}
@@ -278,6 +287,8 @@ function StudyHero({
   emptyAction,
   onResume,
   onStart,
+  onPickPdf,
+  busy,
 }: {
   sessions: LiveSession[];
   nameFor: (session: LiveSession) => string;
@@ -290,6 +301,9 @@ function StudyHero({
   emptyAction: string;
   onResume: (session: LiveSession) => void;
   onStart: () => void;
+  /** When set and nothing is saved yet, the button opens the file picker directly. */
+  onPickPdf?: (file: File) => void;
+  busy?: boolean;
 }) {
   const ref = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -337,14 +351,36 @@ function StudyHero({
         Start studying
       </p>
       <p style={{ margin: 0 }}>{startLabel ?? emptyDetail}</p>
-      <button
-        className={ready ? 'btn btn-primary btn-block btn-start' : 'btn btn-primary btn-block'}
-        data-testid="start-studying"
-        type="button"
-        onClick={onStart}
-      >
-        {startDeck ? 'Start studying' : emptyAction}
-      </button>
+      {!ready && onPickPdf ? (
+        <label
+          className={busy ? 'btn btn-primary btn-block is-disabled' : 'btn btn-primary btn-block'}
+          data-testid="start-studying"
+          aria-disabled={busy ? true : undefined}
+        >
+          {emptyAction}
+          <input
+            data-testid="hero-pdf-file"
+            type="file"
+            accept="application/pdf,.pdf"
+            disabled={!!busy}
+            hidden
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = '';
+              if (file) onPickPdf(file);
+            }}
+          />
+        </label>
+      ) : (
+        <button
+          className={ready ? 'btn btn-primary btn-block btn-start' : 'btn btn-primary btn-block'}
+          data-testid="start-studying"
+          type="button"
+          onClick={onStart}
+        >
+          {startDeck ? 'Start studying' : emptyAction}
+        </button>
+      )}
       {recap.answered > 0 ? <TodayDetails recap={recap} /> : null}
     </article>
   );
