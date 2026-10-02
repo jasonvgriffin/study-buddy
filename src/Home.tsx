@@ -832,7 +832,7 @@ function LibraryPanel({
       )}
       {!focused && subjects.length ? (
         <p className="muted" data-testid="pick-subject-hint" style={{ margin: 0 }}>
-          Choose a subject to import a PDF into it. All subjects is only a view.
+          Choose a subject to import a PDF into it.
         </p>
       ) : null}
       {focused ? <UploadBlock subjectName={focused.name} /> : null}
