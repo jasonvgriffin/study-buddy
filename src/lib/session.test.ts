@@ -19,6 +19,7 @@ import {
   pauseSession,
   rehydrateSession,
   resumeLabel,
+  resumeLabelParts,
   resumeSession,
   skipQuestion,
   skippedUnanswered,
@@ -53,6 +54,22 @@ describe('missed drill while a sitting is open', () => {
     expect(drillStillOpenPrompt('Practice Exam A')).toBe(
       'Practice Exam A is still open. End it and start the drill?',
     );
+  });
+});
+
+describe('resume line', () => {
+  const deck = { id: 'deck-a', subjectId: 's', name: 'Practice Exam A' };
+  const cards = Array.from({ length: 90 }, (_, i) => card({ id: `c${i}`, deckId: 'deck-a', order: i }));
+
+  it('keeps the test name separate so the line can emphasize it', () => {
+    const session = pauseSession(createExamSession(deck, cards, 'untimed', 0), 3_000);
+    const parts = resumeLabelParts(session, 3_000);
+    expect(parts).toEqual({
+      lead: 'Resume ',
+      name: 'Practice Exam A',
+      rest: ': Question 1 of 90, 0:03 elapsed',
+    });
+    expect(resumeLabel(session, 3_000)).toBe('Resume Practice Exam A: Question 1 of 90, 0:03 elapsed');
   });
 });
 
@@ -174,6 +191,7 @@ describe('skip for later', () => {
     expect(reloaded.answers).toEqual([]);
     expect(elapsedMs(reloaded, 4_000 + 86_400_000)).toBe(4_000);
     expect(resumeLabel(reloaded, 4_000 + 86_400_000)).toContain('3 skipped questions');
+    expect(resumeLabelParts(reloaded, 4_000 + 86_400_000).name).toBe('Practice Exam B');
     const done = finishSession(reloaded, 5_000);
     expect(done.status).toBe('finished');
     expect(done.runningSince).toBeNull();

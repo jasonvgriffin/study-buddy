@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { DemandPanel, DestructiveConfirm, DrillReplacePrompt, ResetConfirm, Spinner } from './bits';
+import { continueButtonLabel } from './lib/continueLabel';
 import { feedbackMailHref } from './lib/feedbackMail';
 import { domainBreakdown } from './lib/domains';
 import { readExamDeckId, resolveDeckPick, sortDecksByName, writeExamDeckId } from './lib/examDeck';
@@ -7,7 +8,7 @@ import { formatDuration, formatPercent } from './lib/format';
 import { todayProgressLine, todayRecap } from './lib/today';
 import { dueCardIds } from './lib/queue';
 import { isUnclearedMiss } from './lib/scoring';
-import { resumeLabel, sessionMissedCardIds } from './lib/session';
+import { resumeLabel, resumeLabelParts, sessionMissedCardIds } from './lib/session';
 import { nextHomeTab } from './homeTab';
 import { navigate } from './nav';
 import type { StudySnapshot } from './lib/db';
@@ -52,6 +53,11 @@ export function Home() {
   const offerDeck = study.startOffer
     ? decks.find((deck) => deck.id === study.startOffer?.deckId) ?? null
     : null;
+  const continueLabel = continueButtonLabel({
+    subjects,
+    sessionSubjectId: primary?.subjectId,
+    deckSubjectId: primary ? snap.decks.find((deck) => deck.id === primary.deckId)?.subjectId : null,
+  });
   const recap = todayRecap({
     reviews: snap.reviews,
     sessions: snap.sessions,
@@ -127,6 +133,7 @@ export function Home() {
 
       <StudyHero
         primary={primary}
+        continueLabel={continueLabel}
         now={now}
         recap={recap}
         arrival={study.homeArrival}
@@ -257,6 +264,7 @@ export function Home() {
 
 function StudyHero({
   primary,
+  continueLabel,
   now,
   recap,
   arrival,
@@ -267,6 +275,7 @@ function StudyHero({
   onStart,
 }: {
   primary: LiveSession | null;
+  continueLabel: string;
   now: number;
   recap: TodayRecap;
   arrival: { from: string; at: number } | null;
@@ -286,12 +295,9 @@ function StudyHero({
   if (primary) {
     return (
       <article ref={ref} className="card stack home-hero" style={{ padding: '1rem' }} data-testid="resume-card">
-        <p className="muted" style={{ margin: 0 }}>
-          Continue
-        </p>
-        <p style={{ margin: 0 }}>{resumeLabel(primary, now)}</p>
-        <button className="btn btn-primary btn-block" data-testid="resume" type="button" onClick={onContinue}>
-          Continue
+        <ResumeLine session={primary} now={now} />
+        <button className="btn btn-primary btn-block home-continue" data-testid="resume" type="button" onClick={onContinue}>
+          <span className="home-continue-label">{continueLabel}</span>
         </button>
         {recap.answered > 0 ? (
           <p className="today-line" data-testid="today-line">
@@ -323,6 +329,19 @@ function StudyHero({
       </button>
       {recap.answered > 0 ? <TodayDetails recap={recap} /> : null}
     </article>
+  );
+}
+
+function ResumeLine({ session, now }: { session: LiveSession; now: number }) {
+  const { lead, name, rest } = resumeLabelParts(session, now);
+  return (
+    <p style={{ margin: 0 }}>
+      {lead}
+      <strong className="resume-test-name" data-testid="resume-test-name">
+        {name}
+      </strong>
+      {rest}
+    </p>
   );
 }
 
