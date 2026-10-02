@@ -24,9 +24,9 @@ npm run build
 ## How a PDF becomes cards
 
 1. Create a subject. A subject is one exam you study over time. Nothing about a particular certification is built in.
-2. Upload a text PDF into that subject. Each upload is its own group of decks.
-3. Review the tests Study Buddy found. Rename, merge, or split them, and edit an explanation or lesson link if the PDF’s wording needs a fix.
-4. Save. Each test is one deck. A practice exam or a missed-card drill uses exactly one test. A due-card review can span tests when you filter by subject or domain.
+2. Upload a text PDF into that subject. Study Buddy saves every test it finds, using the names in the file (or the file name, or Test 1, when a name is missing). Each upload is its own group of decks.
+3. Start studying. The first test in that file is ready immediately. Organize tests (rename, merge, split, or reorder) is optional, from the link under Start studying or later in the library.
+4. Each test is one deck. A practice exam or a missed-card drill uses exactly one test. A due-card review can span tests when you filter by subject or domain.
 
 Supported layouts include `Q:` / `A:`, numbered questions, multiple choice with an answer key, and lettered exams that have a quick-answer grid plus a detailed answer (including “choose two”). If the PDF has no explanation for a card, the study screen says exactly: No explanation provided in your PDF.
 
@@ -34,7 +34,7 @@ Scanned pages are not read. Study Buddy does not OCR.
 
 ## Study
 
-- Home leads with Continue, or Start studying when a test is already saved. With nothing saved, the first step is Start a new subject: name it, then import that subject's PDF. After you save tests, Home shows a full-width Start studying button for the test you just added. A Today card under that sums what you answered today (right, percent, I don't know, each subject and test, and a streak when the saved answers support one). If nothing was answered today, the card asks you to start. The rest is grouped: Study (practice exam, drill, review due), Library (decks, import), Progress (stats, domains, missed questions), and Settings and backup.
+- Home leads with Continue, or Start studying when a test is already saved. With nothing saved, the first step is Start a new subject: name it, then import that subject's PDF. After the PDF is read, Home shows a full-width Start studying button for the first test in that file. Organize tests is a small link there and in the library. A Today card under that sums what you answered today (right, percent, I don't know, each subject and test, and a streak when the saved answers support one). If nothing was answered today, the card asks you to start. The rest is grouped: Study (practice exam, drill, review due), Library (decks, import), Progress (stats, domains, missed questions), and Settings and backup.
 - Untimed mode, or a 90-minute exam. The clock stores active time only. Pause, or leave the tab, and it stops. Hiding the page does not add the time you were away. Skip for later does not stop a timed exam.
 - Skip for later leaves the question unanswered and moves on. Skipped questions stay on that sitting through pause and refresh. At the end, a review list lets you jump back to each one. End session on that list leaves the rest unanswered. Until you answer them they count as unanswered, not right or wrong, and they are not treated as a miss on the review ladder.
 - “I don't know” on a question shows the correct answer and explanation, including the lesson link when the card has one, counts the question as missed, and then lets you go on to the next question. A sitting finishes when the last question is answered or the 90 minutes run out. See results is there then. Pause and Resume stay on the question.
@@ -118,6 +118,6 @@ The script reads `professormesser.link` URLs from that PDF, follows them, and ke
 ## Limitations
 
 - No OCR, so a scan of a book will not produce cards.
-- No generated or reworded questions. If the parser misses a layout, the review step is where you fix the split.
+- No generated or reworded questions. If the parser misses a layout, Organize tests is where you fix the split.
 - Lesson video ids are only as complete as the committed map.
 - Private windows and cleared site data remove the local database.

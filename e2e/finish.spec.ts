@@ -12,7 +12,7 @@ test('keyboard grading, missed review, domain scores, and the backup reminder', 
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Finish"]')).toHaveClass(/on/);
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
-  await page.getByTestId('save-tests').click();
+  await expect(page.getByTestId('start-saved')).toBeVisible();
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await page.getByTestId('start-untimed').click();
 

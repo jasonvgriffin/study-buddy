@@ -42,7 +42,7 @@ test('discard and start over clears every saved study record', async ({ page }) 
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="A+"]')).toHaveClass(/on/);
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
-  await page.getByTestId('save-tests').click();
+  await expect(page.getByTestId('start-saved')).toBeVisible();
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await page.getByTestId('start-untimed').click();
   await page.getByTestId('choice').filter({ hasText: 'Amazon' }).click();
@@ -115,9 +115,9 @@ test('library can delete one PDF and an entire subject', async ({ page }) => {
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="A+"]')).toHaveClass(/on/);
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
-  await page.getByTestId('save-tests').click();
+  await expect(page.getByTestId('start-saved')).toBeVisible();
   await page.getByTestId('pdf-file').setInputFiles(sampleNotes);
-  await page.getByTestId('save-tests').click();
+  await expect(page.getByTestId('import-added')).toContainText('sample-notes.pdf');
 
   await expect(page.getByTestId('delete-subject')).toHaveText('Delete A+');
   await expect(page.getByTestId('delete-source')).toHaveCount(2);
@@ -144,7 +144,7 @@ test('library can delete one PDF and an entire subject', async ({ page }) => {
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Network+"]')).toHaveClass(/on/);
   await page.getByTestId('pdf-file').setInputFiles(sampleNotes);
-  await page.getByTestId('save-tests').click();
+  await expect(page.getByTestId('import-added')).toContainText('sample-notes.pdf');
   await page.locator('[data-subject-name="A+"]').click();
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await page.getByTestId('start-untimed').click();

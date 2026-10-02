@@ -28,6 +28,7 @@ function StatusNotice() {
     study.route.name === 'home' && study.homeTab === 'library' && study.focus !== 'all' && Boolean(text);
   useEffect(() => {
     if (!text) return;
+    if (document.querySelector('[data-testid="start-offer"]')) return;
     const local = document.querySelector('[data-testid="import-status"]');
     if (local instanceof HTMLElement) {
       local.scrollIntoView({ block: 'center' });
