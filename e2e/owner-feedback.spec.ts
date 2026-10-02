@@ -5,7 +5,7 @@ import path from 'node:path';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
 const tagline =
-  'An experimental tool to help you study. Create a subject, upload a pdf of test questions and this tool will quiz you.';
+  'A simple tool to help you study. Create a subject, upload a pdf of test questions and this tool will quiz you.';
 
 async function examPdf(): Promise<string> {
   const doc = await PDFDocument.create();

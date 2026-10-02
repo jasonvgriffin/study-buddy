@@ -67,7 +67,7 @@ export function Home() {
       <header className="stack" style={{ gap: '0.3rem' }}>
         <h1>Study Buddy Beta</h1>
         <p className="muted" data-testid="tagline" style={{ margin: '0 0 1rem', fontStyle: 'italic' }}>
-          An experimental tool to help you study. Create a subject, upload a pdf of test questions and this tool will quiz you.
+          A simple tool to help you study. Create a subject, upload a pdf of test questions and this tool will quiz you.
         </p>
         <p className="muted" data-testid="storage-notice" style={{ margin: 0 }}>
           Your subjects, tests, progress, and scores are saved only in this browser on this device. Nothing is sent to a server. Closing the tab is fine, and everything will still be here when you come back. Clearing this site's data, using a private tab, or switching browsers or devices erases it all, so export a backup from Settings now and then.
