@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { figureCountForCards } from './lib/db';
 import { dueCardIds } from './lib/queue';
 import { isUnclearedMiss, rollup } from './lib/scoring';
+import { resumeButtonLabel, resumeTestName } from './lib/resumeButton';
 import { activeSessionForDeck, resumeLabel } from './lib/session';
 import { navigate } from './nav';
 import { DemandPanel, DrillReplacePrompt, ResetConfirm, Screen } from './bits';
@@ -94,8 +95,8 @@ export function DeckScreen({ deckId, cardId = null }: { deckId: string; cardId?:
       {active ? (
         <article className="card stack" style={{ padding: '0.9rem' }} data-testid="deck-resume">
           <p style={{ margin: 0 }}>{resumeLabel(active, Date.now())}</p>
-          <button className="btn btn-primary" type="button" onClick={() => void study.resume(active.id)}>
-            Resume
+          <button className="btn btn-primary btn-block home-continue" data-testid="resume" type="button" onClick={() => void study.resume(active.id)}>
+            <span className="home-continue-label">{resumeButtonLabel(resumeTestName(snap.decks, deck.id))}</span>
           </button>
           <button className="btn btn-ghost" data-testid="discard" type="button" onClick={() => setConfirmReset(true)}>
             Discard and start over

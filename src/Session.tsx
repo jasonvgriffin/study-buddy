@@ -6,6 +6,7 @@ import { choiceGraded, gradeLabels } from './lib/parser';
 import { choiceForKey, presentChoices, readShuffle } from './lib/shuffle';
 import { PbqForm } from './PbqForm';
 import { itemExplanations } from './lib/pbq';
+import { resumeButtonLabel, resumeTestName } from './lib/resumeButton';
 import { elapsedMs, liveScore, skippedUnanswered } from './lib/session';
 import { navigate } from './nav';
 import { WatchLesson } from './bits';
@@ -116,6 +117,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
   const elapsed = elapsedMs(session, session.status === 'active' ? now : session.updatedAt);
   const remaining = session.timeLimitMs != null ? Math.max(0, session.timeLimitMs - elapsed) : null;
   const paused = session.status !== 'active';
+  const resumeSittingLabel = resumeButtonLabel(resumeTestName(study.snap?.decks ?? [], session.deckId));
   const graded = card ? choiceGraded(card) : false;
   const multi = graded && !!card && card.correctLabels.length > 1;
   const pbq = card?.pbq ?? null;
@@ -246,8 +248,8 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
         ) : null}
       </div>
       {paused && session.status !== 'finished' ? (
-        <button className="btn btn-primary btn-block" data-testid="resume" type="button" onClick={() => void study.resume(session.id)}>
-          Resume
+        <button className="btn btn-primary btn-block home-continue" data-testid="resume" type="button" onClick={() => void study.resume(session.id)}>
+          <span className="home-continue-label">{resumeSittingLabel}</span>
         </button>
       ) : (
         <button className="btn btn-ghost btn-block" data-testid="pause" type="button" onClick={() => void study.pause(session.id)}>

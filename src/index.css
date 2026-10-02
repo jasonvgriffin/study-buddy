@@ -163,6 +163,7 @@ a { color: inherit; }
 .home-hero { scroll-margin-top: 0.75rem; min-width: 0; max-width: 100%; }
 .home-hero .btn { min-height: 64px; font-size: 1.15rem; }
 .resume-test-name { font-weight: 750; }
+.resume-entry { display: contents; }
 .home-continue { max-width: 100%; min-width: 0; }
 .home-continue-label {
   flex: 1 1 auto;
