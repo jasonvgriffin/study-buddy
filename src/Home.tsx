@@ -656,6 +656,7 @@ function LibraryPanel({
 }) {
   const study = useStudy();
   const [pending, setPending] = useState<LibraryConfirm | null>(null);
+  const [renaming, setRenaming] = useState(false);
   const visibleSubjects = focused ? subjects.filter((subject) => subject.id === focused.id) : [];
   const drafts = snap.drafts.filter(
     (draft) => !draft.fromSourceGroupId && (!draft.subjectId || inFocus(draft.subjectId)),
@@ -850,17 +851,32 @@ function LibraryPanel({
       ) : null}
       {focused ? <UploadBlock subjectName={focused.name} /> : null}
       {focused ? (
+        <button
+          className="btn btn-ghost btn-block"
+          data-testid="rename-subject-toggle"
+          type="button"
+          aria-expanded={renaming}
+          onClick={() => setRenaming((open) => !open)}
+        >
+          Rename subject {renaming ? '\u25B4' : '\u25BE'}
+        </button>
+      ) : null}
+      {focused && renaming ? (
         <form
           className="stack"
+          data-testid="rename-subject-form"
           onSubmit={(event) => {
             event.preventDefault();
             onSaveSubject();
+            setRenaming(false);
           }}
         >
-          <label className="stack" style={{ gap: '0.35rem' }}>
-            <span>Rename subject</span>
-            <input className="field" value={rename ?? focused.name} onChange={(event) => onRename(event.target.value)} />
-          </label>
+          <input
+            className="field"
+            aria-label="Subject name"
+            value={rename ?? focused.name}
+            onChange={(event) => onRename(event.target.value)}
+          />
           <button className="btn btn-ghost btn-block" type="submit">
             Save name
           </button>
