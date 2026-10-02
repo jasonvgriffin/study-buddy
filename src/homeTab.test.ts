@@ -57,6 +57,7 @@ describe('home tab', () => {
     expect(tabForRoute(review)).toBe('library');
     expect(tabForRoute(session)).toBe('study');
     expect(tabForRoute(results)).toBe('study');
+    expect(tabForRoute({ name: 'stats', deckId: 'deck-1' })).toBeNull();
     expect(
       resolveHomeTab({ current: null, requested: null, arriving: true, from: deck }),
     ).toBe('library');

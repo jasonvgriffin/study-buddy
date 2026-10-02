@@ -1,116 +1,318 @@
-import { domainBreakdown } from './lib/domains';
-import { accuracyByDay, rollup, studyStreak, weakestMemories } from './lib/scoring';
+import { Fragment, type ReactNode } from 'react';
+import { deckLabel } from './lib/deckLabel';
+import { domainBreakdown, type DomainScore } from './lib/domains';
+import { formatDuration, formatPercent } from './lib/format';
+import { accuracyByDay, rollup, studyStreak, type DayStat } from './lib/scoring';
 import { elapsedMs } from './lib/session';
-import { compareTestNames, formatDuration, formatPercent } from './lib/format';
+import {
+  STATS_DECK_SECTIONS,
+  STATS_OVERVIEW_SECTIONS,
+  byTestRows,
+  deckBreakdown,
+  weakestCardLabels,
+} from './lib/statsDeck';
 import { Screen } from './bits';
+import { navigate } from './nav';
 import { useStudy } from './store';
+
+type AccuracyTotals = {
+  accuracy: number | null;
+  correct: number;
+  incorrect: number;
+  attempts: number;
+};
+
+type Streak = { current: number; best: number };
+
+export type WeakestRow = {
+  cardId: string;
+  question: string;
+  correct: number;
+  attempts: number;
+  deckLabel: string | null;
+};
+
+function AccuracyCard({
+  totals,
+  activeMs,
+  streak,
+  testId,
+}: {
+  totals: AccuracyTotals;
+  activeMs: number;
+  streak?: Streak | null;
+  testId: string;
+}) {
+  return (
+    <article className="card stack" data-testid={testId} style={{ padding: '1rem' }}>
+      <h2>{formatPercent(totals.accuracy)}</h2>
+      <p style={{ margin: 0 }}>
+        {totals.correct} right, {totals.incorrect} wrong, {totals.attempts} answers.
+      </p>
+      <p style={{ margin: 0 }}>Active study time {formatDuration(activeMs)}.</p>
+      {streak ? (
+        <p style={{ margin: 0 }}>
+          {streak.current ? `${streak.current} day streak.` : 'No streak yet.'} Best {streak.best}.
+        </p>
+      ) : null}
+    </article>
+  );
+}
+
+function DaySection({ days }: { days: DayStat[] }) {
+  return (
+    <section className="stack" data-testid="accuracy-by-day">
+      <h2>Accuracy by day</h2>
+      {!days.length ? <p className="muted">Answer a few cards and the days show up here.</p> : null}
+      {days.map((day) => (
+        <div key={day.day}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
+            <span>{day.day}</span>
+            <span>
+              {formatPercent(day.accuracy)} · {day.correct}/{day.correct + day.incorrect}
+            </span>
+          </div>
+          <div className="bar">
+            <span style={{ width: `${Math.round((day.accuracy ?? 0) * 100)}%` }} />
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function DomainSection({ domains }: { domains: DomainScore[] }) {
+  return (
+    <section className="stack" data-testid="domain-stats">
+      <h2>By domain</h2>
+      {!domains.length ? <p className="muted">Answer a few cards and the domains from your PDF show up here.</p> : null}
+      {domains.map((domain) => (
+        <article key={domain.key} className="card stack" data-testid="domain-score" style={{ padding: '0.85rem' }}>
+          <strong>{domain.name}</strong>
+          <p style={{ margin: '0.25rem 0 0' }}>
+            {formatPercent(domain.correct + domain.incorrect ? domain.correct / (domain.correct + domain.incorrect) : null)} · {domain.correct} right, {domain.incorrect} wrong
+          </p>
+          {domain.objectives.map((objective) => (
+            <p key={objective.key} className="muted" data-testid="objective-score" style={{ margin: '0.25rem 0 0' }}>
+              {objective.label}: {objective.correct} right, {objective.incorrect} wrong
+            </p>
+          ))}
+        </article>
+      ))}
+    </section>
+  );
+}
+
+function WeakestSection({ rows }: { rows: WeakestRow[] }) {
+  return (
+    <section className="stack" data-testid="weakest-cards">
+      <h2>Weakest cards</h2>
+      {!rows.length ? <p className="muted">Not enough answers to rank cards yet.</p> : null}
+      {rows.map((row) => (
+        <article key={row.cardId} className="card" data-testid="weakest-card" style={{ padding: '0.85rem' }}>
+          <p style={{ margin: 0 }}>{row.question}</p>
+          {row.deckLabel ? (
+            <p className="muted" data-testid="weakest-deck" style={{ margin: '0.25rem 0 0' }}>
+              {row.deckLabel}
+            </p>
+          ) : null}
+          <p className="muted" style={{ margin: '0.25rem 0 0' }}>
+            {row.correct} of {row.attempts} correct
+          </p>
+        </article>
+      ))}
+    </section>
+  );
+}
+
+export function StatsOverview({
+  lede,
+  totals,
+  activeMs,
+  streak,
+  days,
+  domains,
+  tests,
+  weakest,
+  onOpenTest,
+}: {
+  lede: string;
+  totals: AccuracyTotals;
+  activeMs: number;
+  streak: Streak;
+  days: DayStat[];
+  domains: DomainScore[];
+  tests: { id: string; label: string; attempts: number; accuracy: number | null; progress: string | null }[];
+  weakest: WeakestRow[];
+  onOpenTest: (deckId: string) => void;
+}) {
+  const sections: Record<(typeof STATS_OVERVIEW_SECTIONS)[number], ReactNode> = {
+    'by-test': (
+      <section className="stack" data-testid="by-test">
+        <h2>By test</h2>
+        {!tests.length ? <p className="muted">No tests in this view.</p> : null}
+        {tests.map((row) => (
+          <button
+            key={row.id}
+            type="button"
+            className="card by-test"
+            data-testid="by-test-row"
+            data-deck-id={row.id}
+            onClick={() => onOpenTest(row.id)}
+          >
+            <strong>{row.label}</strong>
+            <p className="muted" style={{ margin: '0.25rem 0 0' }}>
+              {row.attempts ? `${formatPercent(row.accuracy)} over ${row.attempts} answers` : 'No answers yet'}
+            </p>
+            {row.progress ? (
+              <p className="muted" data-testid="in-progress" style={{ margin: '0.25rem 0 0' }}>
+                {row.progress}
+              </p>
+            ) : null}
+          </button>
+        ))}
+      </section>
+    ),
+    accuracy: <AccuracyCard totals={totals} activeMs={activeMs} streak={streak} testId="overall-accuracy" />,
+    'by-day': <DaySection days={days} />,
+    'by-domain': <DomainSection domains={domains} />,
+    weakest: <WeakestSection rows={weakest} />,
+  };
+
+  return (
+    <Screen title="Stats" lede={lede}>
+      {STATS_OVERVIEW_SECTIONS.map((id) => (
+        <Fragment key={id}>{sections[id]}</Fragment>
+      ))}
+    </Screen>
+  );
+}
+
+export function StatsDeckDetail({
+  title,
+  totals,
+  activeMs,
+  days,
+  domains,
+  weakest,
+  onBack,
+}: {
+  title: string;
+  totals: AccuracyTotals;
+  activeMs: number;
+  days: DayStat[];
+  domains: DomainScore[];
+  weakest: WeakestRow[];
+  onBack: () => void;
+}) {
+  const sections: Record<(typeof STATS_DECK_SECTIONS)[number], ReactNode> = {
+    accuracy: <AccuracyCard totals={totals} activeMs={activeMs} testId="deck-accuracy" />,
+    'by-day': <DaySection days={days} />,
+    'by-domain': <DomainSection domains={domains} />,
+    weakest: <WeakestSection rows={weakest} />,
+  };
+
+  return (
+    <Screen
+      title={title}
+      lede="This test only. Time counts while a session is open, not while the screen is hidden."
+      onBack={onBack}
+    >
+      <div className="stack" data-testid="stats-deck">
+        {STATS_DECK_SECTIONS.map((id) => (
+          <Fragment key={id}>{sections[id]}</Fragment>
+        ))}
+      </div>
+    </Screen>
+  );
+}
 
 export function Stats() {
   const study = useStudy();
   const snap = study.snap;
   if (!snap) return null;
+  const deckId = study.route.name === 'stats' ? study.route.deckId : undefined;
+  const offset = new Date().getTimezoneOffset();
+  const now = Date.now();
+  const cardById = new Map(snap.cards.map((card) => [card.id, card]));
+
+  if (deckId) {
+    const deck = snap.decks.find((item) => item.id === deckId);
+    if (!deck) {
+      return (
+        <Screen title="Stats" onBack={() => navigate('/stats')}>
+          <p>That test is not on this device.</p>
+        </Screen>
+      );
+    }
+    const breakdown = deckBreakdown({
+      deckId,
+      reviews: snap.reviews,
+      memories: snap.memories,
+      sessions: snap.sessions,
+      cards: snap.cards,
+      now,
+      offsetMinutes: offset,
+    });
+    return (
+      <StatsDeckDetail
+        title={deckLabel(deck, snap.decks)}
+        totals={breakdown.totals}
+        activeMs={breakdown.activeMs}
+        days={breakdown.days.slice(-14)}
+        domains={breakdown.domains}
+        weakest={breakdown.weakest.map((memory) => ({
+          cardId: memory.cardId,
+          question: cardById.get(memory.cardId)?.question ?? 'Card',
+          correct: memory.correct,
+          attempts: memory.attempts,
+          deckLabel: null,
+        }))}
+        onBack={() => navigate('/stats')}
+      />
+    );
+  }
+
   const inFocus = (subjectId: string) => study.focus === 'all' || study.focus === subjectId;
   const reviews = snap.reviews.filter((review) => inFocus(review.subjectId));
   const memories = snap.memories.filter((memory) => inFocus(memory.subjectId));
   const decks = snap.decks.filter((deck) => inFocus(deck.subjectId));
   const sessions = snap.sessions.filter((session) => inFocus(session.subjectId));
   const totals = rollup(memories);
-  const offset = new Date().getTimezoneOffset();
   const days = accuracyByDay(reviews, offset).slice(-14);
   const streak = studyStreak(
     reviews.map((review) => review.at),
-    Date.now(),
+    now,
     offset,
   );
-  const weakest = weakestMemories(memories, 5);
-  const activeMs = sessions.reduce((sum, session) => sum + elapsedMs(session, Date.now()), 0);
-  const cardById = new Map(snap.cards.map((card) => [card.id, card]));
+  const activeMs = sessions.reduce((sum, session) => sum + elapsedMs(session, now), 0);
   const domains = domainBreakdown(
     snap.cards.filter((card) => inFocus(card.subjectId)),
     reviews.map((review) => ({ cardId: review.cardId, correct: review.correct })),
   );
+  const weakest = weakestCardLabels(memories, snap.decks).map((row) => ({
+    cardId: row.cardId,
+    question: cardById.get(row.cardId)?.question ?? 'Card',
+    correct: row.correct,
+    attempts: row.attempts,
+    deckLabel: row.label,
+  }));
 
   return (
-    <Screen
-      title="Stats"
-      lede={study.focus === 'all' ? 'Every subject on this device.' : 'This subject only. Time counts while a session is open, not while the screen is hidden.'}
-    >
-      <article className="card stack" style={{ padding: '1rem' }}>
-        <h2>{formatPercent(totals.accuracy)}</h2>
-        <p style={{ margin: 0 }}>
-          {totals.correct} right, {totals.incorrect} wrong, {totals.attempts} answers.
-        </p>
-        <p style={{ margin: 0 }}>Active study time {formatDuration(activeMs)}.</p>
-        <p style={{ margin: 0 }}>
-          {streak.current ? `${streak.current} day streak.` : 'No streak yet.'} Best {streak.best}.
-        </p>
-      </article>
-      <section className="stack">
-        <h2>Accuracy by day</h2>
-        {!days.length ? <p className="muted">Answer a few cards and the days show up here.</p> : null}
-        {days.map((day) => (
-          <div key={day.day}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
-              <span>{day.day}</span>
-              <span>
-                {formatPercent(day.accuracy)} · {day.correct}/{day.correct + day.incorrect}
-              </span>
-            </div>
-            <div className="bar">
-              <span style={{ width: `${Math.round((day.accuracy ?? 0) * 100)}%` }} />
-            </div>
-          </div>
-        ))}
-      </section>
-      <section className="stack" data-testid="domain-stats">
-        <h2>By domain</h2>
-        {!domains.length ? <p className="muted">Answer a few cards and the domains from your PDF show up here.</p> : null}
-        {domains.map((domain) => (
-          <article key={domain.key} className="card stack" data-testid="domain-score" style={{ padding: '0.85rem' }}>
-            <strong>{domain.name}</strong>
-            <p style={{ margin: '0.25rem 0 0' }}>
-              {formatPercent(domain.correct + domain.incorrect ? domain.correct / (domain.correct + domain.incorrect) : null)} · {domain.correct} right, {domain.incorrect} wrong
-            </p>
-            {domain.objectives.map((objective) => (
-              <p key={objective.key} className="muted" data-testid="objective-score" style={{ margin: '0.25rem 0 0' }}>
-                {objective.label}: {objective.correct} right, {objective.incorrect} wrong
-              </p>
-            ))}
-          </article>
-        ))}
-      </section>
-      <section className="stack" data-testid="by-test">
-        <h2>By test</h2>
-        {!decks.length ? <p className="muted">No tests in this view.</p> : null}
-        {[...decks].sort((a, b) => compareTestNames(a.name, b.name)).map((deck) => {
-          const stats = rollup(memories.filter((memory) => memory.deckId === deck.id));
-          return (
-            <article key={deck.id} className="card" style={{ padding: '0.85rem' }}>
-              <strong>{deck.name}</strong>
-              <p className="muted" style={{ margin: '0.25rem 0 0' }}>
-                {stats.attempts
-                  ? `${formatPercent(stats.accuracy)} over ${stats.attempts} answers`
-                  : 'No answers yet'}
-              </p>
-            </article>
-          );
-        })}
-      </section>
-      <section className="stack">
-        <h2>Weakest cards</h2>
-        {!weakest.length ? <p className="muted">Not enough answers to rank cards yet.</p> : null}
-        {weakest.map((memory) => {
-          const card = cardById.get(memory.cardId);
-          return (
-            <article key={memory.cardId} className="card" style={{ padding: '0.85rem' }}>
-              <p style={{ margin: 0 }}>{card?.question ?? 'Card'}</p>
-              <p className="muted" style={{ margin: '0.25rem 0 0' }}>
-                {memory.correct} of {memory.attempts} correct
-              </p>
-            </article>
-          );
-        })}
-      </section>
-    </Screen>
+    <StatsOverview
+      lede={
+        study.focus === 'all'
+          ? 'Every subject on this device.'
+          : 'This subject only. Time counts while a session is open, not while the screen is hidden.'
+      }
+      totals={totals}
+      activeMs={activeMs}
+      streak={streak}
+      days={days}
+      domains={domains}
+      tests={byTestRows({ decks, catalog: snap.decks, memories, sessions })}
+      weakest={weakest}
+      onOpenTest={(id) => navigate(`/stats/test/${encodeURIComponent(id)}`)}
+    />
   );
 }

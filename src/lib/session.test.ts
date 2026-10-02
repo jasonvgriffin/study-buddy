@@ -18,9 +18,11 @@ import {
   openSkipReview,
   pauseSession,
   rehydrateSession,
+  inProgressLabel,
   resumeLabel,
   resumeLabelParts,
   resumeSession,
+  sessionProgress,
   skipQuestion,
   skippedUnanswered,
 } from './session';
@@ -70,6 +72,23 @@ describe('resume line', () => {
       rest: ': Question 1 of 90, 0:03 elapsed',
     });
     expect(resumeLabel(session, 3_000)).toBe('Resume Practice Exam A: Question 1 of 90, 0:03 elapsed');
+  });
+
+  it('uses the same question and total for the stats in-progress label', () => {
+    let session = createExamSession(deck, cards, 'untimed', 0);
+    session = { ...session, index: 6 };
+    session = pauseSession(session, 3_000);
+    expect(sessionProgress(session)).toEqual({ question: 7, total: 90 });
+    expect(resumeLabelParts(session, 3_000).rest).toContain('Question 7 of 90');
+    expect(inProgressLabel(session)).toBe('In progress, question 7 of 90');
+  });
+
+  it('counts a drill queue the same way the resume line does', () => {
+    const drill = createDrillSession(deck, cards, ['c0', 'c1', 'c2'], null, 0);
+    const moved = { ...drill, index: 1, originalCount: 90 };
+    expect(sessionProgress(moved)).toEqual({ question: 2, total: 3 });
+    expect(resumeLabelParts(moved, 1_000).rest).toContain('Question 2 of 3');
+    expect(inProgressLabel(moved)).toBe('In progress, question 2 of 3');
   });
 });
 
@@ -191,6 +210,8 @@ describe('skip for later', () => {
     expect(reloaded.answers).toEqual([]);
     expect(elapsedMs(reloaded, 4_000 + 86_400_000)).toBe(4_000);
     expect(resumeLabel(reloaded, 4_000 + 86_400_000)).toContain('3 skipped questions');
+    expect(sessionProgress(reloaded)).toEqual({ skipped: 3 });
+    expect(inProgressLabel(reloaded)).toBe('In progress, 3 skipped questions to review');
     expect(resumeLabelParts(reloaded, 4_000 + 86_400_000).name).toBe('Practice Exam B');
     const done = finishSession(reloaded, 5_000);
     expect(done.status).toBe('finished');
