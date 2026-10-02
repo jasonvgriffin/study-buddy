@@ -302,6 +302,19 @@ button.by-test:focus-visible {
   font-size: 1.28rem;
   font-weight: 750;
 }
+.start-pick-label {
+  font-weight: 650;
+  font-size: 1rem;
+}
+.start-pick .test-picker-value {
+  min-height: 60px;
+  border-radius: 999px;
+  padding-left: 1.2rem;
+  font-weight: 600;
+}
+.start-pick .test-picker select.field {
+  border-radius: 999px;
+}
 .start-offer {
   scroll-margin-top: 0.75rem;
   border-color: var(--moss);
