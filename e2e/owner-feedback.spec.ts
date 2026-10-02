@@ -79,7 +79,18 @@ test('home title, feedback link, subject panel, upload status, and review chips'
   const noteBox = await note.boundingBox();
   const taglineBox = await page.getByTestId('tagline').boundingBox();
   expect(noteBox && taglineBox && noteBox.y > taglineBox.y).toBe(true);
+  expect(noteBox!.y - (taglineBox!.y + taglineBox!.height)).toBeGreaterThan(24);
   expect(noteBox!.height).toBeLessThan(100);
+  await expect(note.locator('strong')).toHaveText('Found a bug or have feedback?');
+  const weights = await note.evaluate((el) => {
+    const strong = el.querySelector('strong');
+    const link = el.querySelector('a');
+    return {
+      strong: strong ? Number(getComputedStyle(strong).fontWeight) : 0,
+      link: link ? Number(getComputedStyle(link).fontWeight) : 0,
+    };
+  });
+  expect(weights.strong).toBeGreaterThan(weights.link);
   expect(await note.evaluate((el) => el.scrollWidth > el.clientWidth + 2)).toBe(false);
 
   const href = await page.getByTestId('feedback-mail').getAttribute('href');

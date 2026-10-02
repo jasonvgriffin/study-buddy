@@ -118,6 +118,9 @@ export type Card = ParsedCard & {
   reported?: boolean;
 };
 
+/** How an answer was graded. Older saves omit this and stay correct or incorrect. */
+export type AnswerResult = 'correct' | 'incorrect' | 'unknown';
+
 export type Review = {
   id: string;
   cardId: string;
@@ -127,6 +130,11 @@ export type Review = {
   correct: boolean;
   chosenLabels: string[];
   at: number;
+  /**
+   * "unknown" is I don't know. Missing on reviews saved before this field existed.
+   * Those stay in the log and are not treated as I don't know.
+   */
+  result?: AnswerResult;
 };
 
 export type SessionAnswer = {
@@ -134,6 +142,7 @@ export type SessionAnswer = {
   correct: boolean;
   chosenLabels: string[];
   at: number;
+  result?: AnswerResult;
 };
 
 export type SessionStatus = 'active' | 'paused' | 'finished';

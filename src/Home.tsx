@@ -3,7 +3,8 @@ import { DemandPanel, DestructiveConfirm, ResetConfirm, Spinner } from './bits';
 import { feedbackMailHref } from './lib/feedbackMail';
 import { domainBreakdown } from './lib/domains';
 import { readExamDeckId, resolveDeckPick, sortDecksByName, writeExamDeckId } from './lib/examDeck';
-import { formatPercent } from './lib/format';
+import { formatDuration, formatPercent } from './lib/format';
+import { todayRecap } from './lib/today';
 import { dueCardIds } from './lib/queue';
 import { isUnclearedMiss } from './lib/scoring';
 import { resumeLabel, sessionMissedCardIds } from './lib/session';
@@ -12,6 +13,7 @@ import { navigate } from './nav';
 import type { StudySnapshot } from './lib/db';
 import { useStudy } from './store';
 import type { Card, Deck, LiveSession, Subject } from './lib/types';
+import type { TodayRecap } from './lib/today';
 
 export function Home() {
   const study = useStudy();
@@ -23,6 +25,14 @@ export function Home() {
   const [naming, setNaming] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
   const [backupError, setBackupError] = useState<string | null>(null);
+  const offerId = study.startOffer?.deckId ?? null;
+  useEffect(() => {
+    if (!offerId) return;
+    const root = document.querySelector('[data-testid="start-offer"]');
+    if (!(root instanceof HTMLElement)) return;
+    root.scrollIntoView({ block: 'start' });
+    root.querySelector<HTMLButtonElement>('[data-testid="start-saved"]')?.focus({ preventScroll: true });
+  }, [offerId]);
   if (!snap) return null;
 
   const now = Date.now();
@@ -38,6 +48,9 @@ export function Home() {
   const focused = subjects.find((subject) => subject.id === study.focus) ?? null;
   const examDeck = resolveDeckPick(decks, snap.sessions, inFocus, examDeckId);
   const recentDeck = resolveDeckPick(decks, snap.sessions, inFocus, null);
+  const offerDeck = study.startOffer
+    ? decks.find((deck) => deck.id === study.startOffer?.deckId) ?? null
+    : null;
 
   return (
     <div className="stack">
@@ -47,7 +60,7 @@ export function Home() {
           An experimental tool to help you study. Create a subject, upload a pdf of test questions and this tool will quiz you.
         </p>
         <p className="feedback-note" data-testid="feedback-note">
-          Found a bug or have feedback? Email{' '}
+          <strong>Found a bug or have feedback?</strong> Email{' '}
           <a data-testid="feedback-mail" href={feedbackMailHref(__APP_VERSION__, __BUILD_TIME__)}>
             eve.chief_of_staff@agentmail.to
           </a>
@@ -92,6 +105,10 @@ export function Home() {
           }}
         />
       ) : null}
+
+      {offerDeck ? <StartOffer deck={offerDeck} onStart={() => void study.startExam(offerDeck, false)} /> : null}
+
+      <TodayCard focus={study.focus} arrival={study.homeArrival} />
 
       <StudyHero
         primary={primary}
@@ -247,16 +264,125 @@ function StudyHero({
       </article>
     );
   }
+  const ready = !!startDeck;
   return (
-    <article className="card stack home-hero" style={{ padding: '1rem' }} data-testid="study-hero">
+    <article
+      className={ready ? 'card stack home-hero home-hero-ready' : 'card stack home-hero'}
+      style={{ padding: '1rem' }}
+      data-testid="study-hero"
+    >
       <p className="muted" style={{ margin: 0 }}>
         Start studying
       </p>
       <p style={{ margin: 0 }}>{startDeck ? startDeck.name : emptyDetail}</p>
-      <button className="btn btn-primary btn-block" data-testid="start-studying" type="button" onClick={onStart}>
+      <button
+        className={ready ? 'btn btn-primary btn-block btn-start' : 'btn btn-primary btn-block'}
+        data-testid="start-studying"
+        type="button"
+        onClick={onStart}
+      >
         {startDeck ? 'Start studying' : emptyAction}
       </button>
     </article>
+  );
+}
+
+function StartOffer({ deck, onStart }: { deck: Deck; onStart: () => void }) {
+  return (
+    <section className="card stack start-offer" data-testid="start-offer" aria-label="Start studying" style={{ padding: '1rem' }}>
+      <p data-testid="start-offer-cue" style={{ margin: 0 }}>
+        You're all set — tap Start studying to begin
+      </p>
+      <p className="muted" data-testid="start-offer-test" style={{ margin: 0 }}>
+        {deck.name}
+      </p>
+      <button className="btn btn-primary btn-block btn-start" data-testid="start-saved" type="button" onClick={onStart}>
+        Start studying
+      </button>
+    </section>
+  );
+}
+
+function TodayCard({
+  focus,
+  arrival,
+}: {
+  focus: string | 'all';
+  arrival: { from: string; at: number } | null;
+}) {
+  const study = useStudy();
+  const snap = study.snap;
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!arrival || (arrival.from !== 'session' && arrival.from !== 'results')) return;
+    if (document.querySelector('[data-testid="new-subject-panel"], [data-testid="start-offer"]')) return;
+    ref.current?.scrollIntoView({ block: 'start' });
+  }, [arrival]);
+  if (!snap) return null;
+  const recap = todayRecap({
+    reviews: snap.reviews,
+    sessions: snap.sessions,
+    subjects: snap.subjects,
+    decks: snap.decks,
+    now: Date.now(),
+    offsetMinutes: new Date().getTimezoneOffset(),
+    subjectId: focus === 'all' ? null : focus,
+  });
+  return (
+    <article ref={ref} className="card stack today-card" id="today-recap" data-testid="today-recap" aria-label="Today">
+      <h2>Today</h2>
+      {recap.empty ? (
+        <p className="today-empty" data-testid="today-empty" style={{ margin: 0 }}>
+          {recap.encouragement}
+        </p>
+      ) : (
+        <TodayDetails recap={recap} />
+      )}
+      {recap.streak > 0 ? (
+        <p data-testid="today-streak" style={{ margin: 0 }}>
+          {recap.streak}-day streak
+        </p>
+      ) : null}
+    </article>
+  );
+}
+
+function TodayDetails({ recap }: { recap: TodayRecap }) {
+  return (
+    <>
+      <p data-testid="today-counts" style={{ margin: 0 }}>
+        {recap.answered} answered, {recap.correct} right, {formatPercent(recap.accuracy)}
+      </p>
+      {recap.unknown > 0 ? (
+        <p data-testid="today-unknown" style={{ margin: 0 }}>
+          I don&apos;t know: {recap.unknown}
+        </p>
+      ) : null}
+      <ul className="today-subjects" data-testid="today-subjects">
+        {recap.subjects.map((subject) => (
+          <li key={subject.subjectId}>
+            <span className="today-subject">
+              {subject.name} · {subject.correct} of {subject.answered} · {formatPercent(subject.accuracy)}
+            </span>
+            <ul className="today-tests">
+              {subject.tests.map((test) => (
+                <li key={test.deckId} className="muted" data-testid="today-test">
+                  {test.name} · {test.correct} of {test.answered} · {formatPercent(test.accuracy)}
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ul>
+      {recap.studiedMs != null && recap.studiedMs > 0 ? (
+        <p data-testid="today-time" style={{ margin: 0 }}>
+          {formatDuration(recap.studiedMs)} studied
+        </p>
+      ) : null}
+      <p data-testid="today-encouragement" style={{ margin: 0 }}>
+        {recap.encouragement}
+      </p>
+    </>
   );
 }
 

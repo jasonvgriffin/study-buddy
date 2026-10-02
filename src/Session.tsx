@@ -9,6 +9,7 @@ import { itemExplanations } from './lib/pbq';
 import { elapsedMs, liveScore, skippedUnanswered } from './lib/session';
 import { navigate } from './nav';
 import { WatchLesson } from './bits';
+import type { AnswerResult } from './lib/types';
 import { lessonHref, lessonLabel, useStudy } from './store';
 
 export function SessionScreen({ sessionId }: { sessionId: string }) {
@@ -125,14 +126,16 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
   const showSkipReview = session.skipReview && !reveal && session.status !== 'finished';
   const explanationText = card?.explanation?.trim() ? card.explanation : MISSING_EXPLANATION;
 
-  const submit = (chosen: string[], correct: boolean) => {
+  const submit = (chosen: string[], correct: boolean, result?: AnswerResult) => {
     if (!card || reveal || paused || pendingRef.current) return;
-    gradeFeedback(correct);
+    const resolved: AnswerResult = result ?? (correct ? 'correct' : 'incorrect');
+    const gradedCorrect = resolved === 'correct';
+    gradeFeedback(gradedCorrect);
     pendingRef.current = true;
     setPending(true);
-    void study.answer(session.id, card, chosen, correct)
+    void study.answer(session.id, card, chosen, gradedCorrect, resolved)
       .then((result) => {
-        setReveal({ cardId: card.id, correct, chosen, finished: result.finished });
+        setReveal({ cardId: card.id, correct: gradedCorrect, chosen, finished: result.finished });
         setPicked([]);
       })
       .finally(() => {
@@ -502,7 +505,7 @@ export function SessionScreen({ sessionId }: { sessionId: string }) {
                 type="button"
                 aria-label="I don't know"
                 disabled={paused || pending}
-                onClick={() => submit([], false)}
+                onClick={() => submit([], false, 'unknown')}
               >
                 I don't know
               </button>
