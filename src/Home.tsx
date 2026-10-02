@@ -295,7 +295,7 @@ function StudyHero({
         {sessions.map((session) => {
           const name = nameFor(session);
           return (
-            <div key={session.id} className="resume-entry" data-testid="resume-entry" data-deck-name={name}>
+            <div key={session.id} className="resume-entry" data-testid="resume-entry">
               <ResumeLine session={session} now={now} name={name} />
               <button
                 className="btn btn-primary btn-block home-continue"

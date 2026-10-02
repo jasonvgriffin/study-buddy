@@ -11,6 +11,12 @@ async function shot(page: Page, name: string) {
   await page.screenshot({ path: path.join(shots, `${name}.png`), fullPage: true });
 }
 
+async function showTab(page: Page, id: 'study' | 'library') {
+  const tab = page.getByTestId(`home-tab-${id}`);
+  if ((await tab.getAttribute('aria-selected')) !== 'true') await tab.click();
+  await expect(tab).toHaveAttribute('aria-selected', 'true');
+}
+
 test('every open session is listed on the top card and each button resumes that test', async ({ page }) => {
   await page.goto('./');
   await page.getByTestId('home-tab-library').click();
@@ -28,7 +34,7 @@ test('every open session is listed on the top card and each button resumes that 
   await expect(page.getByTestId('position')).toHaveText('Question 2 of 3');
   await page.getByRole('button', { name: 'Back', exact: true }).click();
 
-  await page.getByTestId('home-tab-library').click();
+  await showTab(page, 'library');
   await page.locator('[data-deck-name="Practice Test 2"]').click();
   await page.getByTestId('start-untimed').click();
   await expect(page.getByRole('heading', { name: 'What does a barometer measure?' })).toBeVisible();
@@ -48,7 +54,7 @@ test('every open session is listed on the top card and each button resumes that 
   await expect(card.getByTestId('today-line')).toHaveCount(1);
   await expect(page.getByTestId('today-line')).toHaveCount(1);
 
-  await page.getByTestId('home-tab-study').click();
+  await showTab(page, 'study');
   const panel = page.locator('#home-panel');
   await expect(panel.getByRole('heading', { name: 'Study', exact: true })).toBeVisible();
   await expect(panel.getByTestId('resume')).toHaveCount(0);
@@ -75,7 +81,7 @@ test('every open session is listed on the top card and each button resumes that 
   await expect(page.getByTestId('resume')).toHaveText('Resume Practice Test 2');
   await page.getByRole('button', { name: 'Back', exact: true }).click();
 
-  await page.getByTestId('home-tab-library').click();
+  await showTab(page, 'library');
   await page.locator('[data-deck-name="Practice Test 1"]').click();
   await expect(page.getByTestId('deck-resume').getByTestId('resume')).toHaveText('Resume Practice Test 1');
   await page.getByTestId('deck-resume').getByTestId('resume').click();
