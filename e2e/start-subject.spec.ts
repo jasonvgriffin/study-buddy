@@ -27,7 +27,7 @@ test('start a new subject, name it, then import its PDF', async ({ page }) => {
   await expect(importer).toContainText('saved in Biology');
   await expect(page.getByTestId('pdf-file')).toBeEnabled();
 
-  await page.getByRole('button', { name: 'All subjects' }).click();
+  await page.getByRole('button', { name: 'Subjects:' }).click();
   await expect(page.getByTestId('pdf-file')).toHaveCount(0);
   await expect(page.getByTestId('pick-subject-hint')).toBeVisible();
   await page.locator('[data-subject-name="Biology"]').click();
