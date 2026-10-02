@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   closeStudyDb,
   deleteCard,
+  deleteSession,
   deleteDraft,
   deleteSourceGroup,
   deleteSubject,
@@ -84,6 +85,12 @@ describe('IndexedDB', () => {
     expect(again.sessions[0].accumulatedMs).toBe(75_000);
     expect(again.sessions[0].status).toBe('paused');
     expect(again.memories[0].correct).toBe(1);
+
+    await deleteSession(session.id);
+    const dropped = await loadSnapshot();
+    expect(dropped.sessions).toEqual([]);
+    expect(dropped.reviews).toHaveLength(1);
+    expect(dropped.memories[0].correct).toBe(1);
   });
 
   it('keeps skipped questions on a paused session with no review recorded', async () => {

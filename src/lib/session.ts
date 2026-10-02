@@ -147,6 +147,21 @@ export function activeSessionForDeck(sessions: LiveSession[], deckId: string): L
   );
 }
 
+/** No missed cards wins. An open sitting blocks a drill until the caller replaces it. */
+export function missedDrillChoice(input: {
+  missedCount: number;
+  openSession: boolean;
+  replaceOpen?: boolean;
+}): 'none' | 'busy' | 'start' {
+  if (input.missedCount <= 0) return 'none';
+  if (input.openSession && !input.replaceOpen) return 'busy';
+  return 'start';
+}
+
+export function drillStillOpenPrompt(deckName: string): string {
+  return `${deckName} is still open. End it and start the drill?`;
+}
+
 export function pauseSession(session: LiveSession, now: number): LiveSession {
   if (session.status === 'finished') return session;
   if (session.runningSince == null) {

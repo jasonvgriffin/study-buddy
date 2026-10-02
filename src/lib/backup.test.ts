@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { BACKUP_REMINDER_MS, backupReminderDue, latestStudyActivity } from './backup';
+import { BACKUP_REMINDER_MS, backupReminderDue, backupReminderOnScreen, latestStudyActivity } from './backup';
 
 describe('backup reminder', () => {
+  it('shows only on the Settings screen', () => {
+    expect(backupReminderOnScreen('settings')).toBe(true);
+    for (const route of ['home', 'stats', 'deck', 'session', 'review', 'results']) {
+      expect(backupReminderOnScreen(route)).toBe(false);
+    }
+  });
+
   const now = 1_700_000_000_000;
 
   it('stays quiet until someone has answered a card', () => {

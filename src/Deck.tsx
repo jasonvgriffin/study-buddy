@@ -5,7 +5,7 @@ import { dueCardIds } from './lib/queue';
 import { isUnclearedMiss, rollup } from './lib/scoring';
 import { activeSessionForDeck, resumeLabel } from './lib/session';
 import { navigate } from './nav';
-import { DemandPanel, ResetConfirm, Screen } from './bits';
+import { DemandPanel, DrillReplacePrompt, ResetConfirm, Screen } from './bits';
 import { useStudy } from './store';
 import type { Card } from './lib/types';
 
@@ -31,6 +31,7 @@ export function DeckScreen({ deckId, cardId = null }: { deckId: string; cardId?:
   const [name, setName] = useState(deck?.name ?? '');
   const [figureCount, setFigureCount] = useState<number | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [drillPrompt, setDrillPrompt] = useState(false);
   useEffect(() => {
     if (deck) setName(deck.name);
   }, [deck]);
@@ -110,9 +111,28 @@ export function DeckScreen({ deckId, cardId = null }: { deckId: string; cardId?:
           </button>
         </div>
       )}
-      <button className="btn btn-ghost btn-block" data-testid="drill-missed" type="button" onClick={() => void study.startMissedDrill(deck, null)}>
+      <button
+        className="btn btn-ghost btn-block"
+        data-testid="drill-missed"
+        type="button"
+        onClick={() => {
+          void study.startMissedDrill(deck, null, { holdForConfirm: true }).then((result) => {
+            setDrillPrompt(result === 'busy');
+          });
+        }}
+      >
         Drill missed cards{missed ? ` (${missed})` : ''}
       </button>
+      {drillPrompt ? (
+        <DrillReplacePrompt
+          deckName={deck.name}
+          onStart={() => {
+            setDrillPrompt(false);
+            void study.startMissedDrill(deck, null, { replaceOpen: true });
+          }}
+          onCancel={() => setDrillPrompt(false)}
+        />
+      ) : null}
       <button
         className="btn btn-ghost btn-block"
         data-testid="review-due"

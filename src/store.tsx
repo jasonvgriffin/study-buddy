@@ -25,6 +25,7 @@ import {
   putDeck,
   putDeckBundle,
   putDraft,
+  deleteSession,
   putReviewBundle,
   putSession,
   putSubject,
@@ -51,6 +52,7 @@ import {
 import {
   activeSessionForDeck,
   answerSession,
+  missedDrillChoice,
   continueAfterReview,
   createDrillSession,
   createExamSession,
@@ -108,7 +110,11 @@ type StudyApi = {
   removeDeck: (deckId: string) => Promise<void>;
   writeCard: (card: Card) => Promise<void>;
   startExam: (deck: Deck, timed: boolean) => Promise<void>;
-  startMissedDrill: (deck: Deck, section: string | null) => Promise<void>;
+  startMissedDrill: (
+    deck: Deck,
+    section: string | null,
+    options?: { replaceOpen?: boolean; holdForConfirm?: boolean },
+  ) => Promise<'started' | 'none' | 'busy'>;
   startDueReview: (label: string, filter: ReviewFilter) => Promise<void>;
   answer: (
     sessionId: string,
@@ -637,10 +643,13 @@ export function StudyProvider({ children }: { children: ReactNode }) {
     return existing;
   }
 
-  async function openSession(session: LiveSession) {
+  async function openSession(session: LiveSession, dropSessionId?: string) {
     await putSession(session);
     setStartOffer(null);
-    patch((state) => ({ ...state, sessions: [...state.sessions, session] }));
+    patch((state) => ({
+      ...state,
+      sessions: [...state.sessions.filter((item) => item.id !== dropSessionId), session],
+    }));
     navigate(`/session/${session.id}`);
   }
 
@@ -655,9 +664,13 @@ export function StudyProvider({ children }: { children: ReactNode }) {
     await openSession(session);
   }
 
-  async function startMissedDrill(deck: Deck, section: string | null) {
+  async function startMissedDrill(
+    deck: Deck,
+    section: string | null,
+    options?: { replaceOpen?: boolean; holdForConfirm?: boolean },
+  ): Promise<'started' | 'none' | 'busy'> {
     const state = snapRef.current;
-    if (!state) return;
+    if (!state) return 'none';
     const cards = state.cards.filter((card) => card.deckId === deck.id);
     const memories = new Map(state.memories.map((memory) => [memory.cardId, memory]));
     const missed = cards.filter((card) => {
@@ -669,13 +682,26 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       missed.map((card) => memories.get(card.id)).filter((memory): memory is CardMemory => !!memory),
       Date.now(),
     );
-    if (!ordered.length) {
+    const open = activeSessionForDeck(state.sessions, deck.id);
+    const choice = missedDrillChoice({
+      missedCount: ordered.length,
+      openSession: open != null,
+      replaceOpen: options?.replaceOpen,
+    });
+    if (choice === 'none') {
       setMessage('No missed cards in this test yet.');
-      return;
+      return 'none';
     }
-    if (blockIfBusyDeck(deck.id)) return;
+    if (choice === 'busy') {
+      if (options?.holdForConfirm) setMessage(null);
+      else blockIfBusyDeck(deck.id);
+      return 'busy';
+    }
+    const dropId = open && options?.replaceOpen ? open.id : undefined;
+    if (dropId) await deleteSession(dropId);
     const session = createDrillSession(deck, cards, ordered, section, Date.now());
-    await openSession(session);
+    await openSession(session, dropId);
+    return 'started';
   }
 
   async function startDueReview(label: string, filter: ReviewFilter) {

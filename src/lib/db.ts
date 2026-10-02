@@ -350,6 +350,14 @@ export async function replaceMemories(memories: CardMemory[]): Promise<void> {
   await tx.done;
 }
 
+/** Remove one sitting. Reviews, cards, and memories stay so a later drill still has the misses. */
+export async function deleteSession(sessionId: string): Promise<void> {
+  const db = await openStudyDb();
+  const tx = db.transaction('sessions', 'readwrite');
+  await tx.store.delete(sessionId);
+  await tx.done;
+}
+
 export async function deleteSessionAndReviews(sessionId: string): Promise<Review[]> {
   const db = await openStudyDb();
   const reviews = (await db.getAll('reviews')).filter((review) => review.sessionId === sessionId);

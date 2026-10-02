@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { Card } from './types';
 import {
   activeSessionForDeck,
+  drillStillOpenPrompt,
+  missedDrillChoice,
   answerSession,
   continueAfterReview,
   createDrillSession,
@@ -36,6 +38,23 @@ function card(partial: Partial<Card> & Pick<Card, 'id' | 'deckId'>): Card {
     ...partial,
   };
 }
+
+describe('missed drill while a sitting is open', () => {
+  it('keeps the no-missed result ahead of an open session', () => {
+    expect(missedDrillChoice({ missedCount: 0, openSession: true })).toBe('none');
+    expect(missedDrillChoice({ missedCount: 0, openSession: false })).toBe('none');
+    expect(missedDrillChoice({ missedCount: 0, openSession: true, replaceOpen: true })).toBe('none');
+  });
+
+  it('asks before replacing an open sitting, then starts once that is confirmed', () => {
+    expect(missedDrillChoice({ missedCount: 2, openSession: true })).toBe('busy');
+    expect(missedDrillChoice({ missedCount: 2, openSession: true, replaceOpen: true })).toBe('start');
+    expect(missedDrillChoice({ missedCount: 2, openSession: false })).toBe('start');
+    expect(drillStillOpenPrompt('Practice Exam A')).toBe(
+      'Practice Exam A is still open. End it and start the drill?',
+    );
+  });
+});
 
 describe('session timer', () => {
   const deck = { id: 'deck-b', subjectId: 's', name: 'Practice Exam B' };

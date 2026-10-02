@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { BackupReminder } from './BackupReminder';
+import { backupReminderOnScreen } from './lib/backup';
 import { PressFeedback } from './PressFeedback';
 import { DeckScreen } from './Deck';
 import { Home } from './Home';
@@ -78,7 +79,7 @@ function Shell() {
         {!study.ready && !study.bootError ? <p>Opening saved decks…</p> : null}
         {study.bootError ? <p role="alert">{study.bootError}</p> : null}
         <StatusNotice />
-        {study.ready && route.name !== 'session' && route.name !== 'review' ? <BackupReminder /> : null}
+        {study.ready && backupReminderOnScreen(route.name) ? <BackupReminder /> : null}
         {study.ready && route.name === 'home' ? <Home key={study.dataEpoch} /> : null}
         {study.ready && route.name === 'stats' ? <Stats /> : null}
         {study.ready && route.name === 'settings' ? <Settings /> : null}
