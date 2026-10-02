@@ -176,6 +176,7 @@ test('library can delete one PDF and an entire subject', async ({ page }) => {
   await expect(page.locator('[data-deck-name="Practice Test 1"]')).toHaveCount(0);
   await expect(page.getByText('Which river runs through Cairo?')).toHaveCount(0);
   await expect(page.locator('[data-subject-name="Network+"]')).toBeVisible();
+  await page.getByTestId('subject-picker').selectOption({ label: 'Network+' });
   await expect(page.locator('[data-deck-name="sample-notes"]')).toBeVisible();
 
   await page.getByTestId('home-tab-study').click();
@@ -199,6 +200,7 @@ test('library can delete one PDF and an entire subject', async ({ page }) => {
   await page.getByTestId('home-tab-library').click();
   await expect(page.locator('[data-subject-name="A+"]')).toHaveCount(0);
   await expect(page.locator('[data-subject-name="Network+"]')).toBeVisible();
+  await page.getByTestId('subject-picker').selectOption({ label: 'Network+' });
   await expect(page.locator('[data-deck-name="sample-notes"]')).toBeVisible();
   await expect(page.locator('[data-deck-name="Practice Test 1"]')).toHaveCount(0);
 });

@@ -51,6 +51,8 @@ test('a tab deep link opens that tab, and deck or a finished session returns do 
   await page.reload();
   await page.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Subjects', exact: true })).toBeVisible();
+  await expect(page.locator('[data-deck-name="Practice Test 1"]')).toHaveCount(0);
+  await page.getByTestId('subject-picker').selectOption({ label: 'Rivers' });
   await expect(page.locator('[data-deck-name="Practice Test 1"]')).toBeVisible();
 
   await page.locator('[data-deck-name="Practice Test 1"]').click();

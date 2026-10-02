@@ -656,7 +656,7 @@ function LibraryPanel({
 }) {
   const study = useStudy();
   const [pending, setPending] = useState<LibraryConfirm | null>(null);
-  const visibleSubjects = subjects.filter((subject) => inFocus(subject.id));
+  const visibleSubjects = focused ? subjects.filter((subject) => subject.id === focused.id) : [];
   const drafts = snap.drafts.filter(
     (draft) => !draft.fromSourceGroupId && (!draft.subjectId || inFocus(draft.subjectId)),
   );
@@ -668,6 +668,27 @@ function LibraryPanel({
         <p className="muted" style={{ margin: 0 }}>
           Start a new subject, name it, then import that subject&apos;s PDF.
         </p>
+      ) : null}
+      {subjects.length ? (
+        <span className="test-picker">
+          <span className="test-picker-value" aria-hidden="true">
+            {focused ? focused.name : 'Choose a subject'}
+          </span>
+          <select
+            className="field"
+            data-testid="subject-picker"
+            aria-label="Choose a subject"
+            value={focused?.id ?? ''}
+            onChange={(event) => study.setFocus(event.target.value || 'all')}
+          >
+            <option value="">Choose a subject</option>
+            {subjects.map((subject) => (
+              <option key={subject.id} value={subject.id}>
+                {subject.name}
+              </option>
+            ))}
+          </select>
+        </span>
       ) : null}
       {visibleSubjects.map((subject) => {
         const subjectDecks = decks.filter((deck) => deck.subjectId === subject.id);
