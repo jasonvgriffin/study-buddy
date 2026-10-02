@@ -1,4 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
+import { newId } from './format';
 import { normalizeSession, storedFlagged } from './session';
 import type {
   BackupFile,
@@ -292,6 +293,23 @@ export async function figuresForDraftCapture(draftId: string, captureId: string)
     .filter((figure): figure is StoredFigure & { png: Blob } => figure != null);
 }
 
+/** Copy saved card figures onto an organize draft so a later save can relink them. */
+export async function cloneCardFiguresToDraft(cardIds: string[], draftId: string): Promise<void> {
+  if (!cardIds.length) return;
+  const db = await openStudyDb();
+  const want = new Set(cardIds);
+  const figures = (await db.getAll('figures')).filter((figure) => figure.cardId != null && want.has(figure.cardId));
+  if (!figures.length) return;
+  await putFigures(
+    figures.map((figure) => ({
+      ...figure,
+      id: newId(),
+      draftId,
+      cardId: null,
+    })),
+  );
+}
+
 export async function relinkDraftFigures(draftId: string, captureToCard: Map<string, string>): Promise<void> {
   const db = await openStudyDb();
   const figures = (await db.getAll('figures')).filter((figure) => figure.draftId === draftId);
@@ -386,7 +404,11 @@ export async function deleteSourceGroup(sourceGroupId: string): Promise<void> {
   ]);
   const deckIds = new Set(decks.filter((deck) => deck.sourceGroupId === sourceGroupId).map((deck) => deck.id));
   const cardIds = new Set(cards.filter((card) => deckIds.has(card.deckId)).map((card) => card.id));
-  const draftIds = new Set(drafts.filter((draft) => draft.id === sourceGroupId).map((draft) => draft.id));
+  const draftIds = new Set(
+    drafts
+      .filter((draft) => draft.id === sourceGroupId || draft.fromSourceGroupId === sourceGroupId)
+      .map((draft) => draft.id),
+  );
   const tx = db.transaction(
     ['decks', 'cards', 'reviews', 'sessions', 'memories', 'drafts', 'figures'],
     'readwrite',

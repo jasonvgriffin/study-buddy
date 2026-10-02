@@ -35,6 +35,7 @@ test('start a new subject, name it, then import its PDF', async ({ page }) => {
   await expect(page.getByTestId('pdf-file')).toBeEnabled();
 
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
-  await expect(page.getByTestId('save-tests')).toBeVisible();
-  await expect(page.getByTestId('review-notice')).toContainText('Save the tests');
+  await expect(page.getByTestId('start-saved')).toBeVisible();
+  await expect(page.getByTestId('start-offer-cue')).toHaveText("You're all set — tap Start studying to begin");
+  await expect(page.getByTestId('save-tests')).toHaveCount(0);
 });

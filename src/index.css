@@ -172,6 +172,18 @@ a { color: inherit; }
   border-color: var(--moss);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--moss) 28%, transparent), var(--shadow);
 }
+.text-link {
+  align-self: center;
+  min-height: 44px;
+  padding: 0.15rem 0.4rem;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
 .today-card {
   padding: 0.8rem 1rem;
   scroll-margin-top: 0.75rem;

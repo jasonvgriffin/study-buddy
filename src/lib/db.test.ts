@@ -410,6 +410,15 @@ describe('IndexedDB', () => {
       domains: [],
       updatedAt: now,
     });
+    await putDraft({
+      id: 'organize-core',
+      subjectId: 'a',
+      fileName: 'core.pdf',
+      tests: [],
+      domains: [],
+      updatedAt: now,
+      fromSourceGroupId: 'file-core',
+    });
     await deleteSourceGroup('file-core');
     const snapshot = await loadSnapshot();
     expect(snapshot.subjects.map((subject) => subject.id)).toEqual(['a']);

@@ -38,7 +38,7 @@ test('practice exams list A, B, C and default to A, then the last test used', as
   await page.getByTestId('add-subject').click();
   await expect(page.locator('[data-subject-name="Exams"]')).toHaveClass(/on/);
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
-  await page.getByTestId('save-tests').click();
+  await expect(page.getByTestId('start-saved')).toBeVisible();
   await showLibrary(page);
 
   const stored = await deckNamesInStorage(page);

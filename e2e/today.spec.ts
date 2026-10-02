@@ -21,7 +21,7 @@ test('today recap is quiet until a session, then shows the day on home', async (
   await page.getByTestId('subject-name').fill('Rivers');
   await page.getByTestId('add-subject').click();
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
-  await page.getByTestId('save-tests').click();
+  await expect(page.getByTestId('start-saved')).toBeVisible();
   await expect(page.getByTestId('start-offer-cue')).toHaveText("You're all set — tap Start studying to begin");
   await page.getByTestId('start-saved').click();
 

@@ -2,7 +2,7 @@ import { PbqAnswerList } from './PbqAnswers';
 import { useEffect, useState } from 'react';
 import { figuresForDraftCapture } from './lib/db';
 import { MISSING_EXPLANATION } from './lib/format';
-import { mergeWithPrevious, renameSection, renameTest, splitAt, updateParsedCard } from './lib/draft';
+import { mergeWithPrevious, moveTest, renameSection, renameTest, splitAt, updateParsedCard } from './lib/draft';
 import type { ImportDraft } from './lib/types';
 import { navigate } from './nav';
 import { Screen } from './bits';
@@ -27,21 +27,34 @@ export function ReviewScreen({ draftId }: { draftId: string }) {
   const commit = (next: ImportDraft) => {
     void study.writeDraft(next);
   };
-  const earlierDecks = (study.snap?.decks ?? []).filter(
-    (deck) => deck.subjectId === draft.subjectId && deck.sourceFileName === draft.fileName,
-  );
+  const organizing = Boolean(draft.fromSourceGroupId);
+  const earlierDecks = draft.replacesDeckIds?.length
+    ? (study.snap?.decks ?? []).filter((deck) => draft.replacesDeckIds?.includes(deck.id))
+    : (study.snap?.decks ?? []).filter(
+        (deck) => deck.subjectId === draft.subjectId && deck.sourceFileName === draft.fileName,
+      );
   const save = () =>
     void study.saveDraftTests(draft, { replaceDeckIds: replaceOld ? earlierDecks.map((deck) => deck.id) : [] });
+  const shiftTest = (direction: -1 | 1) => {
+    const moved = moveTest(draft.tests, draft.videoStarts, testIndex, direction);
+    commit({ ...draft, tests: moved.tests, videoStarts: moved.videoStarts });
+    setTestIndex(Math.max(0, testIndex + direction));
+  };
 
   return (
     <Screen
-      title="Check the tests"
-      lede={`${draft.fileName}. Each test becomes its own deck. A later quiz uses one test at a time.`}
+      title={organizing ? 'Organize tests' : 'Check the tests'}
+      lede={
+        organizing
+          ? `${draft.fileName}. These tests are already saved. Start studying does not need this step.`
+          : `${draft.fileName}. Each test becomes its own deck. A later quiz uses one test at a time.`
+      }
       onBack={() => navigate('/')}
     >
       <p className="banner" data-testid="review-notice" style={{ margin: 0 }}>
-        This is the import check, not the quiz. Answers stay hidden here unless you tap Show answer. Save the tests,
-        then open one and tap Start to study.
+        {organizing
+          ? 'Optional. Rename, merge, split, or reorder, then save if you want those changes. Answers stay hidden unless you tap Show answer.'
+          : 'This is the import check, not the quiz. Answers stay hidden here unless you tap Show answer. Save the tests, then open one and tap Start to study.'}
       </p>
       {earlierDecks.length ? (
         <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -116,6 +129,24 @@ export function ReviewScreen({ draftId }: { draftId: string }) {
         <button
           className="btn btn-ghost"
           type="button"
+          data-testid="move-test-earlier"
+          disabled={testIndex === 0}
+          onClick={() => shiftTest(-1)}
+        >
+          Move test earlier
+        </button>
+        <button
+          className="btn btn-ghost"
+          type="button"
+          data-testid="move-test-later"
+          disabled={!test || testIndex >= draft.tests.length - 1}
+          onClick={() => shiftTest(1)}
+        >
+          Move test later
+        </button>
+        <button
+          className="btn btn-ghost"
+          type="button"
           disabled={!test || cardIndex <= 0}
           onClick={() => {
             commit({ ...draft, tests: splitAt(draft.tests, testIndex, cardIndex) });
@@ -153,7 +184,7 @@ export function ReviewScreen({ draftId }: { draftId: string }) {
         Save {draft.tests.length} test{draft.tests.length === 1 ? '' : 's'}
       </button>
       <button className="btn btn-ghost btn-block" type="button" onClick={() => void study.dropDraft(draft.id)}>
-        Discard this import
+        {organizing ? 'Discard changes' : 'Discard this import'}
       </button>
     </Screen>
   );

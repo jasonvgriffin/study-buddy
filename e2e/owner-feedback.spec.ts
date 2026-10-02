@@ -153,13 +153,19 @@ test('home title, feedback link, subject panel, upload status, and review chips'
   await page.getByTestId('pdf-file').setInputFiles(await examPdf());
   await expect(page.getByTestId('pdf-file')).toBeDisabled();
   await expect(page.getByTestId('import-status')).toContainText(/Uploading…|Reading questions… please wait/);
+  await expect(page.getByTestId('start-saved')).toBeVisible();
   await expect(page.getByTestId('app-status')).toContainText('Added 6 questions from practice-exams.pdf');
-  await expect(page.getByTestId('save-tests')).toBeEnabled();
-  await expect(page.getByTestId('save-tests-top')).toBeEnabled();
+  await expect(page.getByTestId('import-added')).toHaveText('Added 6 questions from practice-exams.pdf');
+  await expect(page.getByTestId('save-tests')).toHaveCount(0);
 
   const seen = await page.evaluate(() => (window as unknown as { __status: string[] }).__status);
   expect(seen.some((line) => line.includes('Uploading…'))).toBe(true);
   expect(seen.some((line) => line.includes('Reading questions… please wait'))).toBe(true);
+
+  await page.getByTestId('start-offer').getByTestId('organize-tests').click();
+  await expect(page.getByRole('heading', { name: 'Organize tests' })).toBeVisible();
+  await expect(page.getByTestId('save-tests')).toBeEnabled();
+  await expect(page.getByTestId('save-tests-top')).toBeEnabled();
 
   await expect(page.getByTestId('test-chip')).toHaveText([
     '1. Practice Exam A (4)',
@@ -181,8 +187,12 @@ test('home title, feedback link, subject panel, upload status, and review chips'
   await page.getByTestId('card-chip').last().click();
   await expect(page.getByTestId('card-chip').last()).toHaveClass(/on/);
   await expect(page.getByTestId('card-chip').last()).toHaveText('A100');
+  await page.getByTestId('move-test-later').click();
+  await expect(page.getByTestId('test-chip').first()).toContainText('Practice Exam B');
+  await page.getByTestId('move-test-earlier').click();
+  await expect(page.getByTestId('test-chip').first()).toContainText('Practice Exam A');
 
-  await page.getByTestId('save-tests').click();
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
   await page.locator('[data-deck-name="Practice Exam A"]').click();
   await page.getByRole('button', { name: /^A1\./ }).click();
   const editor = page.getByTestId('card-editor-panel');

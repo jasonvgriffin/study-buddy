@@ -212,6 +212,13 @@ export type ImportDraft = {
   /** Optional start times entered during review, keyed by "testIndex:cardIndex". */
   videoStarts?: Record<string, number | null>;
   updatedAt: number;
+  /**
+   * Set when this draft is an optional organize pass over tests already saved
+   * from that upload. Absent on a draft that has not been saved yet.
+   */
+  fromSourceGroupId?: string;
+  /** Deck ids replaced if the learner saves this organize pass. */
+  replacesDeckIds?: string[];
 };
 
 export type PersistMeta = {

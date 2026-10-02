@@ -26,13 +26,14 @@ export function Home() {
   const [nameError, setNameError] = useState<string | null>(null);
   const [backupError, setBackupError] = useState<string | null>(null);
   const offerId = study.startOffer?.deckId ?? null;
+  const offerNote = study.startOffer?.added ?? null;
   useEffect(() => {
     if (!offerId) return;
     const root = document.querySelector('[data-testid="start-offer"]');
     if (!(root instanceof HTMLElement)) return;
     root.scrollIntoView({ block: 'start' });
     root.querySelector<HTMLButtonElement>('[data-testid="start-saved"]')?.focus({ preventScroll: true });
-  }, [offerId]);
+  }, [offerId, offerNote]);
   if (!snap) return null;
 
   const now = Date.now();
@@ -106,7 +107,14 @@ export function Home() {
         />
       ) : null}
 
-      {offerDeck ? <StartOffer deck={offerDeck} onStart={() => void study.startExam(offerDeck, false)} /> : null}
+      {offerDeck ? (
+        <StartOffer
+          deck={offerDeck}
+          added={study.startOffer?.added ?? null}
+          onStart={() => void study.startExam(offerDeck, false)}
+          onOrganize={() => void study.openOrganize(offerDeck.sourceGroupId)}
+        />
+      ) : null}
 
       <TodayCard focus={study.focus} arrival={study.homeArrival} />
 
@@ -287,9 +295,24 @@ function StudyHero({
   );
 }
 
-function StartOffer({ deck, onStart }: { deck: Deck; onStart: () => void }) {
+function StartOffer({
+  deck,
+  added,
+  onStart,
+  onOrganize,
+}: {
+  deck: Deck;
+  added: string | null;
+  onStart: () => void;
+  onOrganize: () => void;
+}) {
   return (
     <section className="card stack start-offer" data-testid="start-offer" aria-label="Start studying" style={{ padding: '1rem' }}>
+      {added ? (
+        <p className="muted" data-testid="import-added" style={{ margin: 0 }}>
+          {added}
+        </p>
+      ) : null}
       <p data-testid="start-offer-cue" style={{ margin: 0 }}>
         You're all set — tap Start studying to begin
       </p>
@@ -298,6 +321,9 @@ function StartOffer({ deck, onStart }: { deck: Deck; onStart: () => void }) {
       </p>
       <button className="btn btn-primary btn-block btn-start" data-testid="start-saved" type="button" onClick={onStart}>
         Start studying
+      </button>
+      <button className="text-link" data-testid="organize-tests" type="button" onClick={onOrganize}>
+        Organize tests
       </button>
     </section>
   );
@@ -564,7 +590,9 @@ function LibraryPanel({
   const study = useStudy();
   const [pending, setPending] = useState<LibraryConfirm | null>(null);
   const visibleSubjects = subjects.filter((subject) => inFocus(subject.id));
-  const drafts = snap.drafts.filter((draft) => !draft.subjectId || inFocus(draft.subjectId));
+  const drafts = snap.drafts.filter(
+    (draft) => !draft.fromSourceGroupId && (!draft.subjectId || inFocus(draft.subjectId)),
+  );
 
   return (
     <>
@@ -596,7 +624,7 @@ function LibraryPanel({
             </button>
             {!subjectDecks.length && !subjectDrafts.length ? (
               <p className="muted" style={{ margin: 0 }}>
-                No tests in this subject yet. Upload a PDF and save the tests you want to keep.
+                No tests in this subject yet. Upload a PDF and the tests are saved here.
               </p>
             ) : null}
             {subjectDrafts.map((draft) => (
@@ -643,6 +671,15 @@ function LibraryPanel({
                 <p className="muted" style={{ margin: 0 }}>
                   {list[0]?.sourceFileName}
                 </p>
+                <button
+                  className="text-link"
+                  data-testid="organize-tests"
+                  data-source-id={groupId}
+                  type="button"
+                  onClick={() => void study.openOrganize(groupId)}
+                >
+                  Organize tests
+                </button>
                 <button
                   className="btn btn-clay btn-block"
                   data-testid="delete-source"
@@ -888,6 +925,7 @@ function UploadBlock({ subjectName }: { subjectName: string }) {
   const statusText = study.busy || study.message;
   useEffect(() => {
     if (!statusText) return;
+    if (document.querySelector('[data-testid="start-offer"]')) return;
     statusRef.current?.scrollIntoView({ block: 'center' });
   }, [statusText]);
   const toneClass = study.busy
