@@ -1,6 +1,6 @@
 export type Route =
   | { name: 'home' }
-  | { name: 'stats' }
+  | { name: 'stats'; deckId?: string }
   | { name: 'settings' }
   | { name: 'review'; draftId: string }
   | { name: 'deck'; deckId: string; cardId: string | null }
@@ -10,7 +10,10 @@ export type Route =
 export function parseRoute(hash: string): Route {
   const path = (hash.replace(/^#/, '') || '/').split('?')[0] ?? '/';
   const parts = path.split('/').filter(Boolean).map((part) => decodeURIComponent(part));
-  if (parts[0] === 'stats') return { name: 'stats' };
+  if (parts[0] === 'stats') {
+    if (parts[1] === 'test' && parts[2]) return { name: 'stats', deckId: parts[2] };
+    return { name: 'stats' };
+  }
   if (parts[0] === 'settings') return { name: 'settings' };
   if (parts[0] === 'review' && parts[1]) return { name: 'review', draftId: parts[1] };
   if (parts[0] === 'deck' && parts[1]) {

@@ -88,6 +88,16 @@ a { color: inherit; }
   border-radius: 1.25rem;
   box-shadow: var(--shadow);
 }
+button.by-test {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.85rem;
+}
+button.by-test:focus-visible {
+  outline: 3px solid var(--link);
+  outline-offset: 3px;
+}
 .btn {
   display: inline-flex;
   align-items: center;

@@ -8,18 +8,43 @@ export function elapsedMs(session: Pick<LiveSession, 'accumulatedMs' | 'runningS
   return session.accumulatedMs + Math.max(0, now - session.runningSince);
 }
 
+type ProgressSession = Pick<
+  LiveSession,
+  'kind' | 'index' | 'originalCount' | 'cardIds' | 'skipReview' | 'skipped' | 'answers'
+>;
+
+/**
+ * Question position the Home resume line uses.
+ * An exam counts the original sitting. A drill counts the cards still in the queue.
+ * Skip review reports how many skipped questions are left.
+ */
+export function sessionProgress(session: ProgressSession): { question: number; total: number } | { skipped: number } {
+  if (session.skipReview) return { skipped: skippedUnanswered(session).length };
+  const total = session.kind === 'exam' ? session.originalCount : session.cardIds.length;
+  const question = Math.min(session.index + 1, Math.max(total, 1));
+  return { question, total };
+}
+
+/** Stats row label. Same question and total as the Home resume line, without the test name or clock. */
+export function inProgressLabel(session: ProgressSession): string {
+  const progress = sessionProgress(session);
+  if ('skipped' in progress) {
+    const noun = progress.skipped === 1 ? 'question' : 'questions';
+    return `In progress, ${progress.skipped} skipped ${noun} to review`;
+  }
+  return `In progress, question ${progress.question} of ${progress.total}`;
+}
+
 /** Pieces of the resume line so the test name can be emphasized without changing the words. */
 export function resumeLabelParts(session: LiveSession, now: number): { lead: string; name: string; rest: string } {
   const elapsed = formatDuration(elapsedMs(session, now));
   const name = session.deckName;
-  if (session.skipReview) {
-    const left = skippedUnanswered(session).length;
-    const noun = left === 1 ? 'question' : 'questions';
-    return { lead: 'Resume ', name, rest: `: ${left} skipped ${noun} to review, ${elapsed} elapsed` };
+  const progress = sessionProgress(session);
+  if ('skipped' in progress) {
+    const noun = progress.skipped === 1 ? 'question' : 'questions';
+    return { lead: 'Resume ', name, rest: `: ${progress.skipped} skipped ${noun} to review, ${elapsed} elapsed` };
   }
-  const total = session.kind === 'exam' ? session.originalCount : session.cardIds.length;
-  const question = Math.min(session.index + 1, Math.max(total, 1));
-  return { lead: 'Resume ', name, rest: `: Question ${question} of ${total}, ${elapsed} elapsed` };
+  return { lead: 'Resume ', name, rest: `: Question ${progress.question} of ${progress.total}, ${elapsed} elapsed` };
 }
 
 export function resumeLabel(session: LiveSession, now: number): string {
