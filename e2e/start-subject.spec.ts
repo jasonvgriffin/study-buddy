@@ -12,7 +12,7 @@ test('start a new subject, name it, then import its PDF', async ({ page }) => {
   await expect(page.getByText('Samples are labeled practice files')).toHaveCount(0);
 
   await page.getByTestId('start-studying').click();
-  await expect(page.getByRole('heading', { name: 'Library', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Subjects', exact: true })).toBeVisible();
   await expect(page.getByTestId('subject-name')).toBeVisible();
   await expect(page.getByTestId('pdf-file')).toHaveCount(0);
   await expect(page.getByTestId('start-subject')).toHaveCount(0);

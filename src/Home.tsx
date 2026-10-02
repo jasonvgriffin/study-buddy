@@ -166,7 +166,7 @@ export function Home() {
         {(
           [
             { id: 'study', label: 'Study', note: 'Continue' },
-            { id: 'library', label: 'Library', note: 'Decks' },
+            { id: 'library', label: 'Subjects', note: 'Decks' },
             { id: 'stats', label: 'Stats', note: '' },
             { id: 'settings', label: 'Settings', note: 'Backup' },
           ] as const
@@ -515,10 +515,10 @@ function StudyPanel({
       {!decks.length ? (
         <>
           <p className="muted" style={{ margin: 0 }}>
-            Add a test in Library, then come back to practice, drill, or review.
+            Add a test in Subjects, then come back to practice, drill, or review.
           </p>
           <button className="btn btn-primary btn-block" type="button" onClick={onLibrary}>
-            Open library
+            Open Subjects
           </button>
         </>
       ) : (
@@ -671,7 +671,7 @@ function LibraryPanel({
 
   return (
     <>
-      <h2>Library</h2>
+      <h2>Subjects</h2>
       {!subjects.length ? (
         <p className="muted" style={{ margin: 0 }}>
           Start a new subject, name it, then import that subject&apos;s PDF.
