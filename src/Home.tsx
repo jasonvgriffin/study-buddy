@@ -481,21 +481,26 @@ function StudyPanel({
         <>
           <label className="stack" style={{ gap: '0.35rem' }}>
             <span>Test</span>
-            <select
-              className="field"
-              data-testid="exam-deck"
-              value={examDeck?.id ?? ''}
-              onChange={(event) => {
-                setDrillDeckName(null);
-                onPickDeck(event.target.value);
-              }}
-            >
-              {decks.map((deck) => (
-                <option key={deck.id} value={deck.id}>
-                  {deckLabel(deck, catalog)}
-                </option>
-              ))}
-            </select>
+            <span className="test-picker">
+              <span className="test-picker-value" data-testid="exam-deck-label" aria-hidden="true">
+                {examLabel ?? ''}
+              </span>
+              <select
+                className="field"
+                data-testid="exam-deck"
+                value={examDeck?.id ?? ''}
+                onChange={(event) => {
+                  setDrillDeckName(null);
+                  onPickDeck(event.target.value);
+                }}
+              >
+                {decks.map((deck) => (
+                  <option key={deck.id} value={deck.id}>
+                    {deckLabel(deck, catalog)}
+                  </option>
+                ))}
+              </select>
+            </span>
           </label>
           <button className="btn btn-primary btn-block" data-testid="practice-exam" type="button" onClick={onUntimed}>
             Practice exam
