@@ -156,7 +156,7 @@ button.by-test:focus-visible {
   background: var(--card);
   border-radius: 0.9rem;
   padding: 0.7rem 2.5rem 0.7rem 0.85rem;
-  font-size: max(16px, 1rem);
+  font-size: max(18px, 1.15rem);
   line-height: 1.35;
   text-align: left;
   white-space: normal;
@@ -187,8 +187,10 @@ button.by-test:focus-visible {
   border-color: transparent;
   color: transparent;
   cursor: pointer;
+  font-size: max(18px, 1.15rem);
 }
 .test-picker select.field option {
+  font-size: max(18px, 1.15rem);
   color: var(--ink);
   background: var(--card);
   white-space: normal;
