@@ -1,4 +1,4 @@
-import { certById, type CertId } from './comptia';
+import { certById, detectCert, type CertId } from './comptia';
 import { normDomainName } from './messer';
 
 export type SimCard = {
@@ -105,6 +105,15 @@ export function initialWeightRows(
   if (pdf?.length) return pdf;
   if (certId) return officialRows(certId);
   return rowsFromCards(cards);
+}
+
+/**
+ * True when we know the real category weights for this subject: a recognized
+ * CompTIA exam, or a PDF that recorded its own domain percents.
+ */
+export function hasKnownWeights(subjectName: string, decks: readonly (DomainDeck & { name?: string; sourceFileName?: string })[]): boolean {
+  if (detectCert([subjectName, ...decks.flatMap((deck) => [deck.name, deck.sourceFileName])])) return true;
+  return Boolean(pdfWeightRows(decks)?.length);
 }
 
 /** Largest-remainder split so the counts add up to total. */

@@ -49,3 +49,18 @@ test('exam simulation confirms the cert, weights, and a short domain', async ({ 
   await page.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(page.getByTestId('resume-test-name')).toHaveText('Exam simulation');
 });
+
+test('exam simulation stays hidden when the test has no known category weights', async ({ page }) => {
+  await page.goto('./');
+  await page.getByTestId('home-tab-library').click();
+  await page.getByTestId('start-subject').click();
+  await page.getByTestId('subject-name').fill('Rivers');
+  await page.getByTestId('add-subject').click();
+  await page.getByTestId('pdf-file').setInputFiles(sampleThree);
+  await expect(page.getByTestId('start-saved')).toBeVisible();
+
+  const study = page.getByTestId('home-tab-study');
+  if ((await study.getAttribute('aria-selected')) !== 'true') await study.click();
+  await expect(page.getByTestId('practice-exam')).toBeVisible();
+  await expect(page.getByTestId('exam-sim')).toHaveCount(0);
+});
