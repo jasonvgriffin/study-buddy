@@ -724,7 +724,7 @@ export function StudyProvider({ children }: { children: ReactNode }) {
     }
     const ids = dueCardIds(state.cards, state.memories, Date.now(), filter);
     if (!ids.length) {
-      setMessage('No recommended questions there yet.');
+      setMessage('No recommended cards there yet.');
       return;
     }
     const cards = state.cards.filter((card) => ids.includes(card.id));
