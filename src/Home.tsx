@@ -73,7 +73,7 @@ export function Home() {
           Your subjects, tests, progress, and scores are saved only in this browser on this device. Nothing is sent to a server. Closing the tab is fine, and everything will still be here when you come back. Clearing this site's data, using a private tab, or switching browsers or devices erases it all, so export a backup from Settings now and then.
         </p>
         <p className="feedback-note" data-testid="feedback-note" style={{ marginBottom: '1rem' }}>
-          <strong>Found a bug or have feedback? Do you have a feature request?</strong> Email{' '}
+          Found a bug or have feedback? Do you have a feature request? <strong>Email</strong>{' '}
           <a data-testid="feedback-mail" href={feedbackMailHref(__APP_VERSION__, __BUILD_TIME__)}>
             eve.chief_of_staff@agentmail.to
           </a>
