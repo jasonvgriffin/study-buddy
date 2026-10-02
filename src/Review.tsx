@@ -57,7 +57,7 @@ export function ReviewScreen({ draftId }: { draftId: string }) {
           </span>
         </label>
       ) : null}
-      <button className="btn btn-primary btn-block" data-testid="save-tests-top" type="button" onClick={save}>
+      <button className="btn btn-primary btn-block" data-testid="save-tests-top" type="button" disabled={!!study.busy} onClick={save}>
         Save {draft.tests.length} test{draft.tests.length === 1 ? '' : 's'}
       </button>
       {draft.domains.length ? (
@@ -70,18 +70,20 @@ export function ReviewScreen({ draftId }: { draftId: string }) {
             .join(', ')}
         </p>
       ) : null}
-      <div className="row-scroll">
+      <div className="chip-row" data-testid="test-chip-row">
         {draft.tests.map((item, index) => (
           <button
             key={`${item.name}-${index}`}
-            className={index === testIndex ? 'chip on' : 'chip'}
+            className={index === testIndex ? 'chip chip-name on' : 'chip chip-name'}
             type="button"
+            data-testid="test-chip"
+            aria-pressed={index === testIndex}
             onClick={() => {
               setTestIndex(index);
               setCardIndex(0);
             }}
           >
-            {item.name} ({item.cards.length})
+            {index + 1}. {item.name} ({item.cards.length})
           </button>
         ))}
       </div>
@@ -123,12 +125,14 @@ export function ReviewScreen({ draftId }: { draftId: string }) {
         </button>
       </div>
       {test ? (
-        <div className="row-scroll">
+        <div className="chip-row" data-testid="card-chip-row">
           {test.cards.map((item, index) => (
             <button
               key={`${item.sourceLabel}-${index}`}
-              className={index === cardIndex ? 'chip on' : 'chip'}
+              className={index === cardIndex ? 'chip chip-token on' : 'chip chip-token'}
               type="button"
+              data-testid="card-chip"
+              aria-pressed={index === cardIndex}
               onClick={() => setCardIndex(index)}
             >
               {item.sourceLabel || index + 1}
@@ -145,7 +149,7 @@ export function ReviewScreen({ draftId }: { draftId: string }) {
           onChange={commit}
         />
       ) : null}
-      <button className="btn btn-primary btn-block" data-testid="save-tests" type="button" onClick={save}>
+      <button className="btn btn-primary btn-block" data-testid="save-tests" type="button" disabled={!!study.busy} onClick={save}>
         Save {draft.tests.length} test{draft.tests.length === 1 ? '' : 's'}
       </button>
       <button className="btn btn-ghost btn-block" type="button" onClick={() => void study.dropDraft(draft.id)}>

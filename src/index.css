@@ -259,6 +259,7 @@ label.btn:active::after,
   .chip {
     transition: filter 90ms ease, background-color 90ms ease;
   }
+  .spinner { animation: none; }
   button:not(.zoom-layer):active,
   a.btn:active,
   label.btn:active,
@@ -332,6 +333,78 @@ label.btn:active::after,
 }
 .chip.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .row-scroll { display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.2rem; }
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+.chip-row > .chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: auto;
+  line-height: 1.25;
+  text-align: center;
+}
+.chip-row > .chip.chip-name {
+  flex: 0 1 auto;
+  width: max-content;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.chip-row > .chip.chip-token {
+  flex: 0 0 auto;
+  width: max-content;
+  max-width: none;
+  white-space: nowrap;
+}
+button:disabled,
+.btn.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.btn.is-disabled { pointer-events: none; }
+.spinner {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: 0 0 auto;
+  border: 2.5px solid var(--line);
+  border-top-color: var(--moss);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.upload-status {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+.banner-success {
+  background: color-mix(in srgb, var(--good) 18%, var(--card));
+  border-color: var(--good);
+  font-weight: 650;
+}
+.banner-error {
+  background: color-mix(in srgb, var(--bad) 14%, var(--card));
+  border-color: var(--bad);
+  font-weight: 650;
+}
+.demand-panel { scroll-margin-top: 0.75rem; }
+.feedback-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+.feedback-note a {
+  color: var(--link);
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
 .stack { display: flex; flex-direction: column; gap: 0.75rem; }
 .muted { color: var(--muted); }
 .banner {

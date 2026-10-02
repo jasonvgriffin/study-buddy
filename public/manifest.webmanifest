@@ -1,6 +1,6 @@
 {
-  "name": "Study Buddy",
-  "short_name": "Study Buddy",
+  "name": "Study Buddy Beta",
+  "short_name": "Study Buddy Beta",
   "id": "/study-buddy/",
   "description": "Flashcards from your own PDFs, stored on this device.",
   "start_url": "./",

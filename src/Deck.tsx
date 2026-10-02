@@ -5,7 +5,7 @@ import { dueCardIds } from './lib/queue';
 import { isUnclearedMiss, rollup } from './lib/scoring';
 import { activeSessionForDeck, resumeLabel } from './lib/session';
 import { navigate } from './nav';
-import { ResetConfirm, Screen } from './bits';
+import { DemandPanel, ResetConfirm, Screen } from './bits';
 import { useStudy } from './store';
 import type { Card } from './lib/types';
 
@@ -21,6 +21,11 @@ export function DeckScreen({ deckId, cardId = null }: { deckId: string; cardId?:
   }
   useEffect(() => {
     if (!cardId) return;
+    const panel = document.querySelector('[data-testid="card-editor-panel"]');
+    if (panel instanceof HTMLElement) {
+      panel.scrollIntoView({ block: 'start' });
+      return;
+    }
     document.getElementById(`card-${cardId}`)?.scrollIntoView({ block: 'center' });
   }, [cardId]);
   const [name, setName] = useState(deck?.name ?? '');
@@ -61,8 +66,21 @@ export function DeckScreen({ deckId, cardId = null }: { deckId: string; cardId?:
   const active = activeSessionForDeck(snap.sessions, deck.id);
   const domains = [...new Set(cards.map((card) => card.domainNumber).filter((n): n is number => n != null))];
 
+  const editingCard = cards.find((card) => card.id === editing) ?? null;
+
   return (
     <Screen title={deck.name} lede={deck.sourceFileName} onBack={() => navigate('/')}>
+      {editingCard ? (
+        <DemandPanel
+          key={editingCard.id}
+          title={`Edit ${editingCard.sourceLabel}`}
+          testId="card-editor-panel"
+          onCancel={() => setEditing(null)}
+        >
+          <p style={{ margin: 0 }}>{editingCard.question}</p>
+          <CardFields card={editingCard} />
+        </DemandPanel>
+      ) : null}
       {figureCount === 0 ? (
         <p className="banner" data-testid="reimport-figures" style={{ margin: 0 }}>
           No diagrams are saved with this test. If the PDF has pictures, import it again.
@@ -151,10 +169,9 @@ export function DeckScreen({ deckId, cardId = null }: { deckId: string; cardId?:
       <div className="stack">
         {cards.map((card) => (
           <div key={card.id} id={`card-${card.id}`} className="card stack" data-testid="deck-card" data-card-id={card.id} style={{ padding: '0.85rem' }}>
-            <button className="btn btn-ghost btn-block" type="button" onClick={() => setEditing(editing === card.id ? null : card.id)}>
+            <button className="btn btn-ghost btn-block" type="button" aria-pressed={editing === card.id} onClick={() => setEditing(editing === card.id ? null : card.id)}>
               {card.sourceLabel}. {card.question.slice(0, 90)}
             </button>
-            {editing === card.id ? <CardFields card={card} /> : null}
           </div>
         ))}
       </div>
