@@ -97,6 +97,7 @@ test('two PDFs with the same test name stay distinct in one subject', async ({ p
   const resume = page.getByTestId('resume-card').first();
   await expect(resume.getByTestId('resume-test-name')).toHaveText(messerLabel);
   await expect(resume).toContainText(`Resume ${messerLabel}`);
+  await expect(resume.getByTestId('resume')).toHaveText(`Resume ${messerLabel}`);
   const afterStart = await storedDecks(page);
   expect(afterStart.sessions.some((session) => session.kind === 'exam' && session.deckName === 'Practice Exam A')).toBe(
     true,
