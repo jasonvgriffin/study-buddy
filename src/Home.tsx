@@ -522,8 +522,7 @@ function StudyPanel({
         </>
       ) : (
         <>
-          <label className="stack" style={{ gap: '0.35rem' }}>
-            <span>Test</span>
+          <label className="stack" style={{ gap: '0.35rem' }} aria-label="Test">
             <span className="test-picker">
               <span className="test-picker-value" data-testid="exam-deck-label" aria-hidden="true">
                 {examLabel ?? ''}
