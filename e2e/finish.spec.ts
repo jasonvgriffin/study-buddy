@@ -63,13 +63,13 @@ test('keyboard grading, missed review, domain scores, and the backup reminder', 
   await expect(page.locator('[data-card-id]').filter({ hasText: 'Which river runs through Cairo?' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Back', exact: true }).click();
-  await page.getByRole('button', { name: 'Stats', exact: true }).click();
+  await page.getByRole('navigation').getByRole('button', { name: 'Stats', exact: true }).click();
   await expect(page.getByTestId('domain-stats')).toContainText('No domain');
   await expect(page.getByTestId('domain-stats')).toContainText('1 right, 2 wrong');
 
   await page.getByRole('button', { name: 'Home' }).click();
   await expect(page.getByTestId('backup-reminder')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Stats', exact: true }).click();
+  await page.getByRole('navigation').getByRole('button', { name: 'Stats', exact: true }).click();
   await expect(page.getByTestId('backup-reminder')).toHaveCount(0);
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(page.getByTestId('backup-reminder')).toBeVisible();

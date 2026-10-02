@@ -90,9 +90,12 @@ test('discard and start over clears every saved study record', async ({ page }) 
   await page.getByTestId('home-tab-library').click();
   await expect(page.locator('[data-deck-name="Practice Test 1"]')).toHaveCount(0);
   await expect(page.getByTestId('delete-subject')).toHaveCount(0);
-  await page.getByTestId('home-tab-progress').click();
+  await page.getByTestId('home-tab-stats').click();
+  await expect(page).toHaveURL(/#\/stats$/);
+  await expect(page.getByRole('heading', { name: 'Stats', exact: true })).toBeVisible();
   await expect(page.getByText('A+')).toHaveCount(0);
   await expect(page.getByText('Which river runs through Cairo?')).toHaveCount(0);
+  await page.getByRole('navigation').getByRole('button', { name: 'Home', exact: true }).click();
 
   const counts = await storeCounts(page);
   for (const count of Object.values(counts)) expect(count).toBe(0);
@@ -181,12 +184,13 @@ test('library can delete one PDF and an entire subject', async ({ page }) => {
   await expect(page.getByTestId('exam-deck')).toContainText('sample-notes');
   await expect(page.getByRole('heading', { name: 'What to study next' })).toHaveCount(0);
   await expect(page.locator('#home-panel')).not.toContainText('A+');
-  await page.getByTestId('home-tab-progress').click();
-  await expect(page.locator('#home-panel')).not.toContainText('A+');
-  await expect(page.locator('#home-panel')).not.toContainText('Which river runs through Cairo?');
-  await page.getByRole('navigation').getByRole('button', { name: 'Stats', exact: true }).click();
+  await page.getByTestId('home-tab-stats').click();
+  await expect(page).toHaveURL(/#\/stats$/);
   await expect(page.locator('main')).not.toContainText('A+');
   await expect(page.locator('main')).not.toContainText('Which river runs through Cairo?');
+  await expect(page.getByRole('heading', { name: 'Domain breakdown' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Missed questions' })).toHaveCount(0);
+  await expect(page.getByTestId('domain-stats')).toBeVisible();
 
   await page.reload();
   await page.getByRole('navigation').getByRole('button', { name: 'Home', exact: true }).click();

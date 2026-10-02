@@ -1,4 +1,4 @@
-import type { Route } from './nav';
+import { parseRoute, type Route } from './nav';
 
 export type HomeTab = 'study' | 'library' | 'progress' | 'settings';
 
@@ -16,15 +16,16 @@ export function parseHomeTab(hash: string): HomeTab | null {
 /**
  * Where Home should open when nothing has been picked yet.
  * Deck and review are the library (tests and lesson links). A sitting and its
- * results are Study. Stats and Settings match the home tab that leads there.
+ * results are Study. Settings matches the home tab that leads there.
+ * Stats is its own screen, so coming back does not open a home tab.
  */
-export function tabForRoute(route: Route): HomeTab {
+export function tabForRoute(route: Route): HomeTab | null {
   switch (route.name) {
     case 'deck':
     case 'review':
       return 'library';
     case 'stats':
-      return 'progress';
+      return null;
     case 'settings':
       return 'settings';
     case 'session':
@@ -32,6 +33,16 @@ export function tabForRoute(route: Route): HomeTab {
     case 'home':
       return 'study';
   }
+}
+
+/** The old progress tab (`#/?tab=progress`) opens the Stats screen. */
+export function hashOpensStats(hash: string): boolean {
+  return parseRoute(hash).name === 'home' && parseHomeTab(hash) === 'progress';
+}
+
+/** Progress is no longer a home panel. */
+function panelTab(tab: HomeTab | null): HomeTab | null {
+  return tab === 'progress' ? null : tab;
 }
 
 /**
@@ -50,8 +61,8 @@ export function resolveHomeTab(input: {
   arriving: boolean;
   from: Route;
 }): HomeTab | null {
-  if (input.requested) return input.requested;
-  if (!input.arriving) return input.current;
-  if (input.current) return input.current;
+  if (input.requested) return panelTab(input.requested);
+  if (!input.arriving) return panelTab(input.current);
+  if (input.current && input.current !== 'progress') return input.current;
   return tabForRoute(input.from);
 }

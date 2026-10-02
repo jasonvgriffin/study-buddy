@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nextHomeTab, parseHomeTab, resolveHomeTab, tabForRoute } from './homeTab';
+import { hashOpensStats, nextHomeTab, parseHomeTab, resolveHomeTab, tabForRoute } from './homeTab';
 import type { Route } from './nav';
 
 const deck: Route = { name: 'deck', deckId: 'deck-1', cardId: 'card-1' };
@@ -28,8 +28,28 @@ describe('home tab', () => {
 
   it('opens the tab named in a deep link', () => {
     expect(
+      resolveHomeTab({ current: null, requested: 'library', arriving: false, from: { name: 'home' } }),
+    ).toBe('library');
+  });
+
+  it('sends the old progress tab to Stats instead of a home panel', () => {
+    expect(hashOpensStats('#/?tab=progress')).toBe(true);
+    expect(hashOpensStats('#/stats')).toBe(false);
+    expect(hashOpensStats('#/?tab=study')).toBe(false);
+    expect(hashOpensStats('#/')).toBe(false);
+    expect(tabForRoute({ name: 'stats' })).toBeNull();
+    expect(
       resolveHomeTab({ current: null, requested: 'progress', arriving: false, from: { name: 'home' } }),
-    ).toBe('progress');
+    ).toBeNull();
+    expect(
+      resolveHomeTab({ current: null, requested: null, arriving: true, from: { name: 'stats' } }),
+    ).toBeNull();
+    expect(
+      resolveHomeTab({ current: 'library', requested: null, arriving: true, from: { name: 'stats' } }),
+    ).toBe('library');
+    expect(
+      resolveHomeTab({ current: 'progress', requested: null, arriving: false, from: { name: 'home' } }),
+    ).toBeNull();
   });
 
   it('returns from a lesson card or a finished sitting to that screen’s tab', () => {
@@ -37,7 +57,7 @@ describe('home tab', () => {
     expect(tabForRoute(review)).toBe('library');
     expect(tabForRoute(session)).toBe('study');
     expect(tabForRoute(results)).toBe('study');
-    expect(tabForRoute({ name: 'stats', deckId: 'deck-1' })).toBe('progress');
+    expect(tabForRoute({ name: 'stats', deckId: 'deck-1' })).toBeNull();
     expect(
       resolveHomeTab({ current: null, requested: null, arriving: true, from: deck }),
     ).toBe('library');
@@ -51,8 +71,11 @@ describe('home tab', () => {
 
   it('keeps a tab already picked when coming back home', () => {
     expect(
+      resolveHomeTab({ current: 'settings', requested: null, arriving: true, from: deck }),
+    ).toBe('settings');
+    expect(
       resolveHomeTab({ current: 'progress', requested: null, arriving: true, from: deck }),
-    ).toBe('progress');
+    ).toBe('library');
   });
 
   it('collapses the open tab and shows only the tab that was tapped', () => {

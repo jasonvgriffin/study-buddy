@@ -19,7 +19,7 @@ test('dark mode preference still shows the light palette', async ({ page }) => {
   expect(colors.cardBg).toBe('rgb(255, 255, 255)');
   expect(colors.theme?.toLowerCase()).toBe('#ffffff');
   for (const name of ['Stats', 'Settings']) {
-    await page.getByRole('button', { name, exact: true }).click();
+    await page.getByRole('navigation').getByRole('button', { name, exact: true }).click();
     await expect(page.locator('.card').first()).toBeVisible();
     const again = await read();
     expect(again.bg).toBe(colors.bg);
