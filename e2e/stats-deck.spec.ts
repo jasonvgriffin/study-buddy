@@ -36,7 +36,7 @@ test('stats leads with each test and opens that test’s own numbers', async ({ 
 
   await page.getByRole('navigation').getByRole('button', { name: 'Stats', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Stats');
-  await expect(page.getByRole('heading', { level: 2 })).toHaveText('By test');
+  await expect(page.getByRole('heading', { name: 'By test', exact: true })).toBeVisible();
   await expect(page.getByText('Every subject on this device.')).toHaveCount(0);
   await expect(page.getByTestId('overall-accuracy')).toHaveCount(0);
   await expect(page.getByTestId('accuracy-by-day')).toHaveCount(0);

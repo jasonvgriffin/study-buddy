@@ -1,10 +1,11 @@
 import { sessionDeckLabel } from './lib/deckLabel';
+import { detectCert } from './lib/comptia';
 import { attemptComparison, formatPercentSafe } from './resultsMath';
 import { answerText, correctAnswerText, domainBreakdown } from './lib/domains';
 import { MISSING_EXPLANATION, formatDuration, formatPercent } from './lib/format';
 import { elapsedMs, liveScore, sessionMissedCardIds } from './lib/session';
 import { navigate } from './nav';
-import { Screen, WatchLesson } from './bits';
+import { MesserVideoLink, Screen, WatchLesson } from './bits';
 import { lessonHref, lessonLabel, useStudy } from './store';
 
 export function ResultsScreen({ sessionId }: { sessionId: string }) {
@@ -46,6 +47,14 @@ export function ResultsScreen({ sessionId }: { sessionId: string }) {
     sitting.map((id) => cardById.get(id)).filter((card) => !!card),
     sitting.map((id) => ({ cardId: id, correct: latest.get(id)?.correct ?? null })),
   );
+  const subject = study.snap?.subjects.find((item) => item.id === session.subjectId) ?? null;
+  const certId = detectCert([
+    subject?.name,
+    deck?.name,
+    deck?.sourceFileName,
+    session.deckName,
+    ...sitting.map((id) => cardById.get(id)?.examCode),
+  ]);
 
   return (
     <Screen title={sessionDeckLabel(session, study.snap?.decks ?? [])} lede="Results for this sitting" onBack={() => navigate('/')}>
@@ -68,7 +77,10 @@ export function ResultsScreen({ sessionId }: { sessionId: string }) {
           <h2>By domain</h2>
           {domains.map((domain) => (
             <article key={domain.key} className="card stack" data-testid="domain-score" style={{ padding: '0.9rem' }}>
-              <strong>{domain.name}</strong>
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '0.35rem', alignItems: 'baseline' }}>
+                <strong>{domain.name}</strong>
+                <MesserVideoLink certId={certId} domainName={domain.name} />
+              </div>
               <p style={{ margin: 0 }}>
                 {domain.correct} right, {domain.incorrect} wrong
                 {domain.unanswered ? `, ${domain.unanswered} unanswered` : ''}.
@@ -134,11 +146,12 @@ export function ResultsScreen({ sessionId }: { sessionId: string }) {
         >
           Drill {missed.length} missed card{missed.length === 1 ? '' : 's'}
         </button>
-      ) : (
+      ) : null}
+      {!missed.length ? (
         <p className="muted" style={{ margin: 0 }}>
           Nothing missed in this sitting.
         </p>
-      )}
+      ) : null}
       <button className="btn btn-ghost btn-block" type="button" onClick={() => navigate('/')}>
         Home
       </button>

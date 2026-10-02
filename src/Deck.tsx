@@ -7,7 +7,8 @@ import { deckLabel } from './lib/deckLabel';
 import { resumeButtonLabel } from './lib/resumeButton';
 import { activeSessionForDeck, resumeLabelParts } from './lib/session';
 import { navigate } from './nav';
-import { DemandPanel, DrillReplacePrompt, ResetConfirm, Screen } from './bits';
+import { detectCert } from './lib/comptia';
+import { DemandPanel, DrillReplacePrompt, MesserVideoLink, ResetConfirm, Screen } from './bits';
 import { useStudy } from './store';
 import type { Card } from './lib/types';
 
@@ -159,22 +160,29 @@ export function DeckScreen({ deckId, cardId = null }: { deckId: string; cardId?:
         <div className="row-scroll">
           {domains.map((number) => {
             const label = cards.find((card) => card.domainNumber === number)?.domainName ?? `Domain ${number}`;
+            const certId = detectCert([
+              snap?.subjects.find((item) => item.id === deck.subjectId)?.name,
+              deck.name,
+              deck.sourceFileName,
+            ]);
             return (
-              <button
-                key={number}
-                className="chip"
-                type="button"
-                onClick={() =>
-                  void study.startDueReview(label, {
-                    subjectId: deck.subjectId,
-                    deckId: deck.id,
-                    domainNumber: number,
-                    scopeKey: `review:deck:${deck.id}:domain:${number}`,
-                  })
-                }
-              >
-                {label}
-              </button>
+              <span key={number} className="stack" style={{ gap: '0.15rem' }}>
+                <button
+                  className="chip"
+                  type="button"
+                  onClick={() =>
+                    void study.startDueReview(label, {
+                      subjectId: deck.subjectId,
+                      deckId: deck.id,
+                      domainNumber: number,
+                      scopeKey: `review:deck:${deck.id}:domain:${number}`,
+                    })
+                  }
+                >
+                  {label}
+                </button>
+                <MesserVideoLink certId={certId} domainName={label} />
+              </span>
             );
           })}
         </div>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { DemandPanel, DestructiveConfirm, DrillReplacePrompt, ResetConfirm, Spinner } from './bits';
+import { ExamSimPanel } from './ExamSim';
 import { deckLabel, sessionDeckLabel } from './lib/deckLabel';
 import { resumeButtonLabel } from './lib/resumeButton';
 import { feedbackMailHref } from './lib/feedbackMail';
@@ -208,6 +209,9 @@ export function Home() {
               decks={decks}
               catalog={snap.decks}
               examDeck={examDeck}
+              simSubject={subjects.find((subject) => subject.id === (study.focus === 'all' ? examDeck?.subjectId : study.focus)) ?? null}
+              simDecks={snap.decks.filter((deck) => deck.subjectId === (study.focus === 'all' ? examDeck?.subjectId : study.focus))}
+              simCards={snap.cards.filter((card) => card.subjectId === (study.focus === 'all' ? examDeck?.subjectId : study.focus))}
               dueCount={due.length}
               onPickDeck={(id) => {
                 setExamDeckId(id);
@@ -233,6 +237,9 @@ export function Home() {
                   subjectId: study.focus === 'all' ? null : study.focus,
                   scopeKey: `review:home:${study.focus}`,
                 });
+              }}
+              onStartSim={(subjectId, cardIds) => {
+                void study.startExamSim(subjectId, cardIds);
               }}
             />
           ) : null}
@@ -474,6 +481,9 @@ function StudyPanel({
   decks,
   catalog,
   examDeck,
+  simSubject,
+  simDecks,
+  simCards,
   dueCount,
   onPickDeck,
   onLibrary,
@@ -483,11 +493,15 @@ function StudyPanel({
   onDrill,
   onReplaceDrill,
   onReviewDue,
+  onStartSim,
 }: {
   primary: LiveSession | null;
   decks: Deck[];
   catalog: Deck[];
   examDeck: Deck | null;
+  simSubject: Subject | null;
+  simDecks: Deck[];
+  simCards: Card[];
   dueCount: number;
   onPickDeck: (id: string) => void;
   onLibrary: () => void;
@@ -497,8 +511,10 @@ function StudyPanel({
   onDrill: () => Promise<'started' | 'none' | 'busy'>;
   onReplaceDrill: () => void;
   onReviewDue: () => void;
+  onStartSim: (subjectId: string, cardIds: string[]) => void;
 }) {
   const [confirmReset, setConfirmReset] = useState(false);
+  const [simOpen, setSimOpen] = useState(false);
   const [drillDeckName, setDrillDeckName] = useState<string | null>(null);
   const examLabel = examDeck ? deckLabel(examDeck, catalog) : null;
   const promptName = drillDeckName && drillDeckName === examLabel ? drillDeckName : null;
@@ -544,6 +560,24 @@ function StudyPanel({
           <button className="btn btn-primary btn-block" data-testid="start-timed-home" type="button" onClick={onTimed}>
             90-minute exam
           </button>
+          <button
+            className="btn btn-primary btn-block"
+            data-testid="exam-sim"
+            type="button"
+            onClick={() => setSimOpen(true)}
+          >
+            Exam simulation
+          </button>
+          {simOpen && simSubject ? (
+            <ExamSimPanel
+              key={simSubject.id}
+              subjectName={simSubject.name}
+              decks={simDecks}
+              cards={simCards}
+              onStart={(cardIds) => onStartSim(simSubject.id, cardIds)}
+              onCancel={() => setSimOpen(false)}
+            />
+          ) : null}
           <button
             className="btn btn-primary btn-block"
             data-testid="drill-home"

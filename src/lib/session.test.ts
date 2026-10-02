@@ -8,6 +8,7 @@ import {
   continueAfterReview,
   createDrillSession,
   createExamSession,
+  createSimSession,
   elapsedMs,
   finishSession,
   jumpToQuestion,
@@ -343,5 +344,24 @@ describe('skip for later', () => {
     });
     expect(kept.flagged).toEqual(['c0']);
     expect(kept.cardIds).toContain('c0');
+  });
+});
+
+describe('exam simulation session', () => {
+  it('keeps questions from every test in one untimed exam sitting', () => {
+    const session = createSimSession({
+      subjectId: 'core',
+      cardIds: ['a', 'b', 'a', 'c'],
+      now: 50,
+    });
+    expect(session.kind).toBe('exam');
+    expect(session.timerMode).toBe('untimed');
+    expect(session.timeLimitMs).toBeNull();
+    expect(session.subjectId).toBe('core');
+    expect(session.deckName).toBe('Exam simulation');
+    expect(session.scopeKey).toBe('sim:core');
+    expect(session.cardIds).toEqual(['a', 'b', 'c']);
+    expect(session.originalCount).toBe(3);
+    expect(sessionProgress(session)).toEqual({ question: 1, total: 3 });
   });
 });
