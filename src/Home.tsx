@@ -82,7 +82,7 @@ export function Home() {
 
       <div className="row-scroll" role="tablist" aria-label="Subjects">
         <button className={study.focus === 'all' ? 'chip on' : 'chip'} type="button" onClick={() => study.setFocus('all')}>
-          All subjects
+          Subjects:
         </button>
         {subjects.map((subject) => (
           <button
