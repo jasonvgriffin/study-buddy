@@ -8,9 +8,11 @@ test('a fresh open shows the four tabs and remembers nothing on reload', async (
   await expect(page.getByTestId('home-tab-hint')).toHaveText('Pick a tab to start');
   await expect(page.locator('#home-panel')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'What to study next' })).toHaveCount(0);
-  for (const id of ['study', 'library', 'progress', 'settings']) {
+  for (const id of ['study', 'library', 'settings']) {
     await expect(page.getByTestId(`home-tab-${id}`)).toHaveAttribute('aria-selected', 'false');
   }
+  await expect(page.getByTestId('home-tab-stats')).toHaveText('Stats');
+  await expect(page.getByText('Scores', { exact: true })).toHaveCount(0);
 
   await page.getByTestId('home-tab-study').click();
   await expect(page.getByRole('heading', { name: 'Study', exact: true })).toBeVisible();
@@ -25,8 +27,14 @@ test('a fresh open shows the four tabs and remembers nothing on reload', async (
 
 test('a tab deep link opens that tab, and deck or a finished session returns do too', async ({ page }) => {
   await page.goto('./#/?tab=progress');
-  await expect(page.getByRole('heading', { name: 'Progress', exact: true })).toBeVisible();
-  await expect(page.getByTestId('home-tab-hint')).toHaveCount(0);
+  await expect(page).toHaveURL(/#\/stats$/);
+  await expect(page.getByRole('heading', { name: 'Stats', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Domain breakdown' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Missed questions' })).toHaveCount(0);
+  await expect(page.getByTestId('domain-stats')).toBeVisible();
+  await page.getByRole('navigation').getByRole('button', { name: 'Home', exact: true }).click();
+  await expect(page.getByTestId('home-tab-hint')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Progress', exact: true })).toHaveCount(0);
 
   await page.goto('./');
   await page.getByTestId('home-tab-library').click();
@@ -66,7 +74,7 @@ test('a tab deep link opens that tab, and deck or a finished session returns do 
 
 test('tapping the open tab collapses it, and another tap shows only that tab', async ({ page }) => {
   await page.goto('./');
-  for (const id of ['study', 'library', 'progress', 'settings'] as const) {
+  for (const id of ['study', 'library', 'settings'] as const) {
     await page.getByTestId(`home-tab-${id}`).click();
     await expect(page.locator('#home-panel')).toBeVisible();
     await expect(page.getByTestId(`home-tab-${id}`)).toHaveAttribute('aria-selected', 'true');
@@ -83,11 +91,19 @@ test('tapping the open tab collapses it, and another tap shows only that tab', a
   await expect(page.getByTestId('home-tab-study')).toHaveAttribute('aria-selected', 'false');
   await expect(page.getByTestId('home-tab-library')).toHaveAttribute('aria-selected', 'true');
 
-  await page.goto('./#/?tab=progress');
-  await expect(page.getByRole('heading', { name: 'Progress', exact: true })).toBeVisible();
-  await page.getByTestId('home-tab-progress').click();
+  await page.goto('./');
+  await expect(page.getByRole('heading', { name: 'Domain breakdown' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Missed questions' })).toHaveCount(0);
+  await expect(page.locator('#home-panel')).toHaveCount(0);
+  await page.getByTestId('home-tab-stats').click();
+  await expect(page).toHaveURL(/#\/stats$/);
+  await expect(page.getByRole('heading', { name: 'Stats', exact: true })).toBeVisible();
+  await expect(page.locator('#home-panel')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'By domain', exact: true })).toBeVisible();
+  await page.getByRole('navigation').getByRole('button', { name: 'Home', exact: true }).click();
   await expect(page.getByTestId('home-tab-hint')).toBeVisible();
   await expect(page).toHaveURL(/#\/$/);
   await page.reload();
   await expect(page.getByTestId('home-tab-hint')).toBeVisible();
+  await expect(page.getByTestId('home-tab-stats')).toHaveText('Stats');
 });

@@ -80,7 +80,7 @@ import type {
   StoredFigure,
   Subject,
 } from './lib/types';
-import { parseHomeTab, resolveHomeTab, type HomeTab } from './homeTab';
+import { hashOpensStats, parseHomeTab, resolveHomeTab, type HomeTab } from './homeTab';
 import { navigate, parseRoute, type Route } from './nav';
 
 type StudyApi = {
@@ -173,10 +173,13 @@ export function StudyProvider({ children }: { children: ReactNode }) {
     setMessageText(text);
     setMessageTone(tone);
   }, []);
-  const [route, setRoute] = useState<Route>(() => parseRoute(location.hash));
-  const [homeTab, setHomeTabState] = useState<HomeTab | null>(() =>
-    parseRoute(location.hash).name === 'home' ? parseHomeTab(location.hash) : null,
+  const [route, setRoute] = useState<Route>(() =>
+    hashOpensStats(location.hash) ? { name: 'stats' } : parseRoute(location.hash),
   );
+  const [homeTab, setHomeTabState] = useState<HomeTab | null>(() => {
+    if (hashOpensStats(location.hash) || parseRoute(location.hash).name !== 'home') return null;
+    return parseHomeTab(location.hash);
+  });
   const [focus, setFocus] = useState<string | 'all'>('all');
   const [dataEpoch, setDataEpoch] = useState(0);
   const [startOffer, setStartOffer] = useState<{ deckId: string; subjectId: string; added: string | null } | null>(null);
@@ -253,6 +256,10 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       void pause(from.sessionId);
     };
     const onHash = () => {
+      if (hashOpensStats(location.hash)) {
+        navigate('/stats');
+        return;
+      }
       const prev = routeRef.current;
       const next = parseRoute(location.hash);
       if (next.name === 'home' && prev.name !== 'home') {
@@ -278,6 +285,7 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       setRoute(next);
     };
     window.addEventListener('hashchange', onHash);
+    if (hashOpensStats(location.hash)) navigate('/stats');
     return () => window.removeEventListener('hashchange', onHash);
   }, [setHomeTab]);
 

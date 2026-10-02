@@ -11,7 +11,7 @@ async function shot(page: Page, name: string) {
   await page.screenshot({ path: path.join(shots, `${name}.png`), fullPage: true });
 }
 
-async function showTab(page: Page, id: 'study' | 'library' | 'progress' | 'settings') {
+async function showTab(page: Page, id: 'study' | 'library' | 'settings') {
   const tab = page.getByTestId(`home-tab-${id}`);
   if ((await tab.getAttribute('aria-selected')) !== 'true') await tab.click();
   await expect(tab).toHaveAttribute('aria-selected', 'true');
@@ -142,7 +142,7 @@ test('drill missed cards confirms beside the button when a sitting is open', asy
 
   await showTab(page, 'settings');
   await expect(page.getByTestId('backup-reminder')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Stats', exact: true }).click();
+  await page.getByRole('navigation').getByRole('button', { name: 'Stats', exact: true }).click();
   await expect(page.getByTestId('backup-reminder')).toHaveCount(0);
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(page.getByTestId('backup-reminder')).toBeVisible();

@@ -2,13 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { DemandPanel, DestructiveConfirm, DrillReplacePrompt, ResetConfirm, Spinner } from './bits';
 import { continueButtonLabel } from './lib/continueLabel';
 import { feedbackMailHref } from './lib/feedbackMail';
-import { domainBreakdown } from './lib/domains';
 import { readExamDeckId, resolveDeckPick, sortDecksByName, writeExamDeckId } from './lib/examDeck';
 import { formatDuration, formatPercent } from './lib/format';
 import { todayProgressLine, todayRecap } from './lib/today';
 import { dueCardIds } from './lib/queue';
-import { isUnclearedMiss } from './lib/scoring';
-import { resumeLabel, resumeLabelParts, sessionMissedCardIds } from './lib/session';
+import { resumeLabel, resumeLabelParts } from './lib/session';
 import { nextHomeTab } from './homeTab';
 import { navigate } from './nav';
 import type { StudySnapshot } from './lib/db';
@@ -155,34 +153,46 @@ export function Home() {
         }}
       />
 
-      <div className="home-tabs" role="tablist" aria-label="Home">
+      <div className="home-tabs" role="group" aria-label="Home">
         {(
           [
-            ['study', 'Study', 'Continue'],
-            ['library', 'Library', 'Decks'],
-            ['progress', 'Progress', 'Scores'],
-            ['settings', 'Settings', 'Backup'],
+            { id: 'study', label: 'Study', note: 'Continue' },
+            { id: 'library', label: 'Library', note: 'Decks' },
+            { id: 'stats', label: 'Stats', note: '' },
+            { id: 'settings', label: 'Settings', note: 'Backup' },
           ] as const
-        ).map(([id, label, note]) => (
-          <button
-            key={id}
-            className={tab === id ? 'home-tab on' : 'home-tab'}
-            type="button"
-            role="tab"
-            id={`home-tab-${id}`}
-            data-testid={`home-tab-${id}`}
-            aria-selected={tab === id}
-            aria-controls={tab === id ? 'home-panel' : undefined}
-            aria-label={id === 'settings' ? 'Settings and backup' : label}
-            onClick={() => study.setHomeTab(nextHomeTab(tab, id))}
-          >
-            <span>{label}</span>
-            <span className="home-tab-note">{note}</span>
-          </button>
-        ))}
+        ).map((item) =>
+          item.id === 'stats' ? (
+            <button
+              key="stats"
+              className="home-tab"
+              type="button"
+              data-testid="home-tab-stats"
+              onClick={() => navigate('/stats')}
+            >
+              Stats
+            </button>
+          ) : (
+            <button
+              key={item.id}
+              className={tab === item.id ? 'home-tab on' : 'home-tab'}
+              type="button"
+              role="tab"
+              id={`home-tab-${item.id}`}
+              data-testid={`home-tab-${item.id}`}
+              aria-selected={tab === item.id}
+              aria-controls={tab === item.id ? 'home-panel' : undefined}
+              aria-label={item.id === 'settings' ? 'Settings and backup' : item.label}
+              onClick={() => study.setHomeTab(nextHomeTab(tab, item.id))}
+            >
+              <span>{item.label}</span>
+              <span className="home-tab-note">{item.note}</span>
+            </button>
+          ),
+        )}
       </div>
 
-      {tab ? (
+      {tab === 'study' || tab === 'library' || tab === 'settings' ? (
         <div className="card stack home-panel" role="tabpanel" id="home-panel" aria-labelledby={`home-tab-${tab}`}>
           {tab === 'study' ? (
             <StudyPanel
@@ -240,7 +250,6 @@ export function Home() {
               }}
             />
           ) : null}
-          {tab === 'progress' ? <ProgressPanel snap={snap} cards={cards} inFocus={inFocus} /> : null}
           {tab === 'settings' ? (
             <SettingsPanel
               error={backupError}
@@ -836,78 +845,6 @@ function LibraryPanel({
           onCancel={() => setPending(null)}
         />
       ) : null}
-    </>
-  );
-}
-
-function ProgressPanel({
-  snap,
-  cards,
-  inFocus,
-}: {
-  snap: StudySnapshot;
-  cards: Card[];
-  inFocus: (subjectId: string) => boolean;
-}) {
-  const domains = domainBreakdown(
-    cards,
-    snap.reviews.filter((review) => inFocus(review.subjectId)).map((review) => ({ cardId: review.cardId, correct: review.correct })),
-  );
-  const finished = snap.sessions
-    .filter((session) => session.status === 'finished' && inFocus(session.subjectId))
-    .sort((a, b) => b.updatedAt - a.updatedAt);
-  const missedCards = cards.filter((card) => {
-    const memory = snap.memories.find((item) => item.cardId === card.id);
-    return memory ? isUnclearedMiss(memory) : false;
-  });
-
-  return (
-    <>
-      <h2>Progress</h2>
-      <button className="btn btn-primary btn-block" type="button" onClick={() => navigate('/stats')}>
-        Stats
-      </button>
-      <h2>Domain breakdown</h2>
-      {!domains.length ? <p className="muted" style={{ margin: 0 }}>Answer a few cards and the domains from your PDF show up here.</p> : null}
-      {domains.map((domain) => (
-        <article key={domain.key} className="stack">
-          <strong>{domain.name}</strong>
-          <p style={{ margin: 0 }}>
-            {formatPercent(domain.correct + domain.incorrect ? domain.correct / (domain.correct + domain.incorrect) : null)} · {domain.correct} right, {domain.incorrect} wrong
-          </p>
-        </article>
-      ))}
-      <h2>Missed questions</h2>
-      {!finished.some((session) => sessionMissedCardIds(session).length) && !missedCards.length ? (
-        <p className="muted" style={{ margin: 0 }}>
-          Nothing missed yet.
-        </p>
-      ) : null}
-      {finished.map((session) => {
-        const missed = sessionMissedCardIds(session);
-        if (!missed.length) return null;
-        return (
-          <button
-            key={session.id}
-            className="btn btn-ghost btn-block"
-            type="button"
-            onClick={() => navigate(`/results/${session.id}`)}
-          >
-            Missed questions · {session.deckName} ({missed.length})
-          </button>
-        );
-      })}
-      {missedCards.map((card) => (
-        <button
-          key={card.id}
-          className="btn btn-ghost btn-block"
-          type="button"
-          style={{ textAlign: 'left' }}
-          onClick={() => navigate(`/deck/${card.deckId}/card/${card.id}`)}
-        >
-          {card.question}
-        </button>
-      ))}
     </>
   );
 }
