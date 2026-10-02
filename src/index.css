@@ -160,8 +160,17 @@ a { color: inherit; }
 }
 .home-tab.on { background: var(--ink); color: #fff; border-color: var(--ink); }
 .home-tab-note { font-size: 0.8rem; font-weight: 550; opacity: 0.8; }
-.home-hero { scroll-margin-top: 0.75rem; }
+.home-hero { scroll-margin-top: 0.75rem; min-width: 0; max-width: 100%; }
 .home-hero .btn { min-height: 64px; font-size: 1.15rem; }
+.home-continue { max-width: 100%; min-width: 0; }
+.home-continue-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
 .home-hero-ready { border-color: var(--moss); }
 .today-line {
   margin: 0;
@@ -373,7 +382,7 @@ label.btn:active::after,
   white-space: nowrap;
 }
 .chip.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-.row-scroll { display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.2rem; }
+.row-scroll { display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.2rem; min-width: 0; }
 .chip-row {
   display: flex;
   flex-wrap: wrap;
