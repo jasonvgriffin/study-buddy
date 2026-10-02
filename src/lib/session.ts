@@ -8,16 +8,23 @@ export function elapsedMs(session: Pick<LiveSession, 'accumulatedMs' | 'runningS
   return session.accumulatedMs + Math.max(0, now - session.runningSince);
 }
 
-export function resumeLabel(session: LiveSession, now: number): string {
+/** Pieces of the resume line so the test name can be emphasized without changing the words. */
+export function resumeLabelParts(session: LiveSession, now: number): { lead: string; name: string; rest: string } {
   const elapsed = formatDuration(elapsedMs(session, now));
+  const name = session.deckName;
   if (session.skipReview) {
     const left = skippedUnanswered(session).length;
     const noun = left === 1 ? 'question' : 'questions';
-    return `Resume ${session.deckName}: ${left} skipped ${noun} to review, ${elapsed} elapsed`;
+    return { lead: 'Resume ', name, rest: `: ${left} skipped ${noun} to review, ${elapsed} elapsed` };
   }
   const total = session.kind === 'exam' ? session.originalCount : session.cardIds.length;
   const question = Math.min(session.index + 1, Math.max(total, 1));
-  return `Resume ${session.deckName}: Question ${question} of ${total}, ${elapsed} elapsed`;
+  return { lead: 'Resume ', name, rest: `: Question ${question} of ${total}, ${elapsed} elapsed` };
+}
+
+export function resumeLabel(session: LiveSession, now: number): string {
+  const { lead, name, rest } = resumeLabelParts(session, now);
+  return `${lead}${name}${rest}`;
 }
 
 function baseSession(input: {
