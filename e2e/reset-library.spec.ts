@@ -119,8 +119,9 @@ test('library can delete one PDF and an entire subject', async ({ page }) => {
   await page.getByTestId('pdf-file').setInputFiles(sampleNotes);
   await expect(page.getByTestId('import-added')).toContainText('sample-notes.pdf');
 
-  await expect(page.getByTestId('delete-subject')).toHaveText('Delete A+');
+  await expect(page.getByTestId('delete-subject')).toHaveText('Delete A+ and all its PDFs');
   await expect(page.getByTestId('delete-source')).toHaveCount(2);
+  await expect(page.getByTestId('delete-source').first()).toHaveText('Delete this PDF only');
   await expect(page.locator('[data-deck-name="Practice Test 1"]')).toBeVisible();
   await expect(page.locator('[data-deck-name="sample-notes"]')).toBeVisible();
   await page.getByTestId('delete-subject').scrollIntoViewIfNeeded();
@@ -130,6 +131,7 @@ test('library can delete one PDF and an entire subject', async ({ page }) => {
   await notes.getByTestId('delete-source').click();
   await expect(page.getByTestId('confirm-dialog')).toContainText('Delete sample-notes.pdf?');
   await expect(page.getByTestId('confirm-dialog')).toContainText('A+');
+  await expect(page.getByTestId('confirm-destructive')).toHaveText('Delete this PDF only');
   await page.getByTestId('confirm-cancel').click();
   await expect(page.locator('[data-deck-name="sample-notes"]')).toBeVisible();
   await notes.getByTestId('delete-source').click();
@@ -159,7 +161,7 @@ test('library can delete one PDF and an entire subject', async ({ page }) => {
   const dialog = page.getByTestId('confirm-dialog');
   await expect(dialog).toContainText('Delete A+?');
   await expect(dialog).toContainText('questions, metrics, progress, test sessions, and source files');
-  await expect(page.getByTestId('confirm-destructive')).toHaveText('Delete A+');
+  await expect(page.getByTestId('confirm-destructive')).toHaveText('Delete A+ and all its PDFs');
   await expect(page.getByTestId('confirm-destructive')).toHaveClass(/btn-clay/);
   await shot(page, 'delete-subject-confirmation');
   await page.getByTestId('confirm-cancel').click();
