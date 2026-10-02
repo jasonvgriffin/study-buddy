@@ -91,7 +91,7 @@ function Shell() {
           Study Buddy build {__APP_VERSION__} · {__BUILD_TIME__.slice(0, 16).replace('T', ' ')} UTC
         </p>
         <footer className="app-footer" data-testid="app-footer">
-          Built by Jason Griffin with GrokBot/cursor
+          Built by Jason Griffin with the help of AI
         </footer>
       </main>
       {showNav ? (
