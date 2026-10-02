@@ -35,7 +35,7 @@ async function storeCounts(page: Page) {
 
 test('discard and start over clears every saved study record', async ({ page }) => {
   await page.goto('./');
-  await expect(page.getByTestId('app-footer')).toHaveText('Built by Jason Griffin with the help of AI');
+  await expect(page.getByTestId('app-footer')).toHaveText('Built by Jason Griffin with the help of AI agents');
   await page.getByTestId('home-tab-library').click();
   await page.getByTestId('start-subject').click();
   await page.getByTestId('subject-name').fill('A+');
@@ -76,7 +76,7 @@ test('discard and start over clears every saved study record', async ({ page }) 
   await expect(page.getByTestId('study-hero')).toContainText('Name a subject, then import its PDF.');
   await expect(page.getByTestId('start-studying')).toHaveText('Start a new subject');
   await shot(page, 'fresh-after-reset');
-  await expect(page.getByTestId('app-footer')).toHaveText('Built by Jason Griffin with the help of AI');
+  await expect(page.getByTestId('app-footer')).toHaveText('Built by Jason Griffin with the help of AI agents');
   await page.getByTestId('app-footer').evaluate((node) => {
     const top = node.getBoundingClientRect().top + window.scrollY;
     window.scrollTo(0, Math.max(0, top - 220));
