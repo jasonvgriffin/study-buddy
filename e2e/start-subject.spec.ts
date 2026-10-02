@@ -5,6 +5,11 @@ const sampleThree = path.resolve('public/samples/sample-three-tests.pdf');
 
 test('start a new subject, name it, then import its PDF', async ({ page }) => {
   await page.goto('./');
+  const label = page.getByTestId('subjects-label');
+  await expect(label).toHaveText('Subjects:');
+  expect(await label.evaluate((el) => el.tagName)).toBe('STRONG');
+  await expect(page.getByRole('button', { name: 'Subjects:' })).toHaveCount(0);
+  await expect(label).not.toHaveClass(/(^|\s)chip(\s|$)/);
   await expect(page.getByTestId('start-studying')).toHaveText('Start a new subject');
   await expect(page.getByTestId('pdf-file')).toHaveCount(0);
   await expect(page.getByTestId('load-sample-three')).toHaveCount(0);
@@ -27,7 +32,8 @@ test('start a new subject, name it, then import its PDF', async ({ page }) => {
   await expect(importer).toContainText('saved in Biology');
   await expect(page.getByTestId('pdf-file')).toBeEnabled();
 
-  await page.getByRole('button', { name: 'Subjects:' }).click();
+  // "Subjects:" is a plain label now; clear the subject focus from the Subjects panel picker.
+  await page.getByTestId('subject-picker').selectOption('');
   await expect(page.getByTestId('pdf-file')).toHaveCount(0);
   await expect(page.getByTestId('pick-subject-hint')).toBeVisible();
   await page.locator('[data-subject-name="Biology"]').click();

@@ -110,7 +110,8 @@ test('today recap follows the subject chip and stays quiet for a subject with no
   await page.getByTestId('pdf-file').setInputFiles(sampleThree);
   await expect(page.getByTestId('start-saved')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Subjects:' }).click();
+  // "Subjects:" is a plain label now; clear the subject focus from the Subjects panel picker.
+  await page.getByTestId('subject-picker').selectOption('');
   const all = page.getByTestId('study-hero');
   await expect(all.getByTestId('today-line')).toHaveText('Today: 3 answered · 1 right (33%) · 1-day streak');
   await expect(all.getByTestId('today-subjects')).toContainText('Rivers');

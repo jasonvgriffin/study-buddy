@@ -143,3 +143,55 @@ test('Drill missed cards follows the exam picked on the Home card', async ({ pag
   await expect(page).toHaveURL(/#\/session\//);
   await expect(page.getByTestId('position')).toHaveText(/Question 1 of 3/);
 });
+
+async function buttonOrder(page: Page, root: string): Promise<string[]> {
+  return page.locator(root).evaluate((el) =>
+    [...el.querySelectorAll('button, select')]
+      .map((node) => node.getAttribute('data-testid') ?? '')
+      .filter(Boolean),
+  );
+}
+
+test('Drill and Recommended sit right under Start studying, and the Study tab brings the card into view', async ({ page }, info) => {
+  const pdf = await multiExamPdf(info.outputPath('practice-exams.pdf'));
+  await importExams(page, pdf);
+
+  // Post-import card: pickers, Start studying, Drill, Recommended, then Rename tests.
+  expect(await buttonOrder(page, '[data-testid="start-offer"]')).toEqual([
+    'start-deck',
+    'start-timing',
+    'start-saved',
+    'drill-home',
+    'review-due-home',
+    'organize-tests',
+  ]);
+  await expect(page.getByTestId('drill-home')).toHaveText('Drill missed cards');
+  await expect(page.getByTestId('review-due-home')).toHaveText(/^Recommended Cards/);
+  await expect(page.getByTestId('drill-home')).toHaveClass(/btn-primary/);
+  await expect(page.getByTestId('review-due-home')).toHaveClass(/btn-primary/);
+
+  // Standalone card after a reload: same order without the import extras.
+  await page.reload();
+  expect(await buttonOrder(page, '[data-testid="study-hero"]')).toEqual([
+    'start-deck',
+    'start-timing',
+    'start-studying',
+    'drill-home',
+    'review-due-home',
+  ]);
+
+  // The Study tab has no panel once tests exist; tapping it scrolls the Start studying card into view.
+  const libraryTab = page.getByTestId('home-tab-library');
+  if ((await libraryTab.getAttribute('aria-selected')) !== 'true') await libraryTab.click();
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  const heroTop = () => page.getByTestId('study-hero').evaluate((el) => el.getBoundingClientRect().top);
+  expect(await heroTop()).toBeLessThan(-100);
+  const studyTab = page.getByTestId('home-tab-study');
+  await studyTab.click();
+  await expect(studyTab).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#home-panel')).toHaveCount(0);
+  await expect.poll(heroTop).toBeGreaterThanOrEqual(0);
+  expect(await heroTop()).toBeLessThan(40);
+  await expect(page.getByTestId('start-studying')).toBeInViewport();
+  await expect(page.getByTestId('review-due-home')).toBeInViewport();
+});
