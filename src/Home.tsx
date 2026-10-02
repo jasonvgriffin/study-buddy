@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { DemandPanel, DestructiveConfirm, DrillReplacePrompt, ResetConfirm, Spinner } from './bits';
 import { continueButtonLabel } from './lib/continueLabel';
+import { deckLabel, sessionDeckLabel } from './lib/deckLabel';
 import { feedbackMailHref } from './lib/feedbackMail';
 import { domainBreakdown } from './lib/domains';
 import { readExamDeckId, resolveDeckPick, sortDecksByName, writeExamDeckId } from './lib/examDeck';
@@ -8,7 +9,7 @@ import { formatDuration, formatPercent } from './lib/format';
 import { todayProgressLine, todayRecap } from './lib/today';
 import { dueCardIds } from './lib/queue';
 import { isUnclearedMiss } from './lib/scoring';
-import { resumeLabel, resumeLabelParts, sessionMissedCardIds } from './lib/session';
+import { resumeLabelParts, sessionMissedCardIds } from './lib/session';
 import { nextHomeTab } from './homeTab';
 import { navigate } from './nav';
 import type { StudySnapshot } from './lib/db';
@@ -62,7 +63,7 @@ export function Home() {
     reviews: snap.reviews,
     sessions: snap.sessions,
     subjects: snap.subjects,
-    decks: snap.decks,
+    decks: snap.decks.map((deck) => ({ id: deck.id, name: deckLabel(deck, snap.decks) })),
     now,
     offsetMinutes: new Date().getTimezoneOffset(),
     subjectId: study.focus === 'all' ? null : study.focus,
@@ -124,7 +125,7 @@ export function Home() {
 
       {offerDeck ? (
         <StartOffer
-          deck={offerDeck}
+          label={deckLabel(offerDeck, snap.decks)}
           added={study.startOffer?.added ?? null}
           onStart={() => void study.startExam(offerDeck, false)}
           onOrganize={() => void study.openOrganize(offerDeck.sourceGroupId)}
@@ -138,6 +139,8 @@ export function Home() {
         recap={recap}
         arrival={study.homeArrival}
         startDeck={recentDeck}
+        startLabel={recentDeck ? deckLabel(recentDeck, snap.decks) : null}
+        resumeName={primary ? sessionDeckLabel(primary, snap.decks) : ''}
         emptyDetail={focused ? `Import a PDF into ${focused.name}.` : 'Name a subject, then import its PDF.'}
         emptyAction={focused ? 'Import a PDF' : 'Start a new subject'}
         onContinue={() => {
@@ -190,6 +193,7 @@ export function Home() {
               primary={primary}
               now={now}
               decks={decks}
+              catalog={snap.decks}
               examDeck={examDeck}
               dueCount={due.length}
               onPickDeck={(id) => {
@@ -269,6 +273,8 @@ function StudyHero({
   recap,
   arrival,
   startDeck,
+  startLabel,
+  resumeName,
   emptyDetail,
   emptyAction,
   onContinue,
@@ -280,6 +286,8 @@ function StudyHero({
   recap: TodayRecap;
   arrival: { from: string; at: number } | null;
   startDeck: Deck | null;
+  startLabel: string | null;
+  resumeName: string;
   emptyDetail: string;
   emptyAction: string;
   onContinue: () => void;
@@ -295,7 +303,7 @@ function StudyHero({
   if (primary) {
     return (
       <article ref={ref} className="card stack home-hero" style={{ padding: '1rem' }} data-testid="resume-card">
-        <ResumeLine session={primary} now={now} />
+        <ResumeLine session={primary} now={now} name={resumeName} />
         <button className="btn btn-primary btn-block home-continue" data-testid="resume" type="button" onClick={onContinue}>
           <span className="home-continue-label">{continueLabel}</span>
         </button>
@@ -318,7 +326,7 @@ function StudyHero({
       <p className="muted" style={{ margin: 0 }}>
         Start studying
       </p>
-      <p style={{ margin: 0 }}>{startDeck ? startDeck.name : emptyDetail}</p>
+      <p style={{ margin: 0 }}>{startLabel ?? emptyDetail}</p>
       <button
         className={ready ? 'btn btn-primary btn-block btn-start' : 'btn btn-primary btn-block'}
         data-testid="start-studying"
@@ -332,26 +340,26 @@ function StudyHero({
   );
 }
 
-function ResumeLine({ session, now }: { session: LiveSession; now: number }) {
-  const { lead, name, rest } = resumeLabelParts(session, now);
+function ResumeLine({ session, now, name }: { session: LiveSession; now: number; name: string }) {
+  const parts = resumeLabelParts(session, now);
   return (
     <p style={{ margin: 0 }}>
-      {lead}
+      {parts.lead}
       <strong className="resume-test-name" data-testid="resume-test-name">
         {name}
       </strong>
-      {rest}
+      {parts.rest}
     </p>
   );
 }
 
 function StartOffer({
-  deck,
+  label,
   added,
   onStart,
   onOrganize,
 }: {
-  deck: Deck;
+  label: string;
   added: string | null;
   onStart: () => void;
   onOrganize: () => void;
@@ -367,7 +375,7 @@ function StartOffer({
         You're all set — tap Start studying to begin
       </p>
       <p className="muted" data-testid="start-offer-test" style={{ margin: 0 }}>
-        {deck.name}
+        {label}
       </p>
       <button className="btn btn-primary btn-block btn-start" data-testid="start-saved" type="button" onClick={onStart}>
         Start studying
@@ -423,6 +431,7 @@ function StudyPanel({
   primary,
   now,
   decks,
+  catalog,
   examDeck,
   dueCount,
   onPickDeck,
@@ -439,6 +448,7 @@ function StudyPanel({
   primary: LiveSession | null;
   now: number;
   decks: Deck[];
+  catalog: Deck[];
   examDeck: Deck | null;
   dueCount: number;
   onPickDeck: (id: string) => void;
@@ -453,7 +463,8 @@ function StudyPanel({
 }) {
   const [confirmReset, setConfirmReset] = useState(false);
   const [drillDeckName, setDrillDeckName] = useState<string | null>(null);
-  const promptName = drillDeckName === examDeck?.name ? drillDeckName : null;
+  const examLabel = examDeck ? deckLabel(examDeck, catalog) : null;
+  const promptName = drillDeckName && drillDeckName === examLabel ? drillDeckName : null;
   const others = sessions.filter((session) => session.id !== primary?.id);
   return (
     <>
@@ -463,17 +474,25 @@ function StudyPanel({
           Discard and start over
         </button>
       ) : null}
-      {others.map((session) => (
-        <article key={session.id} className="stack" data-testid="resume-card">
-          <p style={{ margin: 0 }}>{resumeLabel(session, now)}</p>
-          <button className="btn btn-primary btn-block" data-testid="resume" type="button" onClick={() => onResume(session.id)}>
-            Continue
-          </button>
-          <button className="btn btn-ghost btn-block" data-testid="discard" type="button" onClick={() => setConfirmReset(true)}>
-            Discard and start over
-          </button>
-        </article>
-      ))}
+      {others.map((session) => {
+        const parts = resumeLabelParts(session, now);
+        const name = sessionDeckLabel(session, catalog);
+        return (
+          <article key={session.id} className="stack" data-testid="resume-card">
+            <p style={{ margin: 0 }}>
+              {parts.lead}
+              {name}
+              {parts.rest}
+            </p>
+            <button className="btn btn-primary btn-block" data-testid="resume" type="button" onClick={() => onResume(session.id)}>
+              Continue
+            </button>
+            <button className="btn btn-ghost btn-block" data-testid="discard" type="button" onClick={() => setConfirmReset(true)}>
+              Discard and start over
+            </button>
+          </article>
+        );
+      })}
       {!decks.length ? (
         <>
           <p className="muted" style={{ margin: 0 }}>
@@ -498,7 +517,7 @@ function StudyPanel({
             >
               {decks.map((deck) => (
                 <option key={deck.id} value={deck.id}>
-                  {deck.name}
+                  {deckLabel(deck, catalog)}
                 </option>
               ))}
             </select>
@@ -515,7 +534,7 @@ function StudyPanel({
             type="button"
             onClick={() => {
               void onDrill().then((result) => {
-                setDrillDeckName(result === 'busy' && examDeck ? examDeck.name : null);
+                setDrillDeckName(result === 'busy' && examLabel ? examLabel : null);
               });
             }}
           >
@@ -741,7 +760,7 @@ function LibraryPanel({
                       style={{ padding: '0.95rem 1rem', textAlign: 'left' }}
                       onClick={() => navigate(`/deck/${deck.id}`)}
                     >
-                      <strong>{deck.name}</strong>
+                      <strong>{deckLabel(deck, snap.decks)}</strong>
                       <span className="muted" style={{ display: 'block' }}>
                         {count} cards
                       </span>
@@ -893,7 +912,7 @@ function ProgressPanel({
             type="button"
             onClick={() => navigate(`/results/${session.id}`)}
           >
-            Missed questions · {session.deckName} ({missed.length})
+            Missed questions · {sessionDeckLabel(session, snap.decks)} ({missed.length})
           </button>
         );
       })}
