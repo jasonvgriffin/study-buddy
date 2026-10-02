@@ -66,7 +66,7 @@ export function Home() {
     <div className="stack">
       <header className="stack" style={{ gap: '0.3rem' }}>
         <h1>Study Buddy Beta</h1>
-        <p className="muted" data-testid="tagline" style={{ margin: 0 }}>
+        <p className="muted" data-testid="tagline" style={{ margin: 0, fontStyle: 'italic' }}>
           An experimental tool to help you study. Create a subject, upload a pdf of test questions and this tool will quiz you.
         </p>
         <p className="muted" data-testid="storage-notice" style={{ margin: 0 }}>
