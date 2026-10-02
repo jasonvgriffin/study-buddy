@@ -81,6 +81,7 @@ a { color: inherit; }
   font-family: "Iowan Old Style", Palatino, Georgia, serif;
   font-size: 1.45rem;
   line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 .card {
   background: var(--card);
@@ -91,8 +92,20 @@ a { color: inherit; }
 button.by-test {
   display: block;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: auto;
   text-align: left;
   padding: 0.85rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+button.card {
+  max-width: 100%;
+  min-width: 0;
+  height: auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 button.by-test:focus-visible {
   outline: 3px solid var(--link);
@@ -104,17 +117,20 @@ button.by-test:focus-visible {
   justify-content: center;
   gap: 0.4rem;
   min-height: 56px;
+  height: auto;
   padding: 0.85rem 1.15rem;
   border-radius: 999px;
   border: 1px solid transparent;
   font-weight: 650;
   text-decoration: none;
   text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .btn-primary { background: var(--moss); color: var(--moss-ink); }
 .btn-clay { background: var(--clay); color: var(--clay-ink); }
 .btn-ghost { background: transparent; border-color: var(--line); }
-.btn-block { width: 100%; }
+.btn-block { width: 100%; max-width: 100%; min-width: 0; }
 .field {
   width: 100%;
   min-height: 52px;
@@ -122,6 +138,83 @@ button.by-test:focus-visible {
   background: var(--card);
   border-radius: 0.9rem;
   padding: 0.7rem 0.85rem;
+}
+/* Closed native selects paint one line and clip it. The value wraps; the select stays on top for the menu. */
+.test-picker {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.test-picker-value {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  min-height: 52px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 0.9rem;
+  padding: 0.7rem 2.5rem 0.7rem 0.85rem;
+  font-size: max(16px, 1rem);
+  line-height: 1.35;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.test-picker::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  right: 1rem;
+  top: 50%;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+.test-picker select.field {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  border-color: transparent;
+  color: transparent;
+  cursor: pointer;
+}
+.test-picker select.field option {
+  color: var(--ink);
+  background: var(--card);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.test-picker:not(:has(select[size]:not([size="1"]))):focus-within .test-picker-value {
+  outline: 3px solid var(--link);
+  outline-offset: 3px;
+}
+.test-picker select.field:focus {
+  outline: none;
+}
+.test-picker:has(select[size]:not([size="1"])) .test-picker-value,
+.test-picker:has(select[size]:not([size="1"]))::after {
+  display: none;
+}
+.test-picker:has(select[size]:not([size="1"])) select.field {
+  position: static;
+  height: auto;
+  min-height: 52px;
+  color: inherit;
+  background: var(--card);
+  border-color: var(--line);
+  appearance: auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .nav {
   position: fixed;
@@ -170,18 +263,28 @@ button.by-test:focus-visible {
 }
 .home-tab.on { background: var(--ink); color: #fff; border-color: var(--ink); }
 .home-tab-note { font-size: 0.8rem; font-weight: 550; opacity: 0.8; }
-.home-hero { scroll-margin-top: 0.75rem; min-width: 0; max-width: 100%; }
+.home-hero { scroll-margin-top: 0.75rem; min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
 .home-hero .btn { min-height: 64px; font-size: 1.15rem; }
+.home-hero .home-continue { font-size: 1rem; }
 .resume-test-name { font-weight: 750; }
 .resume-entry { display: contents; }
-.home-continue { max-width: 100%; min-width: 0; }
-.home-continue-label {
-  flex: 1 1 auto;
+.home-continue {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  max-width: 100%;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  height: auto;
+  white-space: normal;
+}
+.home-continue-label {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
   text-align: center;
+  line-height: 1.3;
 }
 .home-hero-ready { border-color: var(--moss); }
 .today-line {
@@ -252,6 +355,7 @@ button.by-test:focus-visible {
 .choice {
   width: 100%;
   min-height: 56px;
+  height: auto;
   text-align: left;
   border-radius: 1rem;
   border: 2px solid var(--line);
@@ -259,6 +363,8 @@ button.by-test:focus-visible {
   padding: 0.85rem 0.9rem;
   font-size: 1.05rem;
   line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .choice.picked { border-color: var(--ink); }
 .choice.correct { border-color: var(--good); background: color-mix(in srgb, var(--good) 14%, var(--card)); }
@@ -472,14 +578,14 @@ button:disabled,
   overflow-wrap: anywhere;
 }
 .stack { display: flex; flex-direction: column; gap: 0.75rem; }
-.muted { color: var(--muted); }
+.muted { color: var(--muted); overflow-wrap: anywhere; }
 .banner {
   border-radius: 1rem;
   padding: 0.75rem 0.9rem;
   background: color-mix(in srgb, var(--warn) 18%, var(--card));
   border: 1px solid var(--line);
 }
-h1, h2, h3 { font-weight: 650; letter-spacing: -0.02em; margin: 0; }
+h1, h2, h3 { font-weight: 650; letter-spacing: -0.02em; margin: 0; overflow-wrap: anywhere; }
 h1 { font-size: 1.8rem; }
 h2 { font-size: 1.25rem; }
 .pbq-item {
