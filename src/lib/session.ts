@@ -119,6 +119,22 @@ export function createExamSession(
   });
 }
 
+/** Weighted exam across every test in one subject. Untimed, same sitting flow as a practice exam. */
+export function createSimSession(input: { subjectId: string; cardIds: string[]; now: number }): LiveSession {
+  const ids = [...new Set(input.cardIds)];
+  return baseSession({
+    deckId: `sim:${input.subjectId}`,
+    subjectId: input.subjectId,
+    deckName: 'Exam simulation',
+    kind: 'exam',
+    section: null,
+    scopeKey: `sim:${input.subjectId}`,
+    timerMode: 'untimed',
+    cardIds: ids,
+    now: input.now,
+  });
+}
+
 export function createDrillSession(
   deck: { id: string; subjectId: string; name: string },
   cards: Card[],

@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { messerHref } from './lib/messer';
 import { drillStillOpenPrompt } from './lib/session';
 
 export function WatchLesson({
@@ -25,6 +26,16 @@ export function WatchLesson({
       }}
     >
       {title ? `Watch the lesson: ${title}` : 'Watch the lesson'}
+    </a>
+  );
+}
+
+export function MesserVideoLink({ certId, domainName }: { certId: string | null; domainName: string }) {
+  const href = messerHref(certId, domainName);
+  if (!href) return null;
+  return (
+    <a className="lesson-link" data-testid="messer-link" href={href} target="_blank" rel="noopener noreferrer">
+      Watch the Messer video
     </a>
   );
 }

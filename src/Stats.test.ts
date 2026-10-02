@@ -5,6 +5,11 @@ import { act, createElement, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { describe, expect, it } from 'vitest';
 import { StatsDeckDetail, StatsOverview, type WeakestRow } from './Stats';
+import type { ChecklistFacts } from './lib/readiness';
+
+const emptyChecklist: ChecklistFacts = { above: [], below: [], due: 0, streak: 0 };
+
+const BANNED = /percent[-\s]?ready|pass probability|probability of passing|you(?:'re| are) ready|ready to (?:pass|book)/i;
 
 function mount(node: ReactElement) {
   const host = document.createElement('div');
@@ -68,14 +73,30 @@ describe('stats overview', () => {
             progress: null,
           },
         ],
+        checklist: {
+          above: [{ name: 'Mobile Devices', correct: 8, answered: 10 }],
+          below: [{ name: 'Networking', correct: 2, answered: 10 }],
+          due: 4,
+          streak: 3,
+        },
         onOpenTest: (id: string) => {
           opened = id;
         },
       }),
     );
     expect(view.host.querySelector('h1')?.textContent).toBe('Stats');
-    expect(view.host.querySelectorAll('h2')).toHaveLength(1);
-    expect(view.host.querySelector('h2')?.textContent).toBe('By test');
+    expect(view.host.querySelectorAll('h2')).toHaveLength(2);
+    expect(view.host.querySelector('[data-testid="readiness-checklist"] h2')?.textContent).toBe('Checklist');
+    expect(view.host.querySelector('[data-testid="by-test"] h2')?.textContent).toBe('By test');
+    follows(view.host, 'readiness-checklist', 'by-test');
+    expect(view.host.querySelector('[data-testid="checklist-above"]')?.textContent).toContain('Mobile Devices: 8 of 10');
+    expect(view.host.querySelector('[data-testid="checklist-below"]')?.textContent).toContain('Networking: 2 of 10');
+    expect(view.host.querySelector('[data-testid="checklist-due"]')?.textContent).toBe('Due now: 4');
+    expect(view.host.querySelector('[data-testid="checklist-streak"]')?.textContent).toBe('Streak: 3 days');
+    expect(view.host.querySelector('[data-testid="checklist-note"]')?.textContent).toBe(
+      'These are facts only. You decide when to book the exam.',
+    );
+    expect(view.host.querySelector('[data-testid="readiness-checklist"]')?.textContent).not.toMatch(BANNED);
     expect(view.host.textContent).not.toContain('Every subject');
     expect(view.host.querySelector('[data-testid="overall-accuracy"]')).toBeNull();
     expect(view.host.querySelector('[data-testid="accuracy-by-day"]')).toBeNull();
@@ -98,6 +119,7 @@ describe('stats overview', () => {
     const view = mount(
       createElement(StatsOverview, {
         tests: [],
+        checklist: emptyChecklist,
         onOpenTest: () => {},
       }),
     );

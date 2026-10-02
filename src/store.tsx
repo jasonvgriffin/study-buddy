@@ -57,6 +57,7 @@ import {
   createDrillSession,
   createExamSession,
   createReviewSession,
+  createSimSession,
   finishSession,
   jumpToSkipped,
   noteHidden,
@@ -116,6 +117,7 @@ type StudyApi = {
     options?: { replaceOpen?: boolean; holdForConfirm?: boolean },
   ) => Promise<'started' | 'none' | 'busy'>;
   startDueReview: (label: string, filter: ReviewFilter) => Promise<void>;
+  startExamSim: (subjectId: string, cardIds: string[]) => Promise<void>;
   answer: (
     sessionId: string,
     card: Card,
@@ -743,6 +745,25 @@ export function StudyProvider({ children }: { children: ReactNode }) {
     await openSession(session);
   }
 
+  async function startExamSim(subjectId: string, cardIds: string[]) {
+    const state = snapRef.current;
+    if (!state) return;
+    const allowed = new Set(state.cards.filter((card) => card.subjectId === subjectId).map((card) => card.id));
+    const ids = [...new Set(cardIds)].filter((id) => allowed.has(id));
+    if (!ids.length) {
+      setMessage('Not enough questions in this subject to start an exam simulation.');
+      return;
+    }
+    const scopeKey = `sim:${subjectId}`;
+    const existing = state.sessions.find((session) => session.scopeKey === scopeKey && session.status !== 'finished');
+    if (existing) {
+      navigate(`/session/${existing.id}`);
+      return;
+    }
+    const session = createSimSession({ subjectId, cardIds: ids, now: Date.now() });
+    await openSession(session);
+  }
+
   async function answer(
     sessionId: string,
     card: Card,
@@ -1000,6 +1021,7 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       startExam,
       startMissedDrill,
       startDueReview,
+      startExamSim,
       answer,
       pause,
       resume,

@@ -1,7 +1,10 @@
 import { Fragment, type ReactNode } from 'react';
+import { MesserVideoLink, Screen } from './bits';
 import { deckLabel } from './lib/deckLabel';
+import { detectCert } from './lib/comptia';
 import type { DomainScore } from './lib/domains';
 import { formatDuration, formatPercent } from './lib/format';
+import { CHECKLIST_NOTE, readinessFacts, type ChecklistFacts } from './lib/readiness';
 import type { DayStat } from './lib/scoring';
 import {
   STATS_DECK_SECTIONS,
@@ -9,7 +12,6 @@ import {
   deckBreakdown,
   type ByTestRow,
 } from './lib/statsDeck';
-import { Screen } from './bits';
 import { navigate } from './nav';
 import { useStudy } from './store';
 
@@ -70,14 +72,17 @@ function DaySection({ days }: { days: DayStat[] }) {
   );
 }
 
-function DomainSection({ domains }: { domains: DomainScore[] }) {
+function DomainSection({ domains, certId }: { domains: DomainScore[]; certId: string | null }) {
   return (
     <section className="stack" data-testid="domain-stats">
       <h2>By domain</h2>
       {!domains.length ? <p className="muted">Answer a few cards and the domains from your PDF show up here.</p> : null}
       {domains.map((domain) => (
         <article key={domain.key} className="card stack" data-testid="domain-score" style={{ padding: '0.85rem' }}>
-          <strong>{domain.name}</strong>
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '0.35rem', alignItems: 'baseline' }}>
+            <strong>{domain.name}</strong>
+            <MesserVideoLink certId={certId} domainName={domain.name} />
+          </div>
           <p style={{ margin: '0.25rem 0 0' }}>
             {formatPercent(domain.correct + domain.incorrect ? domain.correct / (domain.correct + domain.incorrect) : null)} · {domain.correct} right, {domain.incorrect} wrong
           </p>
@@ -114,15 +119,71 @@ function WeakestSection({ rows }: { rows: WeakestRow[] }) {
   );
 }
 
+function factLine(fact: { name: string; correct: number; answered: number }) {
+  return `${fact.name}: ${fact.correct} of ${fact.answered}`;
+}
+
+function streakLine(days: number): string {
+  return days === 1 ? 'Streak: 1 day' : `Streak: ${days} days`;
+}
+
+export function ChecklistSection({ facts }: { facts: ChecklistFacts }) {
+  return (
+    <section className="stack" data-testid="readiness-checklist">
+      <h2>Checklist</h2>
+      <div>
+        <p style={{ margin: 0 }}>At or above 80%</p>
+        {facts.above.length ? (
+          <ul className="today-subjects" data-testid="checklist-above">
+            {facts.above.map((fact) => (
+              <li key={fact.name}>{factLine(fact)}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted" style={{ margin: '0.25rem 0 0' }}>
+            None
+          </p>
+        )}
+      </div>
+      <div>
+        <p style={{ margin: 0 }}>Below 80%</p>
+        {facts.below.length ? (
+          <ul className="today-subjects" data-testid="checklist-below">
+            {facts.below.map((fact) => (
+              <li key={fact.name}>{factLine(fact)}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted" style={{ margin: '0.25rem 0 0' }}>
+            None
+          </p>
+        )}
+      </div>
+      <p data-testid="checklist-due" style={{ margin: 0 }}>
+        Due now: {facts.due}
+      </p>
+      <p data-testid="checklist-streak" style={{ margin: 0 }}>
+        {streakLine(facts.streak)}
+      </p>
+      <p className="muted" data-testid="checklist-note" style={{ margin: 0 }}>
+        {CHECKLIST_NOTE}
+      </p>
+    </section>
+  );
+}
+
 export function StatsOverview({
   tests,
+  checklist,
   onOpenTest,
 }: {
   tests: ByTestRow[];
+  checklist: ChecklistFacts;
   onOpenTest: (deckId: string) => void;
 }) {
   return (
     <Screen title="Stats">
+      <ChecklistSection facts={checklist} />
       <section className="stack" data-testid="by-test">
         <h2>By test</h2>
         {!tests.length ? <p className="muted">No tests in this view.</p> : null}
@@ -157,6 +218,7 @@ export function StatsDeckDetail({
   activeMs,
   days,
   domains,
+  certId = null,
   weakest,
   onBack,
 }: {
@@ -165,13 +227,14 @@ export function StatsDeckDetail({
   activeMs: number;
   days: DayStat[];
   domains: DomainScore[];
+  certId?: string | null;
   weakest: WeakestRow[];
   onBack: () => void;
 }) {
   const sections: Record<(typeof STATS_DECK_SECTIONS)[number], ReactNode> = {
     accuracy: <AccuracyCard totals={totals} activeMs={activeMs} testId="deck-accuracy" />,
     'by-day': <DaySection days={days} />,
-    'by-domain': <DomainSection domains={domains} />,
+    'by-domain': <DomainSection domains={domains} certId={certId} />,
     weakest: <WeakestSection rows={weakest} />,
   };
 
@@ -217,6 +280,8 @@ export function Stats() {
       now,
       offsetMinutes: offset,
     });
+    const subject = snap.subjects.find((item) => item.id === deck.subjectId);
+    const deckCards = snap.cards.filter((card) => card.deckId === deck.id);
     return (
       <StatsDeckDetail
         title={deckLabel(deck, snap.decks)}
@@ -224,6 +289,12 @@ export function Stats() {
         activeMs={breakdown.activeMs}
         days={breakdown.days.slice(-14)}
         domains={breakdown.domains}
+        certId={detectCert([
+          subject?.name,
+          deck.name,
+          deck.sourceFileName,
+          ...deckCards.map((card) => card.examCode),
+        ])}
         weakest={breakdown.weakest.map((memory) => ({
           cardId: memory.cardId,
           question: cardById.get(memory.cardId)?.question ?? 'Card',
@@ -240,10 +311,19 @@ export function Stats() {
   const memories = snap.memories.filter((memory) => inFocus(memory.subjectId));
   const decks = snap.decks.filter((deck) => inFocus(deck.subjectId));
   const sessions = snap.sessions.filter((session) => inFocus(session.subjectId));
+  const cards = snap.cards.filter((card) => inFocus(card.subjectId));
+  const reviews = snap.reviews.filter((review) => inFocus(review.subjectId));
 
   return (
     <StatsOverview
       tests={byTestRows({ decks, catalog: snap.decks, memories, sessions })}
+      checklist={readinessFacts({
+        cards,
+        memories,
+        reviews,
+        now: Date.now(),
+        offsetMinutes: new Date().getTimezoneOffset(),
+      })}
       onOpenTest={(id) => navigate(`/stats/test/${encodeURIComponent(id)}`)}
     />
   );
