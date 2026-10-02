@@ -38,4 +38,14 @@ test('stats checklist lists facts and does not predict a pass', async ({ page })
 
   mkdirSync(shots, { recursive: true });
   await page.screenshot({ path: path.join(shots, 'stats-checklist.png'), fullPage: true });
+
+  await page.getByTestId('by-test-row').filter({ hasText: 'Practice Test 1' }).click();
+  const link = page.getByTestId('domain-stats').getByTestId('messer-link');
+  await expect(link).toHaveText('Watch the Messer video');
+  await expect(link).toHaveAttribute(
+    'href',
+    'https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/',
+  );
+  await expect(link).toHaveAttribute('target', '_blank');
+  await page.screenshot({ path: path.join(shots, 'messer-domain-link.png'), fullPage: true });
 });
