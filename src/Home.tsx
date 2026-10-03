@@ -154,7 +154,7 @@ export function Home() {
           A simple tool to help you study. Create a subject, upload a pdf of test questions and this tool will quiz you on the test questions.
         </p>
         <p className="muted" data-testid="storage-notice" style={{ margin: 0 }}>
-          Your subjects, tests, progress, and scores are saved only in this browser on this device. Nothing is sent to a server. Closing the tab is fine, and everything will still be here when you come back. Clearing this site's data, using a private tab, or switching browsers or devices erases it all, so export a backup from Settings now and then.
+          Your subjects, tests, progress, and scores are saved only in this browser on this device. Nothing is sent to a server. Closing the tab is fine, and everything will still be here when you come back. Clearing the site's data in your browser deletes the saved information. Information will not be saved if you use a private tab. It's probably a good idea to export a backup from settings from time to time.
         </p>
         <p className="feedback-note" data-testid="feedback-note" style={{ marginBottom: '1rem' }}>
           <strong>Found a bug or have feedback? Do you have a feature request? My AI agent is keeping track. Please email</strong>{' '}
