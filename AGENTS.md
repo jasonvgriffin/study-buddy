@@ -52,4 +52,6 @@ For a one-off shot, use a throwaway script (don't commit it) with `devices['Pixe
 - Put screenshots for the report in `/opt/cursor/artifacts/`.
 
 ## Lessons
-Before building anything, read LESSONS.md. After each change, add any new lessons to it.
+Before building anything, read LESSONS.md and follow it.
+
+**Before opening or updating a PR, add anything new you learned in this run to `LESSONS.md`, even if nobody asked:** app-specific lessons under the app section, reusable ones under General lessons. Also list them under a `Lessons learned` heading in the PR description so Eve can copy the general ones to the other repos and the shared skill.
