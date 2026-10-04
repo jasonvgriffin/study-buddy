@@ -50,3 +50,6 @@ For a one-off shot, use a throwaway script (don't commit it) with `devices['Pixe
 - A "Vite dev server" terminal runs `npm run dev -- --host 127.0.0.1` on port 43123. Playwright uses its own server on 43124, so the two don't collide.
 - Only Chromium is installed, so run e2e with `--project=chromium-mobile` (or `chromium-desktop`). Install Firefox or WebKit with `npx playwright install --with-deps firefox webkit` only if the task needs them.
 - Put screenshots for the report in `/opt/cursor/artifacts/`.
+
+## Lessons
+Before building anything, read LESSONS.md. After each change, add any new lessons to it.
